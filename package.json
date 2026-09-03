@@ -1,0 +1,30 @@
+{
+  "name": "wugui",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@noble/hashes": "^1.8.0",
+    "@pinia/nuxt": "^0.11.2",
+    "drizzle-orm": "^0.45.2",
+    "jose": "^6.2.10",
+    "lucide-vue-next": "^0.525.0",
+    "nuxt": "^3.17.7",
+    "pinia": "^3.0.3",
+    "vue": "^3.5.17",
+    "vue-router": "^4.5.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.11",
+    "nitro-cloudflare-dev": "^0.2.2",
+    "tailwindcss": "^4.1.11",
+    "typescript": "^5.8.3",
+    "wrangler": "^4.128.0"
+  }
+}

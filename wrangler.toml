@@ -1,0 +1,14 @@
+name = "wugui"
+compatibility_date = "2025-07-15"
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wugui-db"
+# 本地开发用占位 ID；创建真实数据库后替换为 Dashboard 显示的 UUID
+database_id = "50522026-9a87-4806-9f68-b0f8aa475db0"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "wugui-photos"
