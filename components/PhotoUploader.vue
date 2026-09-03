@@ -52,4 +52,9 @@ function removeAt(i: number) {
   const [removed] = modelValue.value.splice(i, 1)
   if (removed) URL.revokeObjectURL(removed.previewUrl)
 }
+
+// 离开页面未保存时统一回收预览 URL，防止内存泄漏
+onBeforeUnmount(() => {
+  for (const p of modelValue.value) URL.revokeObjectURL(p.previewUrl)
+})
 </script>

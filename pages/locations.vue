@@ -1,5 +1,9 @@
 <template>
-  <main class="mx-auto max-w-md px-4 pt-4">
+  <!-- 嵌套路由：位置详情子路由时只渲染子页面 -->
+  <template v-if="isChild">
+    <NuxtPage />
+  </template>
+  <main v-else class="mx-auto max-w-md px-4 pt-4">
     <header class="flex items-center justify-between">
       <h1 class="text-xl">位置</h1>
       <button type="button" class="flex items-center gap-1 text-sm text-primary" @click="formOpen = !formOpen">
@@ -39,6 +43,10 @@
 <script setup lang="ts">
 import { Plus } from 'lucide-vue-next'
 import type { LocationTreeNode } from '~/server/utils/locations'
+
+// 嵌套路由：/locations/:id 时父组件只作为出口
+const route = useRoute()
+const isChild = computed(() => route.name === 'locations-id')
 
 const { data: tree, pending, refresh } = await useAsyncData('location-tree', () =>
   apiFetch<LocationTreeNode[]>('/api/locations'),

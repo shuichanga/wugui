@@ -15,7 +15,7 @@ interface LocationRow {
   level: 'room' | 'furniture' | 'compartment'
   name: string
   icon: string | null
-  item_count: number
+  own_count: number
 }
 
 // 递归 CTE 一次取整棵树 + 每个位置直挂物品数，JS 组装
@@ -32,7 +32,7 @@ export async function getLocationTree(db: DB, householdId: string): Promise<Loca
       WHERE l.household_id = ${householdId}
     )
     SELECT loc.id, loc.parent_id, loc.level, loc.name, loc.icon,
-      (SELECT COUNT(*) FROM items i WHERE i.location_id = loc.id) AS item_count
+      (SELECT COUNT(*) FROM items i WHERE i.location_id = loc.id) AS own_count
     FROM loc
     ORDER BY loc.name
   `)
@@ -44,7 +44,7 @@ export async function getLocationTree(db: DB, householdId: string): Promise<Loca
       name: r.name,
       level: r.level,
       icon: r.icon,
-      itemCount: r.item_count,
+      itemCount: r.own_count,
       children: [],
     })
   }
@@ -59,6 +59,16 @@ export async function getLocationTree(db: DB, householdId: string): Promise<Loca
     }
   }
 
+  // 自底向上聚合：itemCount = 直挂数 + 所有后代直挂数
+  const aggregate = (node: LocationTreeNode): number => {
+    let total = node.itemCount
+    for (const child of node.children ?? []) {
+      total += aggregate(child)
+    }
+    node.itemCount = total
+    return total
+  }
+
   // 清理空 children 数组，叶子节点渲染更简洁
   const prune = (nodes: LocationTreeNode[]) => {
     for (const n of nodes) {
@@ -69,6 +79,7 @@ export async function getLocationTree(db: DB, householdId: string): Promise<Loca
       }
     }
   }
+  for (const root of roots) aggregate(root)
   prune(roots)
 
   return roots
