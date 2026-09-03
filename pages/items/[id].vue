@@ -1,12 +1,19 @@
 <template>
-  <main class="mx-auto max-w-md px-4 pt-4">
+  <!-- 嵌套路由：编辑子路由时只渲染子页面 -->
+  <template v-if="isEdit">
+    <NuxtPage />
+  </template>
+  <main v-else class="mx-auto max-w-md px-4 pt-4">
     <header class="flex items-center justify-between">
       <button type="button" class="flex items-center gap-1 text-sm text-text-secondary" @click="goBack">
         <ArrowLeft :size="16" aria-hidden="true" />
         <span>返回</span>
       </button>
       <h1 class="text-lg">物品详情</h1>
-      <span class="w-12" aria-hidden="true"></span>
+      <NuxtLink :to="`/items/${id}/edit`" class="flex items-center gap-1 text-sm text-primary" aria-label="编辑物品">
+        <Pencil :size="16" aria-hidden="true" />
+        <span>编辑</span>
+      </NuxtLink>
     </header>
 
     <p v-if="pending" class="mt-8 p-4 text-sm text-text-tertiary">加载中…</p>
@@ -71,11 +78,14 @@
 </template>
 
 <script setup lang="ts">
-import { ArrowLeft, Package, MapPin, User } from 'lucide-vue-next'
+import { ArrowLeft, Package, MapPin, User, Pencil } from 'lucide-vue-next'
 import type { ItemSummary } from '~/server/utils/items'
 
 const route = useRoute()
 const id = String(route.params.id)
+
+// 嵌套路由：/items/:id/edit 时父组件只作为出口
+const isEdit = computed(() => route.name === 'items-id-edit')
 
 const { data: item, pending } = await useAsyncData(`item-${id}`, async () => {
   const res = await apiFetch<ItemSummary & { photos?: { id: string; url: string }[] }>(`/api/items/${id}`)

@@ -58,6 +58,7 @@ async function submit() {
         inviteCode: inviteCode.value || undefined,
       },
     })
+    useRecentLocations().clear()
     await navigateTo('/')
   } catch (e: unknown) {
     error.value = (e as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '注册失败，请稍后再试'

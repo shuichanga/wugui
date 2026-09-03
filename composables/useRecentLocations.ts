@@ -29,5 +29,13 @@ export function useRecentLocations() {
     } catch { /* 隐私模式等场景忽略 */ }
   }
 
-  return { list, load, push }
+  // 登录/登出时调用，避免不同账号看到彼此的最近位置
+  function clear() {
+    list.value = []
+    try {
+      localStorage.removeItem(KEY)
+    } catch { /* 忽略 */ }
+  }
+
+  return { list, load, push, clear }
 }

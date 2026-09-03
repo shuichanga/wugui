@@ -8,10 +8,8 @@
         <ChevronDown :size="16" aria-hidden="true" />
       </NuxtLink>
       <h1 class="text-xl">物归</h1>
-      <NuxtLink to="/settings"
-                class="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-white"
-                aria-label="设置">
-        <User :size="16" aria-hidden="true" />
+      <NuxtLink to="/settings" aria-label="设置">
+        <UserAvatar :name="auth.user?.displayName" :email="auth.user?.email" :size="32" />
       </NuxtLink>
     </header>
 
@@ -72,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import { Home, ChevronDown, User, Search } from 'lucide-vue-next'
+import { Home, ChevronDown, Search } from 'lucide-vue-next'
 import type { ItemSummary } from '~/server/utils/items'
 
 const auth = useAuthStore()

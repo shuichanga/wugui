@@ -39,6 +39,8 @@ async function submit() {
   loading.value = true
   try {
     await $fetch('/api/auth/login', { method: 'POST', body: { email: email.value, password: password.value } })
+    // 切换账号前清掉上一账号的本地数据
+    useRecentLocations().clear()
     await navigateTo('/')
   } catch (e: unknown) {
     error.value = (e as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '登录失败，请稍后再试'

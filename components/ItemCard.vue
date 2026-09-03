@@ -24,7 +24,10 @@
             {{ tag }}
           </li>
         </ul>
-        <p class="shrink-0 text-xs text-text-tertiary">{{ item.ownerName }} · {{ timeAgo(item.createdAt) }}</p>
+        <p class="flex shrink-0 items-center gap-1 text-xs text-text-tertiary">
+          <UserAvatar :name="item.ownerName" :size="16" />
+          {{ item.ownerName }} · {{ timeAgo(item.createdAt) }}
+        </p>
       </div>
     </div>
   </NuxtLink>

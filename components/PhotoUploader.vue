@@ -10,7 +10,7 @@
           <X :size="12" aria-hidden="true" />
         </button>
       </li>
-      <li v-if="modelValue.length < 3">
+      <li v-if="modelValue.length < max">
         <label class="flex h-16 w-16 cursor-pointer items-center justify-center rounded-md border border-dashed border-input-border">
           <Camera :size="20" class="text-text-tertiary" aria-hidden="true" />
           <input type="file" accept="image/*" capture="environment" class="hidden" @change="onPick" />
@@ -30,6 +30,8 @@ export interface PendingPhoto {
 }
 
 const modelValue = defineModel<PendingPhoto[]>({ required: true })
+
+withDefaults(defineProps<{ max?: number }>(), { max: 3 })
 
 function onPick(e: Event) {
   const input = e.target as HTMLInputElement

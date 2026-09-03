@@ -13,9 +13,12 @@
 
     <template v-else>
       <!-- 当前用户 -->
-      <section class="mt-4 rounded-lg border border-border bg-neutral-surface p-4">
-        <p class="text-base font-medium">{{ auth.user?.displayName ?? '未设置昵称' }}</p>
-        <p class="mt-0.5 text-sm text-text-secondary">{{ auth.user?.email }}</p>
+      <section class="mt-4 flex items-center gap-3 rounded-lg border border-border bg-neutral-surface p-4">
+        <UserAvatar :name="auth.user?.displayName" :email="auth.user?.email" :size="48" />
+        <div class="min-w-0">
+          <p class="truncate text-base font-medium">{{ auth.user?.displayName ?? '未设置昵称' }}</p>
+          <p class="truncate text-sm text-text-secondary">{{ auth.user?.email }}</p>
+        </div>
       </section>
 
       <!-- 我的家庭 -->
