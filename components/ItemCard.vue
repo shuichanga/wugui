@@ -58,6 +58,7 @@ const emit = defineEmits<{ deleted: [id: string] }>()
 // 全局共享"当前左滑打开的卡片"，保证同时只有一张打开
 const swipedId = useState<string | null>('swiped-item-id', () => null)
 
+const rootRef = ref<HTMLElement | null>(null)
 const ACTION_W = 128 // 编辑 64 + 删除 64
 const offsetX = ref(0)
 const opened = ref(false)
@@ -70,6 +71,37 @@ const axis = ref<'h' | 'v' | null>(null)
 watch(swipedId, (id) => {
   if (id !== props.item.id) close()
 })
+
+// ---- 全局收起：展开期间，任何其它点击/滚动都先恢复卡片 ----
+function onDocClick(e: MouseEvent) {
+  // 点击发生在展开卡片内部：交给卡片自身的点击逻辑（收起，不拦截）
+  if (rootRef.value && e.composedPath().includes(rootRef.value)) return
+  // 点外部：收起并吞掉这次点击（阻止误触其它链接跳转）
+  e.preventDefault()
+  e.stopPropagation()
+  close()
+}
+function onWinScroll() {
+  close()
+}
+function addGlobalListeners() {
+  document.addEventListener('click', onDocClick, { capture: true })
+  window.addEventListener('scroll', onWinScroll, { passive: true })
+}
+function removeGlobalListeners() {
+  document.removeEventListener('click', onDocClick, { capture: true })
+  window.removeEventListener('scroll', onWinScroll)
+}
+watch(opened, (isOpen) => {
+  if (import.meta.server) return
+  if (isOpen) {
+    swipedId.value = props.item.id
+    addGlobalListeners()
+  } else {
+    removeGlobalListeners()
+  }
+})
+onBeforeUnmount(removeGlobalListeners)
 
 function close() {
   opened.value = false
