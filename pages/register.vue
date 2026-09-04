@@ -18,8 +18,12 @@
         <p class="mt-1 text-xs text-text-tertiary">至少 8 位</p>
       </section>
       <section>
-        <label for="reg-invite" class="mb-1 block text-sm font-medium">家庭邀请码 <span class="font-normal text-text-tertiary">（选填）</span></label>
-        <input id="reg-invite" v-model="inviteCode" type="text" class="input-base uppercase" placeholder="有邀请码就填，没有会自动创建新家庭" />
+        <label for="reg-invite" class="mb-1 block text-sm font-medium">家庭邀请码 <span class="font-normal text-text-tertiary">（必填，向家人索取）</span></label>
+        <input id="reg-invite" v-model="inviteCode" type="text" class="input-base uppercase" placeholder="输入 6 位邀请码" required />
+        <label v-if="inviteCode.trim()" class="mt-2 flex items-center gap-2 text-sm text-text-secondary">
+          <input v-model="joinHousehold" type="checkbox" class="h-4 w-4 accent-[#059669]" />
+          注册后加入该家庭（不勾选则仅创建账号，之后可再加入）
+        </label>
       </section>
 
       <p v-if="error" class="rounded-md border border-border bg-neutral-surface p-3 text-sm text-error" role="alert">
@@ -42,6 +46,7 @@ const displayName = ref('')
 const email = ref('')
 const password = ref('')
 const inviteCode = ref('')
+const joinHousehold = ref(true)
 const error = ref('')
 const loading = ref(false)
 
@@ -49,17 +54,19 @@ async function submit() {
   error.value = ''
   loading.value = true
   try {
-    await $fetch('/api/auth/register', {
+    const res = await $fetch<{ householdId: string | null }>('/api/auth/register', {
       method: 'POST',
       body: {
         displayName: displayName.value || undefined,
         email: email.value,
         password: password.value,
-        inviteCode: inviteCode.value || undefined,
+        inviteCode: inviteCode.value.trim() || undefined,
+        joinHousehold: joinHousehold.value,
       },
     })
     useRecentLocations().clear()
-    await navigateTo('/')
+    // 仅注册（未加入家庭）时直接引导到设置页
+    await navigateTo(res.householdId ? '/' : '/settings')
   } catch (e: unknown) {
     error.value = (e as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '注册失败，请稍后再试'
   } finally {

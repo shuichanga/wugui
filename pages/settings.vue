@@ -25,7 +25,12 @@
       <section class="mt-6" aria-label="我的家庭">
         <h2 class="text-sm font-semibold text-text-secondary">我的家庭</h2>
 
-        <ul class="mt-2 flex flex-col gap-2">
+        <p v-if="!auth.households.length"
+           class="mt-2 rounded-lg border border-border bg-neutral-surface p-3 text-sm text-text-secondary">
+          你还没有加入任何家庭：创建一个自己的家庭，或输入家人分享给你的邀请码加入。
+        </p>
+
+        <ul v-else class="mt-2 flex flex-col gap-2">
           <li v-for="h in auth.households" :key="h.id"
               class="rounded-lg border border-border bg-neutral-surface p-3">
             <div class="flex items-center justify-between gap-2">
@@ -224,7 +229,7 @@ async function createHousehold() {
     showCreate.value = false
     createName.value = ''
     await auth.fetchMe()
-    flash('已创建并切换到新家庭')
+    await navigateTo('/')
   } catch (e: unknown) {
     flash((e as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '创建失败')
   }
@@ -239,7 +244,7 @@ async function joinHousehold() {
     showJoin.value = false
     joinCode.value = ''
     await auth.fetchMe()
-    flash(`已加入「${res.name}」`)
+    await navigateTo('/')
   } catch (e: unknown) {
     flash((e as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '加入失败')
   }
