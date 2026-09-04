@@ -72,13 +72,9 @@ watch(swipedId, (id) => {
   if (id !== props.item.id) close()
 })
 
-// ---- 全局收起：展开期间，任何其它点击/滚动都先恢复卡片 ----
-function onDocClick(e: MouseEvent) {
-  // 点击发生在展开卡片内部：交给卡片自身的点击逻辑（收起，不拦截）
-  if (rootRef.value && e.composedPath().includes(rootRef.value)) return
-  // 点外部：收起并吞掉这次点击（阻止误触其它链接跳转）
-  e.preventDefault()
-  e.stopPropagation()
+// ---- 全局收起：展开期间，任何其它点击/滚动都先恢复卡片（点击本身继续生效） ----
+function onDocClick() {
+  // 点外部：收起卡片；不拦截事件，本次点击照常生效（可正常跳转/聚焦）
   close()
 }
 function onWinScroll() {
