@@ -70,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import { Home, ChevronDown, Search } from 'lucide-vue-next'
+import { Search } from 'lucide-vue-next'
 import type { ItemSummary } from '~/server/utils/items'
 
 const auth = useAuthStore()
@@ -115,6 +115,20 @@ function clearSearch() {
   lastKeyword.value = ''
   searched.value = false
   refreshRecent()
+}
+
+// 切换住所后刷新本页数据
+function onSwitched() {
+  refreshNuxtData('frequent-locations')
+  refreshNuxtData('recent-items')
+}
+
+// 列表内左滑删除：本地移除 + 刷新位置计数
+function onDeleted(id: string) {
+  recent.value = recent.value.filter(x => x.id !== id)
+  results.value = results.value.filter(x => x.id !== id)
+  refreshNuxtData('frequent-locations')
+  refreshNuxtData('location-tree')
 }
 
 onMounted(async () => {

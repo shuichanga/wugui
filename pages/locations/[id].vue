@@ -14,7 +14,7 @@
       <p v-else-if="!items?.length" class="p-4 text-sm text-text-tertiary">这里还没有物品</p>
       <ul v-else class="flex flex-col gap-2">
         <li v-for="item in items" :key="item.id">
-          <ItemCard :item="item" />
+          <ItemCard :item="item" @deleted="onDeleted" />
         </li>
       </ul>
     </section>
