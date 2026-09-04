@@ -2,11 +2,7 @@
   <main class="mx-auto max-w-md px-4 pt-4">
     <!-- 顶栏：住所切换 + 标题 + 设置入口 -->
     <header class="flex items-center justify-between">
-      <NuxtLink to="/settings" class="flex items-center gap-1 text-sm text-text-secondary" aria-label="住所设置">
-        <Home :size="16" aria-hidden="true" />
-        <span class="max-w-32 truncate">{{ auth.currentHousehold?.name ?? '…' }}</span>
-        <ChevronDown :size="16" aria-hidden="true" />
-      </NuxtLink>
+      <ResidenceSwitcher @switched="onSwitched" />
       <h1 class="text-xl">物归</h1>
       <NuxtLink to="/settings" aria-label="设置">
         <UserAvatar :name="auth.user?.displayName" :email="auth.user?.email" :size="32" />
