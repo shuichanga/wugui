@@ -14,11 +14,20 @@
     <template v-else>
       <!-- 当前用户 -->
       <section class="mt-4 flex items-center gap-3 rounded-lg border border-border bg-neutral-surface p-4">
-        <UserAvatar :name="auth.user?.displayName" :email="auth.user?.email" :size="48" />
-        <div class="min-w-0">
+        <div class="relative shrink-0">
+          <UserAvatar :name="auth.user?.displayName" :email="auth.user?.email" :src="auth.user?.avatarUrl" :size="48" />
+          <label class="absolute -bottom-1 -right-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-primary text-white ring-2 ring-neutral-bg"
+                 title="更换头像">
+            <Camera :size="12" aria-hidden="true" />
+            <input type="file" accept="image/*" class="hidden" :disabled="avatarUploading" @change="onAvatarPick" />
+          </label>
+        </div>
+        <div class="min-w-0 flex-1">
           <p class="truncate text-base font-medium">{{ auth.user?.displayName ?? '未设置昵称' }}</p>
           <p class="truncate text-sm text-text-secondary">{{ auth.user?.email }}</p>
         </div>
+        <button v-if="auth.user?.avatarUrl" type="button" class="shrink-0 text-xs text-error"
+                :disabled="avatarUploading" @click="removeAvatar">移除头像</button>
       </section>
 
       <!-- 我的住所 -->
@@ -130,11 +139,47 @@
 </template>
 
 <script setup lang="ts">
-import { ArrowLeft } from 'lucide-vue-next'
+import { ArrowLeft, Camera } from 'lucide-vue-next'
+import { compressImage } from '~/composables/useImageCompress'
 
 const auth = useAuthStore()
-const { confirmDialog } = useDialog()
 const msg = ref('')
+const avatarUploading = ref(false)
+
+// 更换头像：前端压缩到 256px，multipart 上传
+async function onAvatarPick(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  avatarUploading.value = true
+  try {
+    const compressed = await compressImage(file, 256, 0.85)
+    const fd = new FormData()
+    fd.append('file', compressed)
+    await apiFetch('/api/me/avatar', { method: 'POST', body: fd })
+    await auth.fetchMe()
+    flash('头像已更新')
+  } catch (err: unknown) {
+    flash((err as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '头像更新失败')
+  } finally {
+    avatarUploading.value = false
+  }
+}
+
+async function removeAvatar() {
+  if (!(await confirmDialog({ title: '移除头像', message: '确定移除头像？将恢复为默认头像。', danger: true }))) return
+  avatarUploading.value = true
+  try {
+    await apiFetch('/api/me/avatar', { method: 'DELETE' })
+    await auth.fetchMe()
+    flash('头像已移除')
+  } catch (err: unknown) {
+    flash((err as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '移除失败')
+  } finally {
+    avatarUploading.value = false
+  }
+}
 
 const showCreate = ref(false)
 const createName = ref('')

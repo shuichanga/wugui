@@ -57,7 +57,8 @@
 
         <ul v-if="item.tags.length" class="mt-3 flex flex-wrap gap-1.5">
           <li v-for="tag in item.tags" :key="tag"
-              class="rounded border border-border px-2 py-0.5 text-xs text-text-secondary">
+              class="rounded border px-2 py-0.5 text-xs"
+              :style="tagStyle(tag)">
             {{ tag }}
           </li>
         </ul>

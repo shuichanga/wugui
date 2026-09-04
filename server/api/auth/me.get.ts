@@ -24,7 +24,12 @@ export default defineEventHandler(async (event) => {
   const currentHouseholdId = rows.find(r => r.id === currentCookie)?.id ?? rows[0]?.id ?? null
 
   return {
-    user: { id: user.id, email: user.email, displayName: user.displayName },
+    user: {
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName,
+      avatarUrl: user.avatarKey ? `/api/avatars/${user.id}` : null,
+    },
     households: rows.map(r => ({
       ...r,
       // 邀请码仅 owner 可见

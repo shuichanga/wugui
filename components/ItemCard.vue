@@ -34,12 +34,13 @@
         <div class="mt-1.5 flex items-center justify-between gap-2">
           <ul class="flex min-w-0 gap-1.5">
             <li v-for="tag in item.tags" :key="tag"
-                class="rounded border border-border px-1.5 py-0.5 text-xs text-text-secondary">
+                class="rounded border px-1.5 py-0.5 text-xs"
+                :style="tagStyle(tag)">
               {{ tag }}
             </li>
           </ul>
           <p class="flex shrink-0 items-center gap-1 text-xs text-text-tertiary">
-            <UserAvatar :name="item.ownerName" :size="16" />
+            <UserAvatar :name="item.ownerName" :src="item.ownerAvatarUrl" :size="16" />
             {{ item.ownerName }} · {{ timeAgo(item.createdAt) }}
           </p>
         </div>

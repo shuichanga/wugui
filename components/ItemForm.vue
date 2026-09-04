@@ -56,7 +56,8 @@
       <label for="item-tag" class="mb-1 block text-sm font-medium">标签</label>
       <ul v-if="form.tags.length" class="mb-2 flex flex-wrap gap-1.5">
         <li v-for="tag in form.tags" :key="tag"
-            class="flex items-center gap-1 rounded border border-border bg-neutral-sunken px-2 py-0.5 text-xs">
+            class="flex items-center gap-1 rounded border px-2 py-0.5 text-xs"
+            :style="tagStyle(tag)">
           {{ tag }}
           <button type="button" aria-label="移除标签" @click="removeTag(tag)">
             <X :size="12" aria-hidden="true" />

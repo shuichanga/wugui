@@ -73,6 +73,7 @@ export async function decorateItems(
     locationPath: pathMap.get(r.locationId) ?? '未知位置',
     ownerId: r.ownerId,
     ownerName: r.ownerName ?? ownerBy.get(r.ownerId) ?? '未知成员',
+    ownerAvatarUrl: ownerAvatarBy.get(r.ownerId) ?? null,
     tags: tagsBy.get(r.id) ?? [],
     // 照片经 /api/photos/:id 读取（Worker 校验住所归属后流式返回）
     photoUrl: photoBy.has(r.id) ? `/api/photos/${photoBy.get(r.id)}` : null,

@@ -1,11 +1,11 @@
 <template>
   <main class="mx-auto max-w-md px-4 pt-4">
     <!-- 顶栏：住所切换 + 标题 + 设置入口 -->
-    <header class="flex items-center justify-between">
+    <header class="relative flex items-center justify-between">
       <ResidenceSwitcher @switched="onSwitched" />
-      <h1 class="text-xl">物归</h1>
+      <h1 class="absolute left-1/2 -translate-x-1/2 text-xl">物归</h1>
       <NuxtLink to="/settings" aria-label="设置">
-        <UserAvatar :name="auth.user?.displayName" :email="auth.user?.email" :size="32" />
+        <UserAvatar :name="auth.user?.displayName" :email="auth.user?.email" :src="auth.user?.avatarUrl" :size="32" />
       </NuxtLink>
     </header>
 

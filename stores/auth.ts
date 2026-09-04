@@ -8,7 +8,7 @@ interface Household {
 }
 
 export const useAuthStore = defineStore('auth', () => {
-  const user = ref<{ id: string; email: string; displayName: string | null } | null>(null)
+  const user = ref<{ id: string; email: string; displayName: string | null; avatarUrl: string | null } | null>(null)
   const households = ref<Household[]>([])
   const currentHouseholdId = ref<string | null>(null)
   const loaded = ref(false)
@@ -19,7 +19,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function fetchMe() {
     const res = await apiFetch<{
-      user: { id: string; email: string; displayName: string | null }
+      user: { id: string; email: string; displayName: string | null; avatarUrl: string | null }
       households: Household[]
       currentHouseholdId: string | null
     }>('/api/auth/me')
