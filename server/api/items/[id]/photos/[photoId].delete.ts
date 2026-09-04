@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { items, itemPhotos } from '~/drizzle/schema'
 
-// 删除照片：删 D1 记录 + R2 对象（校验物品的家庭归属）
+// 删除照片：删 D1 记录 + R2 对象（校验物品的住所归属）
 export default defineEventHandler(async (event) => {
   const { householdId } = await requireHousehold(event)
   const id = getRouterParam(event, 'id') ?? ''

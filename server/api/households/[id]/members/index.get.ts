@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { users, householdMembers } from '~/drizzle/schema'
 
-// 列出指定家庭的成员（需为该家庭成员）
+// 列出指定住所的成员（需为该住所成员）
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event)
   const householdId = getRouterParam(event, 'id') ?? ''
@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
     .select()
     .from(householdMembers)
     .where(and(eq(householdMembers.userId, user.id), eq(householdMembers.householdId, householdId)))
-  if (!self.length) throw createError({ statusCode: 403, statusMessage: '你不是该家庭成员' })
+  if (!self.length) throw createError({ statusCode: 403, statusMessage: '你不是该住所成员' })
 
   return db
     .select({

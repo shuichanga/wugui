@@ -1,7 +1,7 @@
 <template>
   <main class="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 py-8">
     <h1 class="text-center text-2xl">创建账号</h1>
-    <p class="mt-1 text-center text-sm text-text-secondary">加入家人的家庭，或创建你自己的</p>
+    <p class="mt-1 text-center text-sm text-text-secondary">加入家人的住所，或创建你自己的</p>
 
     <form class="mt-8 flex flex-col gap-4" @submit.prevent="submit">
       <section>
@@ -18,11 +18,11 @@
         <p class="mt-1 text-xs text-text-tertiary">至少 8 位</p>
       </section>
       <section>
-        <label for="reg-invite" class="mb-1 block text-sm font-medium">家庭邀请码 <span class="font-normal text-text-tertiary">（必填，向家人索取）</span></label>
+        <label for="reg-invite" class="mb-1 block text-sm font-medium">住所邀请码 <span class="font-normal text-text-tertiary">（必填，向家人索取）</span></label>
         <input id="reg-invite" v-model="inviteCode" type="text" class="input-base uppercase" placeholder="输入 6 位邀请码" required />
         <label v-if="inviteCode.trim()" class="mt-2 flex items-center gap-2 text-sm text-text-secondary">
           <input v-model="joinHousehold" type="checkbox" class="h-4 w-4 accent-[#059669]" />
-          注册后加入该家庭（不勾选则仅创建账号，之后可再加入）
+          注册后加入该住所（不勾选则仅创建账号，之后可再加入）
         </label>
       </section>
 
@@ -65,7 +65,7 @@ async function submit() {
       },
     })
     useRecentLocations().clear()
-    // 仅注册（未加入家庭）时直接引导到设置页
+    // 仅注册（未加入住所）时直接引导到设置页
     await navigateTo(res.householdId ? '/' : '/settings')
   } catch (e: unknown) {
     error.value = (e as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '注册失败，请稍后再试'

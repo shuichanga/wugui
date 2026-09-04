@@ -21,13 +21,13 @@
         </div>
       </section>
 
-      <!-- 我的家庭 -->
-      <section class="mt-6" aria-label="我的家庭">
-        <h2 class="text-sm font-semibold text-text-secondary">我的家庭</h2>
+      <!-- 我的住所 -->
+      <section class="mt-6" aria-label="我的住所">
+        <h2 class="text-sm font-semibold text-text-secondary">我的住所</h2>
 
         <p v-if="!auth.households.length"
            class="mt-2 rounded-lg border border-border bg-neutral-surface p-3 text-sm text-text-secondary">
-          你还没有加入任何家庭：创建一个自己的家庭，或输入家人分享给你的邀请码加入。
+          你还没有加入任何住所：创建一个自己的住所，或输入家人分享给你的邀请码加入。
         </p>
 
         <ul v-else class="mt-2 flex flex-col gap-2">
@@ -55,7 +55,7 @@
               </button>
             </div>
 
-            <!-- 家庭管理操作 -->
+            <!-- 住所管理操作 -->
             <div class="mt-2 flex flex-wrap gap-2 border-t border-border pt-2">
               <template v-if="h.role === 'owner'">
                 <button type="button" class="text-xs text-primary" @click="startRename(h)">改名</button>
@@ -64,7 +64,7 @@
                   {{ expandedId === h.id ? '收起成员' : '管理成员' }}
                 </button>
               </template>
-              <button v-else type="button" class="text-xs text-error" @click="leaveHousehold(h)">退出该家庭</button>
+              <button v-else type="button" class="text-xs text-error" @click="leaveHousehold(h)">退出该住所</button>
             </div>
 
             <!-- 改名表单 -->
@@ -96,15 +96,15 @@
         <!-- 创建 / 加入 -->
         <div class="mt-3 flex gap-2">
           <button type="button" class="btn-secondary flex-1 px-2 py-2 text-sm" @click="showCreate = !showCreate">
-            创建新家庭
+            创建新住所
           </button>
           <button type="button" class="btn-secondary flex-1 px-2 py-2 text-sm" @click="showJoin = !showJoin">
-            加入家庭
+            加入住所
           </button>
         </div>
 
         <form v-if="showCreate" class="mt-2 flex gap-2" @submit.prevent="createHousehold">
-          <input v-model="createName" type="text" class="input-base flex-1" placeholder="新家庭名称" maxlength="20" required />
+          <input v-model="createName" type="text" class="input-base flex-1" placeholder="新住所名称" maxlength="20" required />
           <button type="submit" class="btn-primary px-3 py-1 text-sm">创建</button>
         </form>
         <form v-if="showJoin" class="mt-2 flex gap-2" @submit.prevent="joinHousehold">

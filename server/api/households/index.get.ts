@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { households, householdMembers } from '~/drizzle/schema'
 
-// 列出当前用户的所有家庭（邀请码仅 owner 可见）
+// 列出当前用户的所有住所（邀请码仅 owner 可见）
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event)
   const db = getDB(event)

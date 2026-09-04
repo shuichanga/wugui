@@ -16,7 +16,7 @@ export interface ItemSummary {
   createdAt: string
 }
 
-// 全家庭位置 id → 完整路径（"客厅 / 电视柜 / 第2抽屉"）
+// 全住所位置 id → 完整路径（"客厅 / 电视柜 / 第2抽屉"）
 export async function getLocationPathMap(db: DB, householdId: string): Promise<Map<string, string>> {
   const rows = await db
     .select({ id: locations.id, parentId: locations.parentId, name: locations.name })
@@ -74,7 +74,7 @@ export async function decorateItems(
     ownerId: r.ownerId,
     ownerName: r.ownerName ?? ownerBy.get(r.ownerId) ?? '未知成员',
     tags: tagsBy.get(r.id) ?? [],
-    // 照片经 /api/photos/:id 读取（Worker 校验家庭归属后流式返回）
+    // 照片经 /api/photos/:id 读取（Worker 校验住所归属后流式返回）
     photoUrl: photoBy.has(r.id) ? `/api/photos/${photoBy.get(r.id)}` : null,
     createdAt: r.createdAt,
   }))

@@ -1,8 +1,8 @@
 <template>
   <main class="mx-auto max-w-md px-4 pt-4">
-    <!-- 顶栏：家庭切换 + 标题 + 设置入口 -->
+    <!-- 顶栏：住所切换 + 标题 + 设置入口 -->
     <header class="flex items-center justify-between">
-      <NuxtLink to="/settings" class="flex items-center gap-1 text-sm text-text-secondary" aria-label="家庭设置">
+      <NuxtLink to="/settings" class="flex items-center gap-1 text-sm text-text-secondary" aria-label="住所设置">
         <Home :size="16" aria-hidden="true" />
         <span class="max-w-32 truncate">{{ auth.currentHousehold?.name ?? '…' }}</span>
         <ChevronDown :size="16" aria-hidden="true" />
@@ -117,7 +117,11 @@ function clearSearch() {
   refreshRecent()
 }
 
-onMounted(() => {
-  if (!auth.loaded) auth.fetchMe()
+onMounted(async () => {
+  if (!auth.loaded) await auth.fetchMe()
+  // 无住所账号（仅注册未加入）：引导到设置页创建/加入住所
+  if (auth.loaded && !auth.households.length) {
+    await navigateTo('/settings')
+  }
 })
 </script>

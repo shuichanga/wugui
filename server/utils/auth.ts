@@ -84,7 +84,7 @@ export async function clearAuthCookies(event: H3Event) {
   setCookie(event, COOKIE_HOUSEHOLD, '', { ...COOKIE_OPTS, maxAge: 0 })
 }
 
-// ---- 当前家庭上下文 ----
+// ---- 当前住所上下文 ----
 
 export async function requireHousehold(event: H3Event): Promise<{
   user: SessionUser
@@ -98,7 +98,7 @@ export async function requireHousehold(event: H3Event): Promise<{
     .from(householdMembers)
     .where(eq(householdMembers.userId, user.id))
   if (!memberships.length) {
-    throw createError({ statusCode: 400, statusMessage: '请先创建或加入一个家庭' })
+    throw createError({ statusCode: 400, statusMessage: '请先创建或加入一个住所' })
   }
   const cookieHid = getCookie(event, COOKIE_HOUSEHOLD)
   const current = memberships.find(m => m.householdId === cookieHid) ?? memberships[0]

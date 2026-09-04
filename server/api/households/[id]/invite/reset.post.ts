@@ -4,7 +4,7 @@ import { households } from '~/drizzle/schema'
 // 重置邀请码（仅 owner）
 export default defineEventHandler(async (event) => {
   const { householdId, role } = await requireHousehold(event)
-  if (role !== 'owner') throw createError({ statusCode: 403, statusMessage: '仅家庭创建者可重置邀请码' })
+  if (role !== 'owner') throw createError({ statusCode: 403, statusMessage: '仅住所创建者可重置邀请码' })
 
   const db = getDB(event)
   const inviteCode = genInviteCode()

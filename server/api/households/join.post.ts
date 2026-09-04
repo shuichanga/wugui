@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { households, householdMembers } from '~/drizzle/schema'
 
-// 用邀请码加入家庭：永远是 member
+// 用邀请码加入住所：永远是 member
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event)
   const body = await readBody<Record<string, unknown>>(event) ?? {}
@@ -17,7 +17,7 @@ export default defineEventHandler(async (event) => {
     .select()
     .from(householdMembers)
     .where(and(eq(householdMembers.householdId, householdId), eq(householdMembers.userId, user.id)))
-  if (existing.length) throw createError({ statusCode: 409, statusMessage: '你已是该家庭成员' })
+  if (existing.length) throw createError({ statusCode: 409, statusMessage: '你已是该住所成员' })
 
   await db.insert(householdMembers).values({
     householdId,

@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { items, itemPhotos } from '~/drizzle/schema'
 
-// 照片读取：校验家庭归属后从 R2 流式返回
+// 照片读取：校验住所归属后从 R2 流式返回
 export default defineEventHandler(async (event) => {
   const { householdId } = await requireHousehold(event)
   const photoId = getRouterParam(event, 'photoId') ?? ''
