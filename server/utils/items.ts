@@ -11,6 +11,7 @@ export interface ItemSummary {
   locationPath: string
   ownerId: string
   ownerName: string
+  ownerAvatarUrl: string | null
   tags: string[]
   photoUrl: string | null
   createdAt: string
@@ -51,7 +52,7 @@ export async function decorateItems(
   const [tagRows, photoRows, ownerRows] = await Promise.all([
     db.select().from(itemTags).where(inArray(itemTags.itemId, ids)),
     db.select().from(itemPhotos).where(inArray(itemPhotos.itemId, ids)).orderBy(asc(itemPhotos.sortOrder)),
-    db.select({ id: users.id, displayName: users.displayName, email: users.email }).from(users).where(inArray(users.id, [...new Set(rows.map(r => r.ownerId))])),
+    db.select({ id: users.id, displayName: users.displayName, email: users.email, avatarKey: users.avatarKey }).from(users).where(inArray(users.id, [...new Set(rows.map(r => r.ownerId))])),
   ])
 
   const tagsBy = new Map<string, string[]>()
@@ -63,6 +64,7 @@ export async function decorateItems(
     if (!photoBy.has(p.itemId)) photoBy.set(p.itemId, p.id)
   }
   const ownerBy = new Map(ownerRows.map(o => [o.id, o.displayName ?? o.email.split('@')[0]!]))
+  const ownerAvatarBy = new Map(ownerRows.map(o => [o.id, o.avatarKey ? `/api/avatars/${o.id}` : null]))
 
   return rows.map(r => ({
     id: r.id,
