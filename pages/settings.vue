@@ -133,6 +133,7 @@
 import { ArrowLeft } from 'lucide-vue-next'
 
 const auth = useAuthStore()
+const { confirmDialog } = useDialog()
 const msg = ref('')
 
 const showCreate = ref(false)
@@ -177,7 +178,11 @@ async function submitRename(h: { id: string }) {
 }
 
 async function resetInvite(h: { id: string }) {
-  if (!confirm('重置后旧邀请码将失效，确定？')) return
+  if (!(await confirmDialog({
+    title: '重置邀请码',
+    message: '重置后旧邀请码将失效',
+    confirmText: '重置',
+  }))) return
   try {
     await apiFetch(`/api/households/${h.id}/invite/reset`, { method: 'POST' })
     await auth.fetchMe()
@@ -202,7 +207,12 @@ async function toggleMembers(h: { id: string }) {
 }
 
 async function kickMember(h: { id: string }, m: { userId: string; displayName?: string | null }) {
-  if (!confirm(`确定移除 ${m.displayName ?? '该成员'}？`)) return
+  if (!(await confirmDialog({
+    title: '移除成员',
+    message: `确定移除 ${m.displayName ?? '该成员'}？`,
+    confirmText: '移除',
+    danger: true,
+  }))) return
   try {
     await apiFetch(`/api/households/${h.id}/members/${m.userId}`, { method: 'DELETE' })
     members.value = members.value.filter(x => x.userId !== m.userId)
@@ -213,7 +223,12 @@ async function kickMember(h: { id: string }, m: { userId: string; displayName?: 
 }
 
 async function leaveHousehold(h: { id: string; name: string }) {
-  if (!confirm(`确定退出「${h.name}」？`)) return
+  if (!(await confirmDialog({
+    title: '退出住所',
+    message: `确定退出「${h.name}」？`,
+    confirmText: '退出',
+    danger: true,
+  }))) return
   try {
     await apiFetch(`/api/households/${h.id}/members/me`, { method: 'DELETE' })
     await auth.fetchMe()

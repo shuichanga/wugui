@@ -231,9 +231,9 @@ function removeTag(t: string) {
 }
 
 // ---- 提交 ----
-function onSubmit(keepGoing: boolean) {
+async function onSubmit(keepGoing: boolean) {
   if (!form.roomId) {
-    alert('请选择收纳位置')
+    await useDialog().alertDialog('请选择收纳位置')
     return
   }
   rememberLocation()

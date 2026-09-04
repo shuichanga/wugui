@@ -43,7 +43,7 @@ function onPick(e: Event) {
       const compressed = await compressImage(file)
       modelValue.value = [...modelValue.value, { file: compressed, previewUrl: URL.createObjectURL(compressed) }]
     } catch {
-      alert('照片处理失败，请换一张试试')
+      await useDialog().alertDialog('照片处理失败', '请换一张试试')
     }
   })()
 }

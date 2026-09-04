@@ -92,13 +92,20 @@ const { data: item, pending } = await useAsyncData(`item-${id}`, async () => {
   return res
 }, { server: false })
 
+const { confirmDialog, alertDialog } = useDialog()
+
 async function remove() {
-  if (!confirm('确定删除该物品？')) return
+  if (!(await confirmDialog({
+    title: '删除物品',
+    message: '确定删除该物品？删除后无法恢复。',
+    confirmText: '删除',
+    danger: true,
+  }))) return
   try {
     await apiFetch(`/api/items/${id}`, { method: 'DELETE' })
     await navigateTo('/')
   } catch (e: unknown) {
-    alert((e as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '删除失败')
+    await alertDialog('删除失败', (e as { data?: { statusMessage?: string } })?.data?.statusMessage)
   }
 }
 

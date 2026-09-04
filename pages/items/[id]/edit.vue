@@ -98,7 +98,7 @@ async function onSave(payload: ItemFormPayload) {
     await refreshNuxtData(`item-${id}`)
     await navigateTo(`/items/${id}`)
   } catch (e: unknown) {
-    alert((e as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '保存失败')
+    await useDialog().alertDialog('保存失败', (e as { data?: { statusMessage?: string } })?.data?.statusMessage)
   } finally {
     saving.value = false
   }

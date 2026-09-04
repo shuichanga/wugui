@@ -90,13 +90,20 @@ async function addLocation() {
   }
 }
 
+const { confirmDialog, alertDialog } = useDialog()
+
 async function removeLocation(id: string) {
-  if (!confirm('确定删除该位置？')) return
+  if (!(await confirmDialog({
+    title: '删除位置',
+    message: '确定删除该位置？',
+    confirmText: '删除',
+    danger: true,
+  }))) return
   try {
     await apiFetch(`/api/locations/${id}`, { method: 'DELETE' })
     await refresh()
   } catch (e: unknown) {
-    alert((e as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '删除失败')
+    await alertDialog('删除失败', (e as { data?: { statusMessage?: string } })?.data?.statusMessage)
   }
 }
 </script>
