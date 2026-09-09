@@ -3,13 +3,13 @@
     <header class="relative -mx-4 flex items-center justify-between bg-primary px-4 py-3 text-white">
       <NuxtLink to="/locations" class="flex items-center gap-1 text-sm text-white/90 hover:text-white" aria-label="返回位置树">
         <ArrowLeft :size="16" aria-hidden="true" />
-        <span>位置</span>
+        <span>空间</span>
       </NuxtLink>
       <h1 class="max-w-56 truncate text-lg">{{ locationName }}</h1>
       <span class="w-12" aria-hidden="true"></span>
     </header>
 
-    <section class="mt-4" aria-label="位置内物品">
+    <section class="mt-4" aria-label="空间内物品">
       <p v-if="pending" class="p-4 text-sm text-text-tertiary">加载中…</p>
       <p v-else-if="!items?.length" class="p-4 text-sm text-text-tertiary">这里还没有物品</p>
       <ul v-else class="flex flex-col gap-2">
@@ -45,6 +45,6 @@ onMounted(async () => {
     }
     return null
   }
-  locationName.value = find(tree)?.name ?? '未知位置'
+  locationName.value = find(tree)?.name ?? '未知空间'
 })
 </script>

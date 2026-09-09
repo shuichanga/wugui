@@ -31,12 +31,12 @@
     </template>
 
     <!-- 位置看板 -->
-    <section v-else class="mt-4" aria-label="位置看板">
+    <section v-else class="mt-4" aria-label="空间看板">
       <div class="flex items-center justify-between">
-        <h2 class="text-sm font-semibold text-text-secondary">位置看板</h2>
+        <h2 class="text-sm font-semibold text-text-secondary">空间看板</h2>
         <span v-if="rooms.length" class="text-xs text-text-tertiary">共 {{ totalItems }} 件 · {{ rooms.length }} 个房间</span>
       </div>
-      <p v-if="!rooms.length" class="mt-2 p-4 text-sm text-text-tertiary">还没有位置信息</p>
+      <p v-if="!rooms.length" class="mt-2 p-4 text-sm text-text-tertiary">还没有空间信息</p>
       <div v-else class="mt-2 grid grid-cols-2 gap-3">
         <RoomCard v-for="room in rooms" :key="room.id" :room="room" :total-count="totalItems" />
       </div>

@@ -72,7 +72,7 @@ export async function decorateItems(
     quantity: r.quantity,
     notes: r.notes,
     locationId: r.locationId,
-    locationPath: pathMap.get(r.locationId) ?? '未知位置',
+    locationPath: pathMap.get(r.locationId) ?? '未知空间',
     ownerId: r.ownerId,
     ownerName: r.ownerName ?? ownerBy.get(r.ownerId) ?? '未知成员',
     ownerAvatarUrl: ownerAvatarBy.get(r.ownerId) ?? null,

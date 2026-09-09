@@ -3,6 +3,9 @@ import {
   Package, DoorOpen, Home, UtensilsCrossed,
   Shirt, Dumbbell, Car, Warehouse, Layers, Droplets,
   Briefcase, Baby, Clapperboard,
+  Tv, Lamp, Armchair, Monitor, Headphones, Gamepad2,
+  Refrigerator, Microwave, Wine,
+  Boxes, Archive, Box, Folder, LayoutGrid, Layers3, Grid3x3,
   type LucideIcon,
 } from 'lucide-vue-next'
 
@@ -43,6 +46,40 @@ const roomIconMap: { keywords: string[]; icon: LucideIcon }[] = [
 ]
 
 const defaultIcon = Home
+
+// 家具名称 → Lucide 图标映射
+const furnitureIconMap: { keywords: string[]; icon: LucideIcon }[] = [
+  { keywords: ['电视', '影音'], icon: Tv },
+  { keywords: ['书', '书架', '书柜'], icon: BookOpen },
+  { keywords: ['衣', '橱', '柜', '吊'], icon: Shirt },
+  { keywords: ['床'], icon: Bed },
+  { keywords: ['桌', '书柜', '台', '梳妆'], icon: Armchair },
+  { keywords: ['沙', '躺'], icon: Armchair },
+  { keywords: ['灯'], icon: Lamp },
+  { keywords: ['电脑', '笔电', '笔记本', '平板', '屏'], icon: Monitor },
+  { keywords: ['耳机', '音响', '音'], icon: Headphones },
+  { keywords: ['游戏', '手柄', '机'], icon: Gamepad2 },
+  { keywords: ['冰'], icon: Refrigerator },
+  { keywords: ['微波', '烤箱', '蒸'], icon: Microwave },
+  { keywords: ['酒', '杯', '饮'], icon: Wine },
+  { keywords: ['鞋'], icon: Boxes },
+  { keywords: ['箱', '盒'], icon: Archive },
+  { keywords: ['抽屉'], icon: Folder },
+  { keywords: ['架', '层'], icon: LayoutGrid },
+]
+
+const defaultFurnitureIcon = Package
+
+// 收纳位（格位）名称 → Lucide 图标映射
+const compartmentIconMap: { keywords: string[]; icon: LucideIcon }[] = [
+  { keywords: ['层', '第'], icon: Layers3 },
+  { keywords: ['格', '区', '分', '栏'], icon: Grid3x3 },
+  { keywords: ['抽', '屉'], icon: Folder },
+  { keywords: ['箱', '盒', '包'], icon: Archive },
+  { keywords: ['架', '板', '托'], icon: LayoutGrid },
+]
+
+const defaultCompartmentIcon = Box
 
 // 4 组家具配色：绿色系、低饱和度
 const itemPalette: ItemColors[] = [
@@ -93,5 +130,15 @@ export function useRoomStyle() {
     return itemPalette[hashString(name) % itemPalette.length]
   }
 
-  return { getRoomIcon, getRoomColors, getItemColors }
+  function getFurnitureIcon(name: string): LucideIcon {
+    const match = furnitureIconMap.find(r => r.keywords.some(k => name.includes(k)))
+    return match?.icon ?? defaultFurnitureIcon
+  }
+
+  function getCompartmentIcon(name: string): LucideIcon {
+    const match = compartmentIconMap.find(r => r.keywords.some(k => name.includes(k)))
+    return match?.icon ?? defaultCompartmentIcon
+  }
+
+  return { getRoomIcon, getRoomColors, getItemColors, getFurnitureIcon, getCompartmentIcon }
 }

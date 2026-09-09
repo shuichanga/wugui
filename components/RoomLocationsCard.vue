@@ -34,10 +34,7 @@
             <div class="flex items-center gap-2 px-2.5 py-2">
               <NuxtLink :to="`/locations/${furniture.id}`" class="flex min-w-0 flex-1 items-center gap-2"
                         :style="{ color: colors.text }">
-                <LocationIcon v-if="furniture.icon" :name="furniture.icon" :size="18" />
-                <span v-else class="shrink-0" :style="{ color: colors.accent }">
-                  <Package :size="18" :stroke-width="2" aria-hidden="true" />
-                </span>
+                <component :is="getFurnitureIcon(furniture.name)" :size="18" :stroke-width="2" aria-hidden="true" />
                 <p class="truncate text-sm font-medium">{{ furniture.name }}</p>
               </NuxtLink>
               <p class="shrink-0 text-xs font-medium" :style="{ color: colors.accent }">{{ furniture.itemCount }} 件</p>
@@ -61,7 +58,7 @@
                           :to="`/locations/${compartment.id}`"
                           class="flex shrink-0 items-center gap-1 rounded px-1.5 py-1 text-xs font-medium"
                           :style="{ backgroundColor: colors.soft, color: colors.text }">
-                  <Box :size="14" aria-hidden="true" />
+                  <component :is="getCompartmentIcon(compartment.name)" :size="14" aria-hidden="true" />
                   <span>{{ compartment.name }}</span>
                   <span :style="{ color: colors.accent }">{{ compartment.itemCount }}</span>
                 </NuxtLink>
@@ -75,13 +72,13 @@
 </template>
 
 <script setup lang="ts">
-import { Box, Package, Trash2 } from 'lucide-vue-next'
+import { Trash2 } from 'lucide-vue-next'
 import type { LocationTreeNode } from '~/server/utils/locations'
 
 const props = defineProps<{ room: LocationTreeNode }>()
 defineEmits<{ delete: [id: string] }>()
 
-const { getRoomIcon, getRoomColors, getItemColors } = useRoomStyle()
+const { getRoomIcon, getRoomColors, getItemColors, getFurnitureIcon, getCompartmentIcon } = useRoomStyle()
 
 const icon = getRoomIcon(props.room.name)
 const roomColors = getRoomColors(props.room.name)

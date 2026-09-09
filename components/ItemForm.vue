@@ -8,7 +8,7 @@
 
     <!-- 位置级联 -->
     <section>
-      <span class="mb-1 block text-sm font-medium">收纳位置 <span class="text-error">*</span></span>
+      <span class="mb-1 block text-sm font-medium">收纳空间 <span class="text-error">*</span></span>
 
       <!-- 最近位置：1 tap 直选 -->
       <div v-if="showRecent && recentList.length" class="mb-2 flex flex-wrap gap-1.5">
@@ -327,7 +327,7 @@ function removeTag(t: string) {
 // ---- 提交 ----
 async function onSubmit(keepGoing: boolean) {
   if (!form.roomId) {
-    await useDialog().alertDialog('请选择收纳位置')
+    await useDialog().alertDialog('请选择收纳空间')
     return
   }
   rememberLocation()

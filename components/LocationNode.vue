@@ -23,7 +23,7 @@
         <span class="truncate" :class="nameClass">{{ node.name }}</span>
       </NuxtLink>
       <span class="shrink-0 text-xs text-text-tertiary">{{ node.itemCount }}件</span>
-      <button type="button" class="shrink-0 p-1 text-text-tertiary hover:text-error" aria-label="删除位置"
+      <button type="button" class="shrink-0 p-1 text-text-tertiary hover:text-error" aria-label="删除空间"
               @click="emit('delete', node.id)">
         <Trash2 :size="16" aria-hidden="true" />
       </button>

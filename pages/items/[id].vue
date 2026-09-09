@@ -38,7 +38,7 @@
           <div class="flex items-start gap-1">
             <MapPin :size="16" class="mt-0.5 shrink-0 text-text-tertiary" aria-hidden="true" />
             <div>
-              <dt class="sr-only">收纳位置</dt>
+              <dt class="sr-only">收纳空间</dt>
               <dd>
                 <NuxtLink :to="`/locations/${item.locationId}`" class="text-primary">
                   {{ item.locationPath }}
@@ -47,7 +47,7 @@
             </div>
           </div>
           <div class="flex items-center gap-1">
-            <User :size="16" class="shrink-0 text-text-tertiary" aria-hidden="true" />
+            <UserAvatar :name="item.ownerName" :src="item.ownerAvatarUrl" :size="16" />
             <div>
               <dt class="sr-only">录入人</dt>
               <dd class="text-text-secondary">{{ item.ownerName }} · {{ timeAgo(item.createdAt) }}</dd>
@@ -79,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { ArrowLeft, Package, MapPin, User, Pencil } from 'lucide-vue-next'
+import { ArrowLeft, Package, MapPin, Pencil } from 'lucide-vue-next'
 import type { ItemSummary } from '~/server/utils/items'
 
 const route = useRoute()

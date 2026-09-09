@@ -34,7 +34,7 @@ export default defineEventHandler(async (event) => {
       .select({ id: locations.id })
       .from(locations)
       .where(and(eq(locations.id, locationId), eq(locations.householdId, householdId)))
-    if (!loc.length) throw createError({ statusCode: 404, statusMessage: '收纳位置不存在' })
+    if (!loc.length) throw createError({ statusCode: 404, statusMessage: '收纳空间不存在' })
     updates.locationId = locationId
   }
   if (body.tags !== undefined) {

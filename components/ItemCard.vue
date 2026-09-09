@@ -6,20 +6,20 @@
       <button type="button" class="w-16 bg-error text-sm font-medium text-white" @click="onDelete">删除</button>
     </div>
 
-    <!-- 前景卡片：跟随手势横移 -->
+    <!-- 前景卡片：跟随手势横移（border-left 作为左侧位置色条） -->
     <NuxtLink :to="`/items/${item.id}`"
-              class="flex h-full items-center gap-3 bg-neutral-surface p-3"
-              :style="{ transform: `translateX(${offsetX}px)`, transition: dragging ? 'none' : 'transform 0.2s ease' }"
+              class="flex h-full items-center gap-3 bg-neutral-surface py-3 pl-4 pr-3"
+              :style="{ transform: `translateX(${offsetX}px)`, transition: dragging ? 'none' : 'transform 0.2s ease', borderLeftWidth: '6px', borderLeftColor: roomColor }"
               @click="onLinkClick"
               @touchstart="onTouchStart"
               @touchmove="onTouchMove"
               @touchend="onTouchEnd"
               @touchcancel="onTouchEnd">
-      <!-- 缩略图：有照片显示，无照片图标兜底 -->
+      <!-- 缩略图：有照片显示，无照片图标兜底（有照片时放大到 80×64） -->
       <img v-if="item.photoUrl" :src="item.photoUrl" alt="物品照片"
-           class="h-12 w-12 shrink-0 rounded-md object-cover" />
-      <div v-else class="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-neutral-sunken">
-        <Package :size="20" class="text-text-tertiary" aria-hidden="true" />
+           class="h-16 w-20 shrink-0 rounded-md object-cover" />
+      <div v-else class="flex h-16 w-20 shrink-0 items-center justify-center rounded-md bg-neutral-sunken">
+        <Package :size="24" class="text-text-tertiary" aria-hidden="true" />
       </div>
 
       <div class="min-w-0 flex-1">
@@ -27,16 +27,24 @@
           <h3 class="truncate text-base font-medium">{{ item.name }}</h3>
           <span class="shrink-0 text-xs text-text-tertiary">×{{ item.quantity }}</span>
         </div>
+        <!-- 位置 chip：首级房间用房间色高亮 -->
         <p class="mt-1 flex items-center gap-1 text-sm text-text-secondary">
-          <MapPin :size="16" class="shrink-0" aria-hidden="true" />
-          <span class="truncate">{{ item.locationPath }}</span>
+          <MapPin :size="16" class="shrink-0 text-text-tertiary" aria-hidden="true" />
+          <span class="truncate">
+            <span class="font-medium" :style="{ color: roomColor }">{{ firstSegment }}</span>
+            <span v-if="restPath">/ {{ restPath }}</span>
+          </span>
         </p>
         <div class="mt-1.5 flex items-center justify-between gap-2">
-          <ul class="flex min-w-0 gap-1.5">
-            <li v-for="tag in item.tags" :key="tag"
+          <ul class="flex min-w-0 flex-wrap gap-1">
+            <li v-for="tag in visibleTags" :key="tag"
                 class="rounded border px-1.5 py-0.5 text-xs"
                 :style="tagStyle(tag)">
               {{ tag }}
+            </li>
+            <li v-if="hiddenTagCount > 0"
+                class="rounded border border-border bg-neutral-sunken px-1.5 py-0.5 text-xs text-text-secondary">
+              +{{ hiddenTagCount }}
             </li>
           </ul>
           <p class="flex shrink-0 items-center gap-1 text-xs text-text-tertiary">
@@ -55,6 +63,25 @@ import type { ItemSummary } from '~/server/utils/items'
 
 const props = defineProps<{ item: ItemSummary }>()
 const emit = defineEmits<{ deleted: [id: string] }>()
+
+// 取位置路径首段（房间名）+ 剩余路径
+const locationParts = computed(() => {
+  const path = props.item.locationPath || ''
+  const idx = path.indexOf('/')
+  if (idx === -1) return { first: path, rest: '' }
+  return { first: path.slice(0, idx), rest: path.slice(idx + 1) }
+})
+const firstSegment = computed(() => locationParts.value.first)
+const restPath = computed(() => locationParts.value.rest)
+
+// 左侧色条颜色 = 首段房间颜色
+const { getRoomColors } = useRoomStyle()
+const roomColor = computed(() => getRoomColors(firstSegment.value).accent)
+
+// 标签最多显示 3 个，超出折叠为 +N
+const MAX_VISIBLE_TAGS = 3
+const visibleTags = computed(() => props.item.tags.slice(0, MAX_VISIBLE_TAGS))
+const hiddenTagCount = computed(() => Math.max(0, props.item.tags.length - MAX_VISIBLE_TAGS))
 
 // 全局共享"当前左滑打开的卡片"，保证同时只有一张打开
 const swipedId = useState<string | null>('swiped-item-id', () => null)

@@ -6,7 +6,7 @@
 
 ### 家庭收纳管理 Web 应用
 
-记录家里的物品和收纳位置，全家人共享，找不到东西时随手一查。
+记录家里的物品和收纳空间，全家人共享，找不到东西时随手一查。
 
 </div>
 
@@ -38,22 +38,22 @@
 | 基本信息 | 名称、数量、标签、备注 |
 | 照片上传 | 最多 3 张，前端压缩后存储至 R2 |
 | 标签颜色 | 标签自动分配柔和颜色，一目了然 |
-| 连续录入 | "保存并继续"保留位置与标签，批量整理省 80% 录入成本 |
+| 连续录入 | "保存并继续"保留空间与标签，批量整理省 80% 录入成本 |
 
-### 🗂️ 收纳位置
+### 🗂️ 收纳空间
 
 | 功能 | 说明 |
 |------|------|
 | 三级结构 | 房间 → 家具 → 格位（层级不强制，家具可直接挂物品） |
-| 位置图标 | 每个位置可设置图标，快速识别 |
-| 最近位置 | 自动记忆最近使用的位置，快速录入 |
+| 空间图标 | 每个空间可设置图标，快速识别 |
+| 最近空间 | 自动记忆最近使用的空间，快速录入 |
 
 ### 🔍 检索
 
 | 功能 | 说明 |
 |------|------|
 | 关键字搜索 | 按名称、备注、标签模糊匹配 |
-| 位置树浏览 | 按收纳位置树形浏览所有物品 |
+| 空间树浏览 | 按收纳空间树形浏览所有物品 |
 | 标签筛选 | 按标签快速过滤 |
 
 ### 👨‍👩‍👧‍👦 多住所
@@ -338,13 +338,13 @@ wugui/
 │   └── site.webmanifest       # PWA Web App Manifest
 │
 ├── pages/                     # 页面（路由）
-│   ├── index.vue              # 首页（搜索 + 最近位置）
+│   ├── index.vue              # 首页（搜索 + 最近空间）
 │   ├── add.vue                # 添加物品
 │   ├── login.vue              # 登录
 │   ├── register.vue           # 注册
 │   ├── settings.vue           # 设置（用户 + 住所管理）
-│   ├── locations.vue          # 位置列表
-│   ├── locations/[id].vue     # 位置详情
+│   ├── locations.vue          # 空间列表
+│   ├── locations/[id].vue     # 空间详情
 │   ├── items/[id].vue         # 物品详情
 │   └── items/[id]/edit.vue    # 编辑物品
 │
@@ -354,8 +354,8 @@ wugui/
 │   ├── CharacterScene.vue     # 登录/注册页角色动画场景
 │   ├── ItemCard.vue           # 物品卡片
 │   ├── ItemForm.vue           # 物品表单
-│   ├── LocationIcon.vue       # 位置图标
-│   ├── LocationNode.vue       # 位置树节点
+│   ├── LocationIcon.vue       # 空间图标
+│   ├── LocationNode.vue       # 空间树节点
 │   ├── PhotoUploader.vue      # 照片上传器
 │   ├── ResidenceSwitcher.vue  # 住所切换器
 │   └── UserAvatar.vue         # 用户头像
@@ -365,7 +365,7 @@ wugui/
 │   ├── useDialog.ts           # 对话框控制
 │   ├── useImageCompress.ts    # 前端图片压缩
 │   ├── useItemPhotos.ts       # 物品照片管理
-│   ├── useRecentLocations.ts  # 最近位置记忆
+│   ├── useRecentLocations.ts  # 最近空间记忆
 │   ├── useTagColor.ts         # 标签颜色映射
 │   └── useTimeAgo.ts          # 相对时间显示
 │
@@ -408,7 +408,7 @@ wugui/
     │   │   └── [id]/photos/
     │   │       ├── index.post.ts
     │   │       └── [photoId].delete.ts
-    │   ├── locations/         # 位置 API
+    │   ├── locations/         # 空间 API
     │   │   ├── index.get.ts
     │   │   ├── index.post.ts
     │   │   ├── [id].patch.ts
@@ -424,7 +424,7 @@ wugui/
         ├── auth.ts            # 认证工具（scrypt + JWT + Cookie）
         ├── db.ts              # 数据库连接（drizzle-orm）
         ├── items.ts           # 物品辅助函数
-        └── locations.ts       # 位置树辅助函数
+        └── locations.ts       # 空间树辅助函数
 ```
 
 ---
@@ -456,14 +456,14 @@ wugui/
 | DELETE | `/api/households/{id}/members/{userId}` | 移除成员 |
 | DELETE | `/api/households/{id}/members/me` | 退出住所 |
 
-### Locations 位置
+### Locations 空间
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/locations` | 位置树 |
-| POST | `/api/locations` | 创建位置 |
-| PATCH | `/api/locations/{id}` | 更新位置 |
-| DELETE | `/api/locations/{id}` | 删除位置 |
+| GET | `/api/locations` | 空间树 |
+| POST | `/api/locations` | 创建空间 |
+| PATCH | `/api/locations/{id}` | 更新空间 |
+| DELETE | `/api/locations/{id}` | 删除空间 |
 
 ### Items 物品
 
@@ -537,13 +537,13 @@ items 1──N item_photos
 | `joined_at` | TEXT NOT NULL | 加入时间 |
 | **PK** | `(household_id, user_id)` | 复合主键 |
 
-#### locations — 位置
+#### locations — 空间
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `id` | TEXT PK | 位置 ID |
+| `id` | TEXT PK | 空间 ID |
 | `household_id` | TEXT NOT NULL | 所属住所 |
-| `parent_id` | TEXT | 父位置（NULL=顶级） |
+| `parent_id` | TEXT | 父空间（NULL=顶级） |
 | `level` | TEXT ENUM('room','furniture','compartment') | 层级 |
 | `name` | TEXT NOT NULL | 名称 |
 | `icon` | TEXT | 图标名 |
@@ -557,7 +557,7 @@ items 1──N item_photos
 |------|------|------|
 | `id` | TEXT PK | 物品 ID |
 | `household_id` | TEXT NOT NULL | 所属住所 |
-| `location_id` | TEXT NOT NULL | 所在位置 |
+| `location_id` | TEXT NOT NULL | 所在空间 |
 | `name` | TEXT NOT NULL | 名称 |
 | `quantity` | INTEGER DEFAULT 1 | 数量 |
 | `notes` | TEXT | 备注 |

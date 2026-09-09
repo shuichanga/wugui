@@ -6,10 +6,10 @@
   <main v-else class="mx-auto max-w-md px-4 pt-4">
     <header class="relative -mx-4 flex items-center justify-between bg-primary px-4 py-3 text-white">
       <span class="w-12" aria-hidden="true"></span>
-      <h1 class="absolute left-1/2 -translate-x-1/2 text-lg">位置</h1>
+      <h1 class="absolute left-1/2 -translate-x-1/2 text-lg">空间</h1>
       <button type="button" class="flex items-center gap-1 text-sm text-white/90 hover:text-white" @click="formOpen = !formOpen">
         <Plus :size="16" aria-hidden="true" />
-        <span>{{ formOpen ? '收起' : '新增位置' }}</span>
+        <span>{{ formOpen ? '收起' : '新增空间' }}</span>
       </button>
     </header>
 
@@ -28,7 +28,7 @@
         </div>
       </section>
       <section>
-        <label for="loc-parent" class="mb-1 block text-sm font-medium">上级位置 <span class="font-normal text-text-tertiary">（不选则为房间）</span></label>
+        <label for="loc-parent" class="mb-1 block text-sm font-medium">上级空间 <span class="font-normal text-text-tertiary">（不选则为房间）</span></label>
         <select id="loc-parent" v-model="form.parentId" class="input-base">
           <option value="">无（新建房间）</option>
           <option v-for="opt in parentOptions" :key="opt.id" :value="opt.id">{{ opt.label }}</option>
@@ -39,9 +39,9 @@
     </form>
 
     <!-- 位置卡片 -->
-    <section class="mt-4" aria-label="位置看板">
+    <section class="mt-4" aria-label="空间看板">
       <p v-if="pending" class="p-4 text-sm text-text-tertiary">加载中…</p>
-      <p v-else-if="!tree?.length" class="p-4 text-sm text-text-tertiary">还没有位置，点右上角"新增位置"创建第一个房间</p>
+      <p v-else-if="!tree?.length" class="p-4 text-sm text-text-tertiary">还没有空间，点右上角"新增空间"创建第一个房间</p>
       <ul v-else class="flex flex-col gap-3">
         <li v-for="room in tree" :key="room.id">
           <RoomLocationsCard :room="room" @delete="removeLocation" />
@@ -177,8 +177,8 @@ const { confirmDialog, alertDialog } = useDialog()
 
 async function removeLocation(id: string) {
   if (!(await confirmDialog({
-    title: '删除位置',
-    message: '确定删除该位置？',
+    title: '删除空间',
+    message: '确定删除该空间？',
     confirmText: '删除',
     danger: true,
   }))) return

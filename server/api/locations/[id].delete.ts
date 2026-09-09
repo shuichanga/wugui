@@ -25,7 +25,7 @@ export default defineEventHandler(async (event) => {
     .from(items)
     .where(eq(items.locationId, id))
     .limit(1)
-  if (attached.length) throw createError({ statusCode: 409, statusMessage: '该位置下仍有物品，请先移走或删除物品' })
+  if (attached.length) throw createError({ statusCode: 409, statusMessage: '该空间下仍有物品，请先移走或删除物品' })
 
   await db.delete(locations).where(eq(locations.id, id))
   return { ok: true }

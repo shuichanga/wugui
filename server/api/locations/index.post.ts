@@ -7,8 +7,8 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<Record<string, unknown>>(event) ?? {}
 
   const name = String(body.name ?? '').trim()
-  if (!name) throw createError({ statusCode: 400, statusMessage: '位置名称不能为空' })
-  if (name.length > 30) throw createError({ statusCode: 400, statusMessage: '位置名称最多 30 字' })
+  if (!name) throw createError({ statusCode: 400, statusMessage: '空间名称不能为空' })
+  if (name.length > 30) throw createError({ statusCode: 400, statusMessage: '空间名称最多 30 字' })
   const icon = String(body.icon ?? '').trim().slice(0, 32) || null
   const parentId = String(body.parentId ?? '').trim() || null
 

@@ -22,7 +22,7 @@
       <li class="flex h-14 flex-1 flex-col items-center justify-center gap-1">
         <NuxtLink to="/locations" class="flex flex-col items-center gap-1" :class="cls('/locations')">
           <MapPin :size="20" aria-hidden="true" />
-          <span class="text-xs leading-none">位置</span>
+          <span class="text-xs leading-none">空间</span>
         </NuxtLink>
       </li>
     </ul>
