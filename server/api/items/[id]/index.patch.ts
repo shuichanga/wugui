@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { items, itemTags, locations } from '~/drizzle/schema'
 
-// 编辑物品：名称/数量/备注/位置/标签（整体替换）
+// 编辑物品：名称/数量/备注/空间/标签（整体替换）
 export default defineEventHandler(async (event) => {
   const { householdId } = await requireHousehold(event)
   const id = getRouterParam(event, 'id') ?? ''

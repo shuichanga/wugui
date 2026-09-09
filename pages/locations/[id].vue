@@ -1,7 +1,7 @@
 <template>
   <main class="mx-auto max-w-md px-4 pt-4">
     <header class="relative -mx-4 flex items-center justify-between bg-primary px-4 py-3 text-white">
-      <NuxtLink to="/locations" class="flex items-center gap-1 text-sm text-white/90 hover:text-white" aria-label="返回位置树">
+      <NuxtLink to="/locations" class="flex items-center gap-1 text-sm text-white/90 hover:text-white" aria-label="返回空间树">
         <ArrowLeft :size="16" aria-hidden="true" />
         <span>空间</span>
       </NuxtLink>
@@ -33,7 +33,7 @@ const { data: items, pending } = await useAsyncData(`items-at-${locationId}`, as
   return res.items
 }, { server: false, default: () => [] })
 
-// 位置名：从树上找
+// 空间名：从树上找
 const locationName = ref('…')
 onMounted(async () => {
   const tree = await apiFetch<LocationTreeNode[]>('/api/locations')

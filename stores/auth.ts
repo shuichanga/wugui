@@ -40,7 +40,7 @@ export const useAuthStore = defineStore('auth', () => {
     households.value = []
     currentHouseholdId.value = null
     loaded.value = false
-    // 清理本账号的本地数据（最近位置等）
+    // 清理本账号的本地数据（最近空间等）
     useRecentLocations().clear()
     await navigateTo('/login')
   }

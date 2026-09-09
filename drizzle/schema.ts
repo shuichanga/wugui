@@ -68,6 +68,16 @@ export const itemTags = sqliteTable('item_tags', {
   index('idx_item_tags_tag').on(t.tag),
 ])
 
+// 最近查看：每用户 × 每物品一条，物品被查看时更新 viewed_at
+export const recentViews = sqliteTable('recent_views', {
+  userId: text('user_id').notNull(),
+  itemId: text('item_id').notNull(),
+  viewedAt: text('viewed_at').notNull(),
+}, (t) => [
+  primaryKey({ columns: [t.userId, t.itemId] }),
+  index('idx_recent_views_user_time').on(t.userId, t.viewedAt),
+])
+
 export const itemPhotos = sqliteTable('item_photos', {
   id: text('id').primaryKey(),
   itemId: text('item_id').notNull(),

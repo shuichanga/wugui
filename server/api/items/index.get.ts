@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
     )!)
   }
   if (locationId) {
-    // 位置过滤包含所有后代层级（数量聚合后，点客厅应看到下属所有物品）
+    // 空间过滤包含所有后代层级（数量聚合后，点客厅应看到下属所有物品）
     const descendantIds = await db.all<{ id: string }>(sql`
       WITH RECURSIVE sub(id) AS (
         SELECT id FROM locations WHERE id = ${locationId} AND household_id = ${householdId}

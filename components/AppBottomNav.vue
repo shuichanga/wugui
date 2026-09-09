@@ -39,7 +39,7 @@ function active(prefix: string) {
     : route.path.startsWith(prefix)
 }
 
-// 位置 tab 在子页面（/locations/[id]）也高亮
+// 空间 tab 在子页面（/locations/[id]）也高亮
 function cls(prefix: string) {
   return active(prefix) ? 'text-primary font-semibold' : 'text-text-secondary'
 }

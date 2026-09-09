@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { locations } from '~/drizzle/schema'
 
-// 新增位置。level 由父节点推导：无 parent → room；room 下 → furniture；furniture 下 → compartment
+// 新增空间。level 由父节点推导：无 parent → room；room 下 → furniture；furniture 下 → compartment
 export default defineEventHandler(async (event) => {
   const { householdId } = await requireHousehold(event)
   const body = await readBody<Record<string, unknown>>(event) ?? {}
@@ -20,9 +20,9 @@ export default defineEventHandler(async (event) => {
       .select()
       .from(locations)
       .where(and(eq(locations.id, parentId), eq(locations.householdId, householdId)))
-    if (!parent.length) throw createError({ statusCode: 404, statusMessage: '父位置不存在' })
+    if (!parent.length) throw createError({ statusCode: 404, statusMessage: '父空间不存在' })
     if (parent[0].level === 'compartment') {
-      throw createError({ statusCode: 400, statusMessage: '格位下不能再建子位置' })
+      throw createError({ statusCode: 400, statusMessage: '格位下不能再建子空间' })
     }
     level = parent[0].level === 'room' ? 'furniture' : 'compartment'
   }

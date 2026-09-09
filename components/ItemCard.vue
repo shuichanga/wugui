@@ -6,7 +6,7 @@
       <button type="button" class="w-16 bg-error text-sm font-medium text-white" @click="onDelete">删除</button>
     </div>
 
-    <!-- 前景卡片：跟随手势横移（border-left 作为左侧位置色条） -->
+    <!-- 前景卡片：跟随手势横移（border-left 作为左侧空间色条） -->
     <NuxtLink :to="`/items/${item.id}`"
               class="flex h-full items-center gap-3 bg-neutral-surface py-3 pl-4 pr-3"
               :style="{ transform: `translateX(${offsetX}px)`, transition: dragging ? 'none' : 'transform 0.2s ease', borderLeftWidth: '6px', borderLeftColor: roomColor }"
@@ -27,7 +27,7 @@
           <h3 class="truncate text-base font-medium">{{ item.name }}</h3>
           <span class="shrink-0 text-xs text-text-tertiary">×{{ item.quantity }}</span>
         </div>
-        <!-- 位置 chip：首级房间用房间色高亮 -->
+        <!-- 空间 chip：首级房间用房间色高亮 -->
         <p class="mt-1 flex items-center gap-1 text-sm text-text-secondary">
           <MapPin :size="16" class="shrink-0 text-text-tertiary" aria-hidden="true" />
           <span class="truncate">
@@ -64,7 +64,7 @@ import type { ItemSummary } from '~/server/utils/items'
 const props = defineProps<{ item: ItemSummary }>()
 const emit = defineEmits<{ deleted: [id: string] }>()
 
-// 取位置路径首段（房间名）+ 剩余路径
+// 取空间路径首段（房间名）+ 剩余路径
 const locationParts = computed(() => {
   const path = props.item.locationPath || ''
   const idx = path.indexOf('/')
@@ -179,13 +179,20 @@ function goEdit() {
 }
 
 async function onDelete() {
-  if (!confirm(`确定删除「${props.item.name}」？`)) return
+  const { confirmDialog, alertDialog } = useDialog()
+  const ok = await confirmDialog({
+    title: '删除物品',
+    message: `确定删除「${props.item.name}」？`,
+    confirmText: '删除',
+    danger: true,
+  })
+  if (!ok) return
   try {
     await apiFetch(`/api/items/${props.item.id}`, { method: 'DELETE' })
     close()
     emit('deleted', props.item.id)
   } catch (e: unknown) {
-    alert((e as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '删除失败')
+    await alertDialog('删除失败', (e as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '请稍后重试')
   }
 }
 </script>

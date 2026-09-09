@@ -122,6 +122,28 @@
         </form>
       </section>
 
+      <!-- 数据导入 / 导出 -->
+      <section v-if="auth.households.length" class="mt-6" aria-label="数据导入导出">
+        <h2 class="text-sm font-semibold text-text-secondary">数据备份</h2>
+        <div class="mt-2 rounded-lg border border-border bg-neutral-surface p-3">
+          <p class="text-xs text-text-tertiary">导出当前住所的全部空间和物品（含标签），JSON 适合备份，CSV 可用表格软件打开。</p>
+          <div class="mt-2 flex gap-2">
+            <button type="button" class="btn-secondary flex-1 px-2 py-2 text-sm" :disabled="exporting !== ''" @click="exportData('json')">
+              {{ exporting === 'json' ? '导出中…' : '导出 JSON' }}
+            </button>
+            <button type="button" class="btn-secondary flex-1 px-2 py-2 text-sm" :disabled="exporting !== ''" @click="exportData('csv')">
+              {{ exporting === 'csv' ? '导出中…' : '导出 CSV' }}
+            </button>
+          </div>
+          <label class="btn-secondary mt-2 block w-full cursor-pointer px-2 py-2 text-center text-sm"
+                 :class="importing ? 'pointer-events-none opacity-60' : ''">
+            {{ importing ? '导入中…' : '合并导入备份（JSON）' }}
+            <input type="file" accept=".json,application/json" class="hidden" :disabled="importing" @change="onImportPick" />
+          </label>
+          <p class="mt-1.5 text-xs text-text-tertiary">合并导入：缺失的空间和物品会新增，已存在的物品跳过，不删除任何现有数据。</p>
+        </div>
+      </section>
+
       <!-- 消息 -->
       <p v-if="msg" class="mt-4 rounded-md border border-border bg-neutral-surface p-3 text-sm text-success" role="status">
         {{ msg }}
@@ -316,6 +338,115 @@ async function copyCode(code: string) {
     flash('邀请码已复制')
   } catch {
     flash(`复制失败，邀请码：${code}`)
+  }
+}
+
+// ---- 数据导出 ----
+interface ExportData {
+  household: { id: string; name: string; exportedAt: string }
+  locations: { id: string; parentId: string | null; level: string; name: string; path: string }[]
+  items: {
+    name: string; quantity: number; notes: string | null; tags: string[]
+    locationPath: string; ownerName: string; createdAt: string; updatedAt: string
+  }[]
+}
+
+const exporting = ref<'' | 'json' | 'csv'>('')
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  // 延迟释放：同步 revoke 在部分移动端浏览器会导致下载静默失败
+  setTimeout(() => URL.revokeObjectURL(url), 3000)
+}
+
+function csvCell(value: string): string {
+  return /[",\n\r]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value
+}
+
+function toCsv(data: ExportData): string {
+  const header = ['物品名称', '数量', '标签', '收纳空间', '录入人', '备注', '创建时间', '更新时间']
+  const rows = data.items.map(it => [
+    it.name,
+    String(it.quantity),
+    it.tags.join('、'),
+    it.locationPath,
+    it.ownerName,
+    it.notes ?? '',
+    it.createdAt,
+    it.updatedAt,
+  ].map(csvCell).join(','))
+  // BOM 让 Excel 正确识别 UTF-8 中文
+  return `\uFEFF${[header.map(csvCell).join(','), ...rows].join('\r\n')}`
+}
+
+async function exportData(format: 'json' | 'csv') {
+  exporting.value = format
+  try {
+    const data = await apiFetch<ExportData>('/api/export')
+    const stamp = data.household.exportedAt.slice(0, 10)
+    const safeName = data.household.name.replace(/[\\/:*?"<>|]/g, '_')
+    if (format === 'json') {
+      downloadBlob(
+        new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }),
+        `物归-${safeName}-${stamp}.json`,
+      )
+    } else {
+      downloadBlob(new Blob([toCsv(data)], { type: 'text/csv;charset=utf-8' }), `物归-${safeName}-${stamp}.csv`)
+    }
+    flash(`已导出 ${data.items.length} 件物品`)
+  } catch (e: unknown) {
+    flash((e as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '导出失败')
+  } finally {
+    exporting.value = ''
+  }
+}
+
+// ---- 合并导入 ----
+const importing = ref(false)
+
+async function onImportPick(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+
+  let data: { household?: { name?: string }; locations?: unknown[]; items?: unknown[] }
+  try {
+    data = JSON.parse(await file.text())
+  } catch {
+    flash('文件不是有效的 JSON')
+    return
+  }
+  const locCount = Array.isArray(data.locations) ? data.locations.length : 0
+  const itemCount = Array.isArray(data.items) ? data.items.length : 0
+  if (!locCount && !itemCount) {
+    flash('文件中没有可导入的数据')
+    return
+  }
+
+  if (!(await confirmDialog({
+    title: '合并导入',
+    message: `从「${data.household?.name ?? file.name}」导入 ${locCount} 个空间、${itemCount} 件物品？已存在的物品将跳过，不会删除现有数据。`,
+    confirmText: '导入',
+  }))) return
+
+  importing.value = true
+  try {
+    const res = await apiFetch<{ createdLocations: number; createdItems: number; skippedItems: number }>(
+      '/api/import',
+      { method: 'POST', body: data },
+    )
+    flash(`导入完成：新增 ${res.createdLocations} 个空间、${res.createdItems} 件物品，跳过 ${res.skippedItems} 件`)
+    refreshNuxtData('rooms-dashboard')
+    refreshNuxtData('recent-items')
+  } catch (err: unknown) {
+    flash((err as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '导入失败')
+  } finally {
+    importing.value = false
   }
 }
 </script>

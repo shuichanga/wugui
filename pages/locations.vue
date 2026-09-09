@@ -1,5 +1,5 @@
 <template>
-  <!-- 嵌套路由：位置详情子路由时只渲染子页面 -->
+  <!-- 嵌套路由：空间详情子路由时只渲染子页面 -->
   <template v-if="isChild">
     <NuxtPage />
   </template>
@@ -13,7 +13,7 @@
       </button>
     </header>
 
-    <!-- 新增位置 -->
+    <!-- 新增空间 -->
     <form v-if="formOpen" class="mt-3 flex flex-col gap-3 rounded-lg border border-border bg-neutral-surface p-4" @submit.prevent="addLocation">
       <section>
         <label for="loc-name" class="mb-1 block text-sm font-medium">名称</label>
@@ -38,7 +38,7 @@
       <button type="submit" class="btn-primary" :disabled="adding">{{ adding ? '添加中…' : '添加' }}</button>
     </form>
 
-    <!-- 位置卡片 -->
+    <!-- 空间卡片 -->
     <section class="mt-4" aria-label="空间看板">
       <p v-if="pending" class="p-4 text-sm text-text-tertiary">加载中…</p>
       <p v-else-if="!tree?.length" class="p-4 text-sm text-text-tertiary">还没有空间，点右上角"新增空间"创建第一个房间</p>
@@ -69,7 +69,7 @@ const form = reactive({ name: '', parentId: '' })
 const error = ref('')
 const adding = ref(false)
 
-// 上级位置候选：房间和家具（扁平化带缩进）
+// 上级空间候选：房间和家具（扁平化带缩进）
 const parentOptions = computed(() => {
   const opts: { id: string; label: string }[] = []
   const walk = (nodes: LocationTreeNode[] | undefined, depth: number) => {
@@ -84,7 +84,7 @@ const parentOptions = computed(() => {
   return opts
 })
 
-// ── 位置名称建议 ──
+// ── 空间名称建议 ──
 const ROOT_SUGGESTIONS = ['客厅', '主卧', '次卧', '厨房', '卫生间', '阳台', '书房', '玄关', '餐厅', '衣帽间', '储物间', '洗衣房']
 
 const FURNITURE_BY_ROOM: Record<string, string[]> = {
@@ -118,7 +118,7 @@ const ROOM_KEYWORD_MAP: Record<string, string> = {
 
 const FALLBACK_FURNITURE = ['抽屉', '柜子', '箱子', '收纳盒', '架子', '置物架']
 
-// 根据上级位置推断房间类型
+// 根据上级空间推断房间类型
 function getParentName(parentId: string): string {
   if (!parentId) return ''
   const walk = (nodes: LocationTreeNode[] | undefined): string | undefined => {

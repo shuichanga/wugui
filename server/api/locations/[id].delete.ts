@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { items, locations } from '~/drizzle/schema'
 
-// 删除位置：有子位置或有物品直挂时拒绝
+// 删除空间：有子空间或有物品直挂时拒绝
 export default defineEventHandler(async (event) => {
   const { householdId } = await requireHousehold(event)
   const id = getRouterParam(event, 'id') ?? ''
@@ -11,14 +11,14 @@ export default defineEventHandler(async (event) => {
     .select({ id: locations.id })
     .from(locations)
     .where(and(eq(locations.id, id), eq(locations.householdId, householdId)))
-  if (!found.length) throw createError({ statusCode: 404, statusMessage: '位置不存在' })
+  if (!found.length) throw createError({ statusCode: 404, statusMessage: '空间不存在' })
 
   const children = await db
     .select({ id: locations.id })
     .from(locations)
     .where(eq(locations.parentId, id))
     .limit(1)
-  if (children.length) throw createError({ statusCode: 409, statusMessage: '请先删除其子位置' })
+  if (children.length) throw createError({ statusCode: 409, statusMessage: '请先删除其子空间' })
 
   const attached = await db
     .select({ id: items.id })

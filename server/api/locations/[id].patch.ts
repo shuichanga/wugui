@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { locations } from '~/drizzle/schema'
 
-// 编辑位置：名称 / 图标（不支持跨父级移动，MVP 不做）
+// 编辑空间：名称 / 图标（不支持跨父级移动，MVP 不做）
 export default defineEventHandler(async (event) => {
   const { householdId } = await requireHousehold(event)
   const id = getRouterParam(event, 'id') ?? ''

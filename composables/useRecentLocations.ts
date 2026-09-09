@@ -1,4 +1,4 @@
-// 最近用过的收纳位置（localStorage，最多 5 条）
+// 最近用过的收纳空间（localStorage，最多 5 条）
 export interface RecentLocation {
   id: string
   label: string
@@ -29,7 +29,7 @@ export function useRecentLocations() {
     } catch { /* 隐私模式等场景忽略 */ }
   }
 
-  // 登录/登出时调用，避免不同账号看到彼此的最近位置
+  // 登录/登出时调用，避免不同账号看到彼此的最近空间
   function clear() {
     list.value = []
     try {

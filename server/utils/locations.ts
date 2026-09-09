@@ -18,7 +18,7 @@ interface LocationRow {
   own_count: number
 }
 
-// 递归 CTE 一次取整棵树 + 每个位置直挂物品数，JS 组装
+// 递归 CTE 一次取整棵树 + 每个空间直挂物品数，JS 组装
 export async function getLocationTree(db: DB, householdId: string): Promise<LocationTreeNode[]> {
   const rows = await db.all<LocationRow>(sql`
     WITH RECURSIVE loc AS (

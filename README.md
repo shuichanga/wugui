@@ -56,6 +56,14 @@
 | 关键字搜索 | 按名称、备注、标签模糊匹配 |
 | 空间树浏览 | 按收纳空间树形浏览所有物品 |
 | 标签筛选 | 按标签快速过滤 |
+| 最近查看 | 首页横滑展示最近浏览过的物品，快速回访 |
+
+### 🗃️ 数据备份
+
+| 功能 | 说明 |
+|------|------|
+| 导出 | 当前住所全部空间与物品导出为 JSON（备份）或 CSV（Excel 兼容，UTF-8 BOM） |
+| 合并导入 | 导入 JSON 备份：空间按路径逐级补建，物品按"空间 + 名称"去重，只增不删 |
 
 ### 👨‍👩‍👧‍👦 多住所
 
@@ -72,7 +80,9 @@
 |------|------|
 | 响应式布局 | PC 端两栏，移动端单栏自适应 |
 | 角色动画 | 登录/注册页趣味动画（眼睛跟随、眨眼、偷看） |
-| PWA | 支持添加到主屏，离线图标缓存 |
+| PWA | 支持添加到主屏；Service Worker 缓存静态资源并提供页面离线兜底，API 直连不缓存 |
+| 新手引导 | 首页三步引导卡（建空间 → 添家具 → 录物品），逐步打勾、完成后自动消失 |
+| 统一弹窗 | 应用内 DOM 对话框替代原生 confirm/alert（部分移动端浏览器原生弹窗静默失效） |
 | 底部导航 | 移动端底部 Tab 导航 |
 
 ---
@@ -336,14 +346,18 @@ wugui/
 │   ├── apple-touch-icon.png
 │   ├── android-chrome-192x192.png
 │   ├── android-chrome-512x512.png
-│   └── site.webmanifest       # PWA Web App Manifest
+│   ├── site.webmanifest       # PWA Web App Manifest
+│   └── sw.js                  # Service Worker（静态缓存 + 离线兜底）
+│
+├── plugins/
+│   └── pwa.client.ts          # Service Worker 注册（仅生产环境）
 │
 ├── pages/                     # 页面（路由）
-│   ├── index.vue              # 首页（搜索 + 最近空间）
+│   ├── index.vue              # 首页（搜索 + 引导卡 + 空间看板 + 最近查看/添加）
 │   ├── add.vue                # 添加物品
 │   ├── login.vue              # 登录
 │   ├── register.vue           # 注册
-│   ├── settings.vue           # 设置（用户 + 住所管理）
+│   ├── settings.vue           # 设置（用户 + 住所管理 + 数据备份）
 │   ├── locations.vue          # 空间列表
 │   ├── locations/[id].vue     # 空间详情
 │   ├── items/[id].vue         # 物品详情
@@ -381,7 +395,8 @@ wugui/
 │
 ├── migrations/                # D1 SQL 迁移文件
 │   ├── 0001_init.sql          # 初始 Schema（7 张表）
-│   └── 0002_user_avatar.sql   # 用户头像字段
+│   ├── 0002_user_avatar.sql   # 用户头像字段
+│   └── 0003_recent_views.sql  # 最近查看记录表
 │
 └── server/                    # 服务端（Nitro API）
     ├── middleware/
@@ -417,6 +432,13 @@ wugui/
     │   │   ├── index.post.ts
     │   │   ├── [id].patch.ts
     │   │   └── [id].delete.ts
+    │   ├── recent-views/      # 最近查看 API
+    │   │   ├── index.get.ts
+    │   │   └── index.post.ts
+    │   ├── export/            # 数据导出
+    │   │   └── index.get.ts
+    │   ├── import/            # 数据合并导入
+    │   │   └── index.post.ts
     │   ├── photos/            # 照片读取 API
     │   │   └── [photoId].get.ts
     │   ├── me/                # 用户自身 API
@@ -490,6 +512,15 @@ wugui/
 | DELETE | `/api/me/avatar` | 删除头像 |
 | GET | `/api/avatars/{userId}` | 读取头像 |
 
+### Data & Recent Views
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/export` | 导出当前住所全量数据（空间树 + 物品含标签） |
+| POST | `/api/import` | 合并导入（空间按路径补建、物品去重，只增不删） |
+| GET | `/api/recent-views` | 最近查看的物品（当前用户视角，按浏览时间倒序） |
+| POST | `/api/recent-views` | 记录一次浏览（同一物品仅保留最新时间） |
+
 ---
 
 ## 🗄️ 数据库 Schema
@@ -504,6 +535,7 @@ locations N──1 locations (parentId, 自关联树)
 locations 1──N items
 items 1──N item_tags
 items 1──N item_photos
+users 1──N recent_views N──1 items
 ```
 
 ### 表结构
@@ -587,6 +619,15 @@ items 1──N item_photos
 | `sort_order` | INTEGER DEFAULT 0 | 排序 |
 | `created_at` | TEXT NOT NULL | 上传时间 |
 
+#### recent_views — 最近查看
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `user_id` | TEXT NOT NULL | 浏览者 |
+| `item_id` | TEXT NOT NULL | 物品 ID |
+| `viewed_at` | TEXT NOT NULL | 最近浏览时间 |
+| **PK** | `(user_id, item_id)` | 复合主键（同一物品仅一条） |
+
 ### 索引
 
 ```sql
@@ -598,6 +639,7 @@ idx_items_location               ON items(location_id)
 idx_items_name                   ON items(name)
 idx_item_tags_tag                ON item_tags(tag)
 idx_item_photos_item             ON item_photos(item_id)
+idx_recent_views_user_time       ON recent_views(user_id, viewed_at)
 ```
 
 ---

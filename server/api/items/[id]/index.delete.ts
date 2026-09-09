@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm'
-import { items } from '~/drizzle/schema'
+import { items, recentViews } from '~/drizzle/schema'
 
 // 删除物品。item_tags / item_photos 由外键级联删除；
 // 已上传 R2 的照片文件会在 Day 8 统一加清理逻辑
@@ -15,5 +15,7 @@ export default defineEventHandler(async (event) => {
   if (!found.length) throw createError({ statusCode: 404, statusMessage: '物品不存在' })
 
   await db.delete(items).where(eq(items.id, id))
+  // 清理该物品的所有浏览记录（GET 侧 join 虽可自然过滤，但这里不留死数据）
+  await db.delete(recentViews).where(eq(recentViews.itemId, id))
   return { ok: true }
 })

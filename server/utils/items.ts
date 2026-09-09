@@ -17,7 +17,7 @@ export interface ItemSummary {
   createdAt: string
 }
 
-// 全住所位置 id → 完整路径（"客厅 / 电视柜 / 第2抽屉"）
+// 全住所空间 id → 完整路径（"客厅 / 电视柜 / 第2抽屉"）
 export async function getLocationPathMap(db: DB, householdId: string): Promise<Map<string, string>> {
   const rows = await db
     .select({ id: locations.id, parentId: locations.parentId, name: locations.name })
@@ -36,7 +36,7 @@ export async function getLocationPathMap(db: DB, householdId: string): Promise<M
   return new Map(rows.map(r => [r.id, pathOf(r.id)]))
 }
 
-// 给一组物品填充 tags / 首图 / 位置路径 / 拥有者
+// 给一组物品填充 tags / 首图 / 空间路径 / 拥有者
 export async function decorateItems(
   db: DB,
   rows: {
@@ -83,7 +83,7 @@ export async function decorateItems(
   }))
 }
 
-// 常用位置：树上按直挂物品数取前 6 个
+// 常用空间：树上按直挂物品数取前 6 个
 export function topLocations(tree: LocationTreeNode[], n = 6): { id: string; name: string; count: number }[] {
   const all: { id: string; name: string; count: number }[] = []
   const walk = (nodes: LocationTreeNode[]) => {

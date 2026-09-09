@@ -93,6 +93,11 @@ const { data: item, pending } = await useAsyncData(`item-${id}`, async () => {
   return res
 }, { server: false })
 
+// 记录浏览（fire-and-forget，供首页"最近查看"；失败静默）
+watch(item, (val) => {
+  if (val?.id) apiFetch('/api/recent-views', { method: 'POST', body: { itemId: id } }).catch(() => {})
+}, { immediate: true })
+
 const { confirmDialog, alertDialog } = useDialog()
 
 async function remove() {

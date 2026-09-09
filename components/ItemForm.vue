@@ -6,11 +6,11 @@
       <input id="item-name" v-model="form.name" type="text" class="input-base" placeholder="例如：螺丝刀套装" required />
     </section>
 
-    <!-- 位置级联 -->
+    <!-- 空间级联 -->
     <section>
       <span class="mb-1 block text-sm font-medium">收纳空间 <span class="text-error">*</span></span>
 
-      <!-- 最近位置：1 tap 直选 -->
+      <!-- 最近空间：1 tap 直选 -->
       <div v-if="showRecent && recentList.length" class="mb-2 flex flex-wrap gap-1.5">
         <button v-for="r in recentList" :key="r.id" type="button"
                 class="rounded-full border border-primary bg-primary px-2.5 py-1 text-xs text-white"
@@ -42,7 +42,7 @@
         </select>
       </div>
 
-      <!-- 内联添加位置 -->
+      <!-- 内联添加空间 -->
       <div v-if="addingLevel" class="mt-2 flex gap-2">
         <input ref="newLocationInput" v-model="newLocationName" type="text"
                class="input-base flex-1" :placeholder="`输入${addingLabel}名称`"
@@ -150,7 +150,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{ save: [payload: ItemFormPayload, keepGoing: boolean] }>()
 
-// 真实位置树做级联
+// 真实空间树做级联
 const { data: tree, refresh: refreshTree } = await useAsyncData('location-tree', () =>
   apiFetch<LocationTreeNode[]>('/api/locations'),
 { server: false })
@@ -172,7 +172,7 @@ const selectedFurniture = computed(() => selectedRoom.value?.children?.find(f =>
 const furnitureOptions = computed(() => selectedRoom.value?.children ?? [])
 const compartmentOptions = computed(() => selectedFurniture.value?.children ?? [])
 
-// ---- 内联添加位置 ----
+// ---- 内联添加空间 ----
 const addingLevel = ref<'room' | 'furniture' | 'compartment' | null>(null)
 const newLocationName = ref('')
 const creating = ref(false)
@@ -271,11 +271,11 @@ function findChain(nodes: LocationTreeNode[], id: string, acc: LocationTreeNode[
   return null
 }
 
-// ---- 最近位置记忆 ----
+// ---- 最近空间记忆 ----
 const { list: recentList, load: loadRecent, push: pushRecent } = useRecentLocations()
 onMounted(() => loadRecent())
 
-// 应用最近位置前先校验仍存在于树中，失效则忽略
+// 应用最近空间前先校验仍存在于树中，失效则忽略
 function applyRecent(r: { id: string; roomId: string; furnitureId?: string; compartmentId?: string }) {
   const room = rooms.value.find(x => x.id === r.roomId)
   if (!room) return
@@ -338,7 +338,7 @@ async function onSubmit(keepGoing: boolean) {
     tags: [...form.tags],
     notes: form.notes,
   }, keepGoing)
-  // 连续录入：只清名称，位置/标签保留（照片由父组件清理）
+  // 连续录入：只清名称，空间/标签保留（照片由父组件清理）
   if (keepGoing) form.name = ''
 }
 </script>
