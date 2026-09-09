@@ -1,7 +1,12 @@
 <template>
   <main class="mx-auto max-w-md px-4 pt-4">
-    <header>
-      <h1 class="text-xl">添加物品</h1>
+    <header class="relative -mx-4 flex items-center justify-between bg-primary px-4 py-3 text-white">
+      <NuxtLink to="/" class="flex items-center gap-1 text-sm text-white/90 hover:text-white" aria-label="返回首页">
+        <ArrowLeft :size="16" aria-hidden="true" />
+        <span>首页</span>
+      </NuxtLink>
+      <h1 class="text-lg">添加物品</h1>
+      <span class="w-12" aria-hidden="true"></span>
     </header>
 
     <ItemForm show-keep-going :submitting="saving" @save="onSave">
@@ -17,6 +22,7 @@
 </template>
 
 <script setup lang="ts">
+import { ArrowLeft } from 'lucide-vue-next'
 import type { PendingPhoto } from '~/components/PhotoUploader.vue'
 import type { ItemFormPayload } from '~/components/ItemForm.vue'
 

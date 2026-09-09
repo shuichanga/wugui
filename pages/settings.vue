@@ -1,7 +1,7 @@
 <template>
   <main class="mx-auto max-w-md px-4 pt-4">
-    <header class="flex items-center justify-between">
-      <NuxtLink to="/" class="flex items-center gap-1 text-sm text-text-secondary" aria-label="返回首页">
+    <header class="relative -mx-4 flex items-center justify-between bg-primary px-4 py-3 text-white">
+      <NuxtLink to="/" class="flex items-center gap-1 text-sm text-white/90 hover:text-white" aria-label="返回首页">
         <ArrowLeft :size="16" aria-hidden="true" />
         <span>首页</span>
       </NuxtLink>

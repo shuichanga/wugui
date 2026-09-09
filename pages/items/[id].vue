@@ -4,13 +4,13 @@
     <NuxtPage />
   </template>
   <main v-else class="mx-auto max-w-md px-4 pt-4">
-    <header class="flex items-center justify-between">
-      <button type="button" class="flex items-center gap-1 text-sm text-text-secondary" @click="goBack">
+    <header class="relative -mx-4 flex items-center justify-between bg-primary px-4 py-3 text-white">
+      <button type="button" class="flex items-center gap-1 text-sm text-white/90 hover:text-white" @click="goBack">
         <ArrowLeft :size="16" aria-hidden="true" />
         <span>返回</span>
       </button>
       <h1 class="text-lg">物品详情</h1>
-      <NuxtLink :to="`/items/${id}/edit`" class="flex items-center gap-1 text-sm text-primary" aria-label="编辑物品">
+      <NuxtLink :to="`/items/${id}/edit`" class="flex items-center gap-1 text-sm text-white/90 hover:text-white" aria-label="编辑物品">
         <Pencil :size="16" aria-hidden="true" />
         <span>编辑</span>
       </NuxtLink>
