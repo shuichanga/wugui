@@ -1,0 +1,77 @@
+import {
+  Sofa, Bed, CookingPot, Bath, BookOpen, Leaf,
+  Package, DoorOpen, Home, UtensilsCrossed,
+  Shirt, Dumbbell, Car, Warehouse, Layers, Droplets,
+  Briefcase, Baby, Clapperboard,
+  type LucideIcon,
+} from 'lucide-vue-next'
+
+interface RoomColors {
+  bg: string
+  accent: string
+  soft: string
+}
+
+// 房间名称 → Lucide 图标映射
+const roomIconMap: { keywords: string[]; icon: LucideIcon }[] = [
+  { keywords: ['客厅', '起居'], icon: Sofa },
+  { keywords: ['卧', '睡', '床'], icon: Bed },
+  { keywords: ['厨', '灶'], icon: CookingPot },
+  { keywords: ['卫', '浴', '厕'], icon: Bath },
+  { keywords: ['书'], icon: BookOpen },
+  { keywords: ['阳', '露'], icon: Leaf },
+  { keywords: ['储', '藏', '仓'], icon: Package },
+  { keywords: ['门', '玄', '入口'], icon: DoorOpen },
+  { keywords: ['餐', '饭'], icon: UtensilsCrossed },
+  { keywords: ['衣帽', '衣', '衣柜'], icon: Shirt },
+  { keywords: ['健身', '运动'], icon: Dumbbell },
+  { keywords: ['车'], icon: Car },
+  { keywords: ['阁楼', '阁'], icon: Warehouse },
+  { keywords: ['地下'], icon: Layers },
+  { keywords: ['洗衣'], icon: Droplets },
+  { keywords: ['办公'], icon: Briefcase },
+  { keywords: ['儿童', '小孩', '孩子'], icon: Baby },
+  { keywords: ['影音', '影', '视听'], icon: Clapperboard },
+]
+
+const defaultIcon = Home
+
+// 6 组绿色系配色：以 emerald 主题色为基准的相近色，低饱和度（与白色混合 30%）
+const mix = (hex: string, ratio: number) => {
+  const n = parseInt(hex.slice(1), 16)
+  const r = Math.round(((n >> 16) & 0xff) * (1 - ratio) + 0xff * ratio)
+  const g = Math.round(((n >> 8) & 0xff) * (1 - ratio) + 0xff * ratio)
+  const b = Math.round((n & 0xff) * (1 - ratio) + 0xff * ratio)
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`
+}
+
+const colorPalette: RoomColors[] = [
+  { bg: '#ecfdf5', accent: mix('#059669', 0.3), soft: '#a7f3d0' }, // emerald → 浅 emerald
+  { bg: '#f0fdf4', accent: mix('#16a34a', 0.3), soft: '#86efac' }, // green → 浅 green
+  { bg: '#f0fdfa', accent: mix('#0d9488', 0.3), soft: '#99f6e4' }, // teal → 浅 teal
+  { bg: '#f7fee7', accent: mix('#65a30d', 0.3), soft: '#bef264' }, // lime → 浅 lime
+  { bg: '#ecfeff', accent: mix('#0d9488', 0.3), soft: '#5eead4' }, // cyan-teal → 浅 cyan-teal
+  { bg: '#f0fdf4', accent: mix('#15803d', 0.3), soft: '#bbf7d0' }, // dark green → 浅 dark green
+]
+
+function hashString(str: string): number {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i)
+    hash |= 0
+  }
+  return Math.abs(hash)
+}
+
+export function useRoomStyle() {
+  function getRoomIcon(name: string): LucideIcon {
+    const match = roomIconMap.find(r => r.keywords.some(k => name.includes(k)))
+    return match?.icon ?? defaultIcon
+  }
+
+  function getRoomColors(name: string): RoomColors {
+    return colorPalette[hashString(name) % colorPalette.length]
+  }
+
+  return { getRoomIcon, getRoomColors }
+}

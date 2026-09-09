@@ -1,6 +1,7 @@
 <template>
   <div class="relative">
-    <button type="button" class="flex items-center gap-1 text-sm text-text-secondary"
+    <button type="button" class="flex items-center gap-1 text-sm"
+            :class="inverse ? 'text-white/90 hover:text-white' : 'text-text-secondary'"
             aria-label="切换住所" :aria-expanded="open"
             @click="open = !open">
       <Home :size="16" aria-hidden="true" />
@@ -36,6 +37,7 @@
 import { Home, ChevronDown, Check, Settings } from 'lucide-vue-next'
 
 const auth = useAuthStore()
+defineProps<{ inverse?: boolean }>()
 const emit = defineEmits<{ switched: [] }>()
 
 const open = ref(false)

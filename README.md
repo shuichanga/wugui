@@ -1,6 +1,8 @@
 <div align="center">
 
-# <img src="public/android-chrome-192x192.png" width="40" alt="物归"> 物归 (wugui)
+<img src="public/android-chrome-192x192.png" width="40" alt="物归"> 
+
+# 物归 (wugui)
 
 ### 家庭收纳管理 Web 应用
 
@@ -808,6 +810,6 @@ npx wrangler d1 migrations list wugui-db --remote
 
 <div align="center">
 
-<p>Built with ❤️ by shuichang</p>
+<p>Built with ❤️ by <a href="https://shuichang.cn">shuichang</a></p>
 
 </div>

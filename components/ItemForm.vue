@@ -21,20 +21,38 @@
 
       <div class="grid grid-cols-3 gap-2">
         <select v-model="form.roomId" class="input-base" aria-label="房间"
-                @change="form.furnitureId = ''; form.compartmentId = ''">
+                @change="onRoomChange">
           <option value="" disabled>房间</option>
           <option v-for="room in rooms" :key="room.id" :value="room.id">{{ room.name }}</option>
+          <option value="__add">＋ 添加新房间</option>
         </select>
         <select v-model="form.furnitureId" class="input-base" aria-label="家具"
                 :disabled="!selectedRoom"
-                @change="form.compartmentId = ''">
+                @change="onFurnitureChange">
           <option value="" disabled>家具</option>
           <option v-for="f in furnitureOptions" :key="f.id" :value="f.id">{{ f.name }}</option>
+          <option v-if="selectedRoom" value="__add">＋ 添加新家具</option>
         </select>
-        <select v-model="form.compartmentId" class="input-base" aria-label="格位" :disabled="!selectedFurniture">
+        <select v-model="form.compartmentId" class="input-base" aria-label="格位"
+                :disabled="!selectedFurniture"
+                @change="onCompartmentChange">
           <option value="">不选格位</option>
           <option v-for="c in compartmentOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
+          <option v-if="selectedFurniture" value="__add">＋ 添加新格位</option>
         </select>
+      </div>
+
+      <!-- 内联添加位置 -->
+      <div v-if="addingLevel" class="mt-2 flex gap-2">
+        <input ref="newLocationInput" v-model="newLocationName" type="text"
+               class="input-base flex-1" :placeholder="`输入${addingLabel}名称`"
+               @keydown.enter.prevent="createLocation"
+               @keydown.escape="cancelAdd" />
+        <button type="button" class="btn-primary px-3 text-sm" :disabled="creating"
+                @click="createLocation">
+          {{ creating ? '添加中…' : '确认' }}
+        </button>
+        <button type="button" class="btn-secondary px-3 text-sm" @click="cancelAdd">取消</button>
       </div>
     </section>
 
@@ -133,7 +151,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ save: [payload: ItemFormPayload, keepGoing: boolean] }>()
 
 // 真实位置树做级联
-const { data: tree } = await useAsyncData('location-tree', () =>
+const { data: tree, refresh: refreshTree } = await useAsyncData('location-tree', () =>
   apiFetch<LocationTreeNode[]>('/api/locations'),
 { server: false })
 const rooms = computed(() => tree.value ?? [])
@@ -153,6 +171,81 @@ const selectedRoom = computed(() => rooms.value.find(r => r.id === form.roomId))
 const selectedFurniture = computed(() => selectedRoom.value?.children?.find(f => f.id === form.furnitureId))
 const furnitureOptions = computed(() => selectedRoom.value?.children ?? [])
 const compartmentOptions = computed(() => selectedFurniture.value?.children ?? [])
+
+// ---- 内联添加位置 ----
+const addingLevel = ref<'room' | 'furniture' | 'compartment' | null>(null)
+const newLocationName = ref('')
+const creating = ref(false)
+const newLocationInput = ref<HTMLInputElement | null>(null)
+
+const addingLabel = computed(() => {
+  const labels = { room: '房间', furniture: '家具', compartment: '格位' }
+  return addingLevel.value ? labels[addingLevel.value] : ''
+})
+
+function onRoomChange() {
+  if (form.roomId === '__add') {
+    form.roomId = ''
+    startAdd('room')
+  } else {
+    form.furnitureId = ''
+    form.compartmentId = ''
+  }
+}
+
+function onFurnitureChange() {
+  if (form.furnitureId === '__add') {
+    form.furnitureId = ''
+    startAdd('furniture')
+  } else {
+    form.compartmentId = ''
+  }
+}
+
+function onCompartmentChange() {
+  if (form.compartmentId === '__add') {
+    form.compartmentId = ''
+    startAdd('compartment')
+  }
+}
+
+function startAdd(level: 'room' | 'furniture' | 'compartment') {
+  addingLevel.value = level
+  newLocationName.value = ''
+  nextTick(() => newLocationInput.value?.focus())
+}
+
+async function createLocation() {
+  const name = newLocationName.value.trim()
+  if (!name) return
+
+  let parentId: string | null = null
+  if (addingLevel.value === 'furniture') parentId = form.roomId
+  if (addingLevel.value === 'compartment') parentId = form.furnitureId
+
+  creating.value = true
+  try {
+    const res = await apiFetch<{ id: string }>('/api/locations', {
+      method: 'POST',
+      body: { name, parentId },
+    })
+    await refreshTree()
+    if (addingLevel.value === 'room') form.roomId = res.id
+    else if (addingLevel.value === 'furniture') form.furnitureId = res.id
+    else if (addingLevel.value === 'compartment') form.compartmentId = res.id
+    addingLevel.value = null
+    newLocationName.value = ''
+  } catch {
+    await useDialog().alertDialog('添加失败，请重试')
+  } finally {
+    creating.value = false
+  }
+}
+
+function cancelAdd() {
+  addingLevel.value = null
+  newLocationName.value = ''
+}
 
 // 编辑模式：树加载后按 initial.locationId 反查整条链回填
 const initialApplied = ref(false)
