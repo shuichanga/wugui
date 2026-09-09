@@ -47,6 +47,7 @@
 | 三级结构 | 房间 → 家具 → 格位（层级不强制，家具可直接挂物品） |
 | 空间图标 | 每个空间可设置图标，快速识别 |
 | 最近空间 | 自动记忆最近使用的空间，快速录入 |
+| 可折叠卡片 | 空间卡片默认折叠显示房间色头部，点击 Chevron 展开家具与格位 |
 
 ### 🔍 检索
 
@@ -358,6 +359,9 @@ wugui/
 │   ├── LocationNode.vue       # 空间树节点
 │   ├── PhotoUploader.vue      # 照片上传器
 │   ├── ResidenceSwitcher.vue  # 住所切换器
+│   ├── RoomCard.vue           # 首页房间卡片
+│   ├── RoomLocationsCard.vue  # 可折叠房间卡片（家具 + 格位）
+│   ├── SearchPopover.vue      # 悬浮搜索弹窗
 │   └── UserAvatar.vue         # 用户头像
 │
 ├── composables/               # Vue 组合式函数

@@ -1,7 +1,7 @@
 <template>
   <!-- 外层卡片：房间 -->
   <article class="overflow-hidden rounded-lg border border-primary/40 bg-neutral-surface shadow-level-1">
-    <!-- 房间标题：图标 + 名称 + 数量 + 删除 -->
+    <!-- 房间标题：图标 + 名称 + 数量 + 折叠 + 删除 -->
     <div class="relative flex items-center gap-2 overflow-hidden px-3 py-2.5"
          :style="{ backgroundColor: roomColors.accent }">
       <!-- SVG 装饰背景 -->
@@ -17,66 +17,81 @@
       </NuxtLink>
       <p class="relative shrink-0 text-sm font-medium text-white/80">{{ room.itemCount }} 件</p>
       <button type="button" class="relative shrink-0 p-1 text-white/80 hover:text-white"
+              :aria-label="expanded ? '折叠' : '展开'"
+              :aria-expanded="expanded"
+              @click="expanded = !expanded">
+        <ChevronDown :size="16" :class="{ 'rotate-180': expanded }" aria-hidden="true" />
+      </button>
+      <button type="button" class="relative shrink-0 p-1 text-white/80 hover:text-white"
               aria-label="删除房间" @click="$emit('delete', room.id)">
         <Trash2 :size="16" aria-hidden="true" />
       </button>
     </div>
 
-    <div class="border-t px-3 py-2.5" :style="{ borderColor: colors.border }">
-      <p v-if="!room.children?.length" class="py-1 text-sm text-text-tertiary">这个房间还没有家具</p>
+    <!-- 内容区：grid rows 过渡动画 -->
+    <div class="grid transition-[grid-template-rows] duration-200 ease-out"
+         :style="{ gridTemplateRows: expanded ? '1fr' : '0fr' }">
+      <div class="overflow-hidden">
+        <div class="border-t px-3 py-2.5" :style="{ borderColor: colors.border }">
+          <p v-if="!room.children?.length" class="py-1 text-sm text-text-tertiary">这个房间还没有家具</p>
 
-      <!-- 家具卡片列表 -->
-      <ul v-else class="flex flex-col gap-2">
-        <li v-for="furniture in room.children" :key="furniture.id">
-          <!-- 内层卡片：家具 -->
-          <article class="overflow-hidden rounded-md border"
-                   :style="{ borderColor: colors.border, backgroundColor: colors.bg }">
-            <div class="flex items-center gap-2 px-2.5 py-2">
-              <NuxtLink :to="`/locations/${furniture.id}`" class="flex min-w-0 flex-1 items-center gap-2"
-                        :style="{ color: colors.text }">
-                <component :is="getFurnitureIcon(furniture.name)" :size="18" :stroke-width="2" aria-hidden="true" />
-                <p class="truncate text-sm font-medium">{{ furniture.name }}</p>
-              </NuxtLink>
-              <p class="shrink-0 text-xs font-medium" :style="{ color: colors.accent }">{{ furniture.itemCount }} 件</p>
-              <button type="button" class="shrink-0 p-0.5 text-text-tertiary hover:text-error"
-                      aria-label="删除家具" @click="$emit('delete', furniture.id)">
-                <Trash2 :size="14" aria-hidden="true" />
-              </button>
-            </div>
+          <!-- 家具卡片列表 -->
+          <ul v-else class="flex flex-col gap-2">
+            <li v-for="furniture in room.children" :key="furniture.id">
+              <!-- 内层卡片：家具 -->
+              <article class="overflow-hidden rounded-md border"
+                       :style="{ borderColor: colors.border, backgroundColor: colors.bg }">
+                <div class="flex items-center gap-2 px-2.5 py-2">
+                  <NuxtLink :to="`/locations/${furniture.id}`" class="flex min-w-0 flex-1 items-center gap-2"
+                            :style="{ color: colors.text }">
+                    <component :is="getFurnitureIcon(furniture.name)" :size="18" :stroke-width="2" aria-hidden="true" />
+                    <p class="truncate text-sm font-medium">{{ furniture.name }}</p>
+                  </NuxtLink>
+                  <p class="shrink-0 text-xs font-medium" :style="{ color: colors.accent }">{{ furniture.itemCount }} 件</p>
+                  <button type="button" class="shrink-0 p-0.5 text-text-tertiary hover:text-error"
+                          aria-label="删除家具" @click="$emit('delete', furniture.id)">
+                    <Trash2 :size="14" aria-hidden="true" />
+                  </button>
+                </div>
 
-            <div class="px-2.5 pb-2">
-              <!-- 进度条：家具在房间内的占比 -->
-              <div class="h-1.5 w-full overflow-hidden rounded-full" :style="{ backgroundColor: colors.border }">
-                <div class="h-full rounded-full"
-                     :style="{ width: progressWidth(furniture.itemCount), backgroundColor: colors.accent }" />
-              </div>
+                <div class="px-2.5 pb-2">
+                  <!-- 进度条：家具在房间内的占比 -->
+                  <div class="h-1.5 w-full overflow-hidden rounded-full" :style="{ backgroundColor: colors.border }">
+                    <div class="h-full rounded-full"
+                         :style="{ width: progressWidth(furniture.itemCount), backgroundColor: colors.accent }" />
+                  </div>
 
-              <!-- 格位 chips：横滑 -->
-              <div v-if="furniture.children?.length"
-                   class="mt-2 flex gap-1.5 overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]">
-                <NuxtLink v-for="compartment in furniture.children" :key="compartment.id"
-                          :to="`/locations/${compartment.id}`"
-                          class="flex shrink-0 items-center gap-1 rounded px-1.5 py-1 text-xs font-medium"
-                          :style="{ backgroundColor: colors.soft, color: colors.text }">
-                  <component :is="getCompartmentIcon(compartment.name)" :size="14" aria-hidden="true" />
-                  <span>{{ compartment.name }}</span>
-                  <span :style="{ color: colors.accent }">{{ compartment.itemCount }}</span>
-                </NuxtLink>
-              </div>
-            </div>
-          </article>
-        </li>
-      </ul>
+                  <!-- 格位 chips：横滑 -->
+                  <div v-if="furniture.children?.length"
+                       class="mt-2 flex gap-1.5 overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]">
+                    <NuxtLink v-for="compartment in furniture.children" :key="compartment.id"
+                              :to="`/locations/${compartment.id}`"
+                              class="flex shrink-0 items-center gap-1 rounded px-1.5 py-1 text-xs font-medium"
+                              :style="{ backgroundColor: colors.soft, color: colors.text }">
+                      <component :is="getCompartmentIcon(compartment.name)" :size="14" aria-hidden="true" />
+                      <span>{{ compartment.name }}</span>
+                      <span :style="{ color: colors.accent }">{{ compartment.itemCount }}</span>
+                    </NuxtLink>
+                  </div>
+                </div>
+              </article>
+            </li>
+          </ul>
+        </div>
+      </div>
     </div>
   </article>
 </template>
 
 <script setup lang="ts">
-import { Trash2 } from 'lucide-vue-next'
+import { ref } from 'vue'
+import { Trash2, ChevronDown } from 'lucide-vue-next'
 import type { LocationTreeNode } from '~/server/utils/locations'
 
 const props = defineProps<{ room: LocationTreeNode }>()
 defineEmits<{ delete: [id: string] }>()
+
+const expanded = ref(false)
 
 const { getRoomIcon, getRoomColors, getItemColors, getFurnitureIcon, getCompartmentIcon } = useRoomStyle()
 
