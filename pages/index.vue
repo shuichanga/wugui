@@ -2,24 +2,19 @@
   <main class="mx-auto max-w-md px-4 pt-4">
     <!-- 顶栏：住所切换 + 标题 + 设置入口 -->
     <header class="relative -mx-4 flex items-center justify-between bg-primary px-4 py-3 text-white">
-      <ResidenceSwitcher @switched="onSwitched" :inverse="true" />
+      <div class="flex items-center gap-2">
+        <ResidenceSwitcher @switched="onSwitched" :inverse="true" />
+        <SearchPopover @search="onSearch" />
+      </div>
       <h1 class="absolute left-1/2 -translate-x-1/2 text-xl text-white">物归</h1>
       <NuxtLink to="/settings" aria-label="设置">
         <UserAvatar :name="auth.user?.displayName" :email="auth.user?.email" :src="auth.user?.avatarUrl" :size="32" />
       </NuxtLink>
     </header>
 
-    <!-- 搜索 -->
-    <section class="mt-4" aria-label="搜索物品">
-      <form class="relative" @submit.prevent="search">
-        <Search :size="16" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" aria-hidden="true" />
-        <input v-model="keyword" type="search" class="input-base pl-9" placeholder="搜索物品名称、标签、备注" />
-      </form>
-    </section>
-
     <!-- 搜索结果 -->
     <template v-if="searched">
-      <section class="mt-6" aria-label="搜索结果">
+      <section class="mt-4" aria-label="搜索结果">
         <div class="flex items-center justify-between">
           <h2 class="text-sm font-semibold text-text-secondary">
             搜索"{{ lastKeyword }}" · {{ results.length }}件
@@ -36,7 +31,7 @@
     </template>
 
     <!-- 位置看板 -->
-    <section v-else class="mt-6" aria-label="位置看板">
+    <section v-else class="mt-4" aria-label="位置看板">
       <div class="flex items-center justify-between">
         <h2 class="text-sm font-semibold text-text-secondary">位置看板</h2>
         <span v-if="rooms.length" class="text-xs text-text-tertiary">共 {{ totalItems }} 件 · {{ rooms.length }} 个房间</span>
@@ -63,7 +58,6 @@
 </template>
 
 <script setup lang="ts">
-import { Search } from 'lucide-vue-next'
 import type { ItemSummary } from '~/server/utils/items'
 
 const auth = useAuthStore()
@@ -83,14 +77,11 @@ const { data: recent, refresh: refreshRecent } = await useAsyncData('recent-item
 }, { server: false, default: () => [] })
 
 // 搜索
-const keyword = ref('')
 const lastKeyword = ref('')
 const searched = ref(false)
 const results = ref<ItemSummary[]>([])
 
-async function search() {
-  const kw = keyword.value.trim()
-  if (!kw) return
+async function onSearch(kw: string) {
   lastKeyword.value = kw
   const res = await apiFetch<{ items: ItemSummary[] }>(`/api/items?keyword=${encodeURIComponent(kw)}`)
   results.value = res.items
@@ -98,7 +89,6 @@ async function search() {
 }
 
 function clearSearch() {
-  keyword.value = ''
   lastKeyword.value = ''
   searched.value = false
   refreshRecent()

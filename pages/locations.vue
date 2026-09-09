@@ -29,12 +29,14 @@
       <button type="submit" class="btn-primary" :disabled="adding">{{ adding ? '添加中…' : '添加' }}</button>
     </form>
 
-    <!-- 位置树 -->
-    <section class="mt-4" aria-label="位置树">
+    <!-- 位置卡片 -->
+    <section class="mt-4" aria-label="位置看板">
       <p v-if="pending" class="p-4 text-sm text-text-tertiary">加载中…</p>
       <p v-else-if="!tree?.length" class="p-4 text-sm text-text-tertiary">还没有位置，点右上角"新增位置"创建第一个房间</p>
-      <ul v-else>
-        <LocationNode v-for="room in tree" :key="room.id" :node="room" @delete="removeLocation" />
+      <ul v-else class="flex flex-col gap-3">
+        <li v-for="room in tree" :key="room.id">
+          <RoomLocationsCard :room="room" @delete="removeLocation" />
+        </li>
       </ul>
     </section>
   </main>

@@ -12,6 +12,14 @@ interface RoomColors {
   soft: string
 }
 
+interface ItemColors {
+  bg: string
+  accent: string
+  soft: string
+  border: string
+  text: string
+}
+
 // 房间名称 → Lucide 图标映射
 const roomIconMap: { keywords: string[]; icon: LucideIcon }[] = [
   { keywords: ['客厅', '起居'], icon: Sofa },
@@ -35,6 +43,14 @@ const roomIconMap: { keywords: string[]; icon: LucideIcon }[] = [
 ]
 
 const defaultIcon = Home
+
+// 4 组家具配色：绿色系、低饱和度
+const itemPalette: ItemColors[] = [
+  { bg: '#ffffff', accent: '#059669', soft: '#d1fae5', border: '#a7f3d0', text: '#047857' },
+  { bg: '#ffffff', accent: '#16a34a', soft: '#dcfce7', border: '#bbf7d0', text: '#15803d' },
+  { bg: '#ffffff', accent: '#0d9488', soft: '#ccfbf1', border: '#99f6e4', text: '#0f766e' },
+  { bg: '#ffffff', accent: '#15803d', soft: '#d1fae5', border: '#a7f3d0', text: '#166534' },
+]
 
 // 6 组绿色系配色：以 emerald 主题色为基准的相近色，低饱和度（与白色混合 30%）
 const mix = (hex: string, ratio: number) => {
@@ -73,5 +89,9 @@ export function useRoomStyle() {
     return colorPalette[hashString(name) % colorPalette.length]
   }
 
-  return { getRoomIcon, getRoomColors }
+  function getItemColors(name: string): ItemColors {
+    return itemPalette[hashString(name) % itemPalette.length]
+  }
+
+  return { getRoomIcon, getRoomColors, getItemColors }
 }
