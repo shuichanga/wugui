@@ -20,10 +20,10 @@
 
     <template v-else-if="item">
       <section class="mt-4 rounded-lg border border-border bg-neutral-surface p-4">
-        <!-- 照片区：最多3张，R2 预签名 GET URL -->
+        <!-- 照片区：最多3张，R2 预签名 GET URL；点击放大看全图 -->
         <div v-if="item.photos?.length" class="flex gap-2">
-          <img v-for="p in item.photos" :key="p.id" :src="p.url" alt="物品照片"
-               class="h-24 flex-1 rounded-md object-cover" />
+          <img v-for="(p, i) in item.photos" :key="p.id" :src="p.url" alt="物品照片"
+               class="h-24 flex-1 cursor-zoom-in rounded-md object-cover" @click="lightboxIndex = i" />
         </div>
         <div v-else class="flex h-40 w-full items-center justify-center rounded-md bg-neutral-sunken">
           <Package :size="32" class="text-text-tertiary" aria-hidden="true" />
@@ -68,6 +68,9 @@
         </p>
       </section>
 
+      <!-- 照片灯箱 -->
+      <ImageLightbox v-model:index="lightboxIndex" :photos="item.photos ?? []" />
+
       <div class="mt-4 mb-4">
         <button type="button" class="w-full rounded-lg border border-error py-3 text-sm font-semibold text-error"
                 @click="remove">
@@ -87,6 +90,9 @@ const id = String(route.params.id)
 
 // 嵌套路由：/items/:id/edit 时父组件只作为出口
 const isEdit = computed(() => route.name === 'items-id-edit')
+
+// 照片灯箱：null = 关闭，数字 = 当前查看的照片下标
+const lightboxIndex = ref<number | null>(null)
 
 const { data: item, pending } = await useAsyncData(`item-${id}`, async () => {
   const res = await apiFetch<ItemSummary & { photos?: { id: string; url: string }[] }>(`/api/items/${id}`)
