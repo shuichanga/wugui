@@ -12,6 +12,11 @@
     <p v-if="!auth.loaded" class="mt-8 p-4 text-sm text-text-tertiary">加载中…</p>
 
     <template v-else>
+      <!-- 操作提示（置顶，任何区块的操作都能立即看到） -->
+      <p v-if="msg" class="mt-4 rounded-md border border-border bg-neutral-surface p-3 text-sm text-success" role="status">
+        {{ msg }}
+      </p>
+
       <!-- 当前用户 -->
       <section class="mt-4 flex items-center gap-3 rounded-lg border border-border bg-neutral-surface p-4">
         <div class="relative shrink-0">
@@ -144,11 +149,6 @@
         </div>
       </section>
 
-      <!-- 消息 -->
-      <p v-if="msg" class="mt-4 rounded-md border border-border bg-neutral-surface p-3 text-sm text-success" role="status">
-        {{ msg }}
-      </p>
-
       <!-- 退出登录 -->
       <div class="mt-8 mb-4">
         <button type="button" class="w-full rounded-lg border border-border py-3 text-sm font-semibold text-error"
@@ -165,6 +165,7 @@ import { ArrowLeft, Camera } from 'lucide-vue-next'
 import { compressImage } from '~/composables/useImageCompress'
 
 const auth = useAuthStore()
+const { confirmDialog, alertDialog } = useDialog()
 const msg = ref('')
 const avatarUploading = ref(false)
 

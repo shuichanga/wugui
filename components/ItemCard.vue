@@ -189,10 +189,15 @@ async function onDelete() {
   if (!ok) return
   try {
     await apiFetch(`/api/items/${props.item.id}`, { method: 'DELETE' })
-    close()
-    emit('deleted', props.item.id)
   } catch (e: unknown) {
-    await alertDialog('删除失败', (e as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '请稍后重试')
+    // 404 = 物品已被删除（如在其它设备操作过），目标状态已达成，视为成功
+    const err = e as { statusCode?: number; data?: { statusCode?: number } }
+    if (err?.statusCode !== 404 && err?.data?.statusCode !== 404) {
+      await alertDialog('删除失败', err?.data?.statusMessage ?? '请稍后重试')
+      return
+    }
   }
+  close()
+  emit('deleted', props.item.id)
 }
 </script>
