@@ -31,7 +31,7 @@ const locationId = String(route.params.id)
 const { data: items, pending } = await useAsyncData(`items-at-${locationId}`, async () => {
   const res = await apiFetch<{ items: ItemSummary[] }>(`/api/items?location_id=${locationId}&limit=50`)
   return res.items
-}, { server: false, default: () => [] })
+}, { server: false, default: () => [], getCachedData: swrCache })
 
 // 空间名：从树上找
 const locationName = ref('…')

@@ -61,7 +61,7 @@ const isChild = computed(() => route.name === 'locations-id')
 
 const { data: tree, pending, refresh } = await useAsyncData('location-tree', () =>
   apiFetch<LocationTreeNode[]>('/api/locations'),
-{ server: false })
+{ server: false, getCachedData: swrCache })
 
 const formOpen = ref(false)
 const nameFocused = ref(false)

@@ -20,7 +20,8 @@ export default defineEventHandler(async (event) => {
   if (!obj) throw createError({ statusCode: 404, statusMessage: '照片文件不存在' })
 
   setHeader(event, 'Content-Type', obj.httpMetadata?.contentType ?? 'image/jpeg')
-  setHeader(event, 'Cache-Control', 'private, max-age=3600')
+  // photoId 与内容一一对应（删除重传会生成新 ID），可长缓存；刷新/切页时照片秒出
+  setHeader(event, 'Cache-Control', 'private, max-age=31536000, immutable')
   // h3 v1 会把裸 ArrayBuffer JSON 序列化成 {}，必须包一层 Buffer
   return Buffer.from(await obj.arrayBuffer())
 })

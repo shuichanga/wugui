@@ -97,7 +97,7 @@ const lightboxIndex = ref<number | null>(null)
 const { data: item, pending } = await useAsyncData(`item-${id}`, async () => {
   const res = await apiFetch<ItemSummary & { photos?: { id: string; url: string }[] }>(`/api/items/${id}`)
   return res
-}, { server: false })
+}, { server: false, getCachedData: swrCache })
 
 // 记录浏览（fire-and-forget，供首页"最近查看"；失败静默）
 watch(item, (val) => {

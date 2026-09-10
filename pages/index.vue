@@ -142,7 +142,7 @@ const { data: rooms, refresh: refreshRooms } = await useAsyncData('rooms-dashboa
     count: node.itemCount,
     hasChildren: (node.children?.length ?? 0) > 0,
   }))
-}, { server: false, default: () => [] })
+}, { server: false, default: () => [], getCachedData: swrCache })
 
 const totalItems = computed(() => rooms.value.reduce((sum, r) => sum + r.count, 0))
 
@@ -150,13 +150,13 @@ const totalItems = computed(() => rooms.value.reduce((sum, r) => sum + r.count, 
 const { data: recent, refresh: refreshRecent } = await useAsyncData('recent-items', async () => {
   const res = await apiFetch<{ items: ItemSummary[] }>('/api/items?limit=10')
   return res.items
-}, { server: false, default: () => [] })
+}, { server: false, default: () => [], getCachedData: swrCache })
 
 // 最近查看（当前用户视角；onMounted 刷新以覆盖从详情页返回的缓存）
 const { data: recentViews, refresh: refreshRecentViews } = await useAsyncData('recent-views', async () => {
   const res = await apiFetch<{ items: ItemSummary[] }>('/api/recent-views?limit=10')
   return res.items
-}, { server: false, default: () => [] })
+}, { server: false, default: () => [], getCachedData: swrCache })
 
 // 最近查看卡片：首段房间名 + 房间色（与 ItemCard 色条语义一致）
 const { getRoomColors } = useRoomStyle()
