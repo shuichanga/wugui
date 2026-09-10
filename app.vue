@@ -3,6 +3,7 @@
     <NuxtPage />
     <AppBottomNav v-if="showNav" />
     <AppDialog />
+    <AppToast />
   </div>
 </template>
 
