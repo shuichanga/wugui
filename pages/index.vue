@@ -30,8 +30,8 @@
       </section>
     </template>
 
-    <!-- 新手引导：空间或物品未就绪时显示 -->
-    <section v-if="!searched && (!rooms.length || !recent.length)" class="mt-4" aria-label="新手引导">
+    <!-- 新手引导：空间或物品未就绪时显示（数据加载完成前挂起，防刷新闪现） -->
+    <section v-if="!searched && !loading && (!rooms.length || !recent.length)" class="mt-4" aria-label="新手引导">
       <div class="rounded-lg border border-primary/40 bg-neutral-surface p-4">
         <h2 class="text-base font-semibold">开始整理你的家</h2>
         <p class="mt-1 text-sm text-text-secondary">三步上手，物品再也不怕找不到</p>
@@ -115,10 +115,10 @@
     <!-- 最近添加 -->
     <section v-if="!searched" class="mt-6" aria-label="最近添加">
       <h2 class="text-sm font-semibold text-text-secondary">最近添加</h2>
-      <p v-if="!recent.length" class="mt-2 p-4 text-sm text-text-tertiary">
+      <p v-if="!loading && !recent.length" class="mt-2 p-4 text-sm text-text-tertiary">
         还没有物品，去底部"添加"录入第一件吧
       </p>
-      <ul v-else class="mt-2 flex flex-col gap-2">
+      <ul v-else-if="recent.length" class="mt-2 flex flex-col gap-2">
         <li v-for="item in recent" :key="item.id">
           <ItemCard :item="item" />
         </li>
@@ -134,7 +134,7 @@ import type { ItemSummary } from '~/server/utils/items'
 const auth = useAuthStore()
 
 // 空间看板：仅第一层级（房间）；hasChildren 用于引导卡"已添加家具"判定
-const { data: rooms, refresh: refreshRooms } = await useAsyncData('rooms-dashboard', async () => {
+const { data: rooms, status: roomsStatus, refresh: refreshRooms } = await useAsyncData('rooms-dashboard', async () => {
   const tree = await apiFetch<LocationTreeNode[]>('/api/locations')
   return tree.map(node => ({
     id: node.id,
@@ -147,13 +147,13 @@ const { data: rooms, refresh: refreshRooms } = await useAsyncData('rooms-dashboa
 const totalItems = computed(() => rooms.value.reduce((sum, r) => sum + r.count, 0))
 
 // 最近添加
-const { data: recent, refresh: refreshRecent } = await useAsyncData('recent-items', async () => {
+const { data: recent, status: recentStatus, refresh: refreshRecent } = await useAsyncData('recent-items', async () => {
   const res = await apiFetch<{ items: ItemSummary[] }>('/api/items?limit=10')
   return res.items
 }, { server: false, default: () => [], getCachedData: swrCache })
 
 // 最近查看（当前用户视角；onMounted 刷新以覆盖从详情页返回的缓存）
-const { data: recentViews, refresh: refreshRecentViews } = await useAsyncData('recent-views', async () => {
+const { data: recentViews, status: recentViewsStatus, refresh: refreshRecentViews } = await useAsyncData('recent-views', async () => {
   const res = await apiFetch<{ items: ItemSummary[] }>('/api/recent-views?limit=10')
   return res.items
 }, { server: false, default: () => [], getCachedData: swrCache })
@@ -175,6 +175,10 @@ const onboard = computed(() => ({
   furniture: rooms.value.some(r => r.hasChildren),
   item: recent.value.length > 0,
 }))
+
+// 数据首次加载中：挂起引导卡与空态，避免刷新时闪现"没有空间/物品"后再被数据填充
+const loading = computed(() =>
+  roomsStatus.value === 'pending' || recentStatus.value === 'pending' || recentViewsStatus.value === 'pending')
 
 // 搜索
 const lastKeyword = ref('')
