@@ -49,7 +49,12 @@ export default defineEventHandler(async (event) => {
     .limit(limit)
     .offset(offset)
 
+  const [countRow] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(items)
+    .where(and(...conditions))
+
   const pathMap = await getLocationPathMap(db, householdId)
   const decorated = await decorateItems(db, rows, pathMap)
-  return { items: decorated }
+  return { items: decorated, total: Number(countRow?.count ?? 0) }
 })

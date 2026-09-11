@@ -61,7 +61,10 @@ const isChild = computed(() => route.name === 'locations-id')
 
 const { data: tree, pending, refresh } = await useAsyncData('location-tree', () =>
   apiFetch<LocationTreeNode[]>('/api/locations'),
-{ server: false, getCachedData: swrCache })
+{ server: false, default: () => [], getCachedData: swrCache })
+
+// hydration 完成标记：首帧渲染与服务端一致，规避 pending 分支 mismatch
+const hydrated = useHydrated()
 
 const formOpen = ref(false)
 const nameFocused = ref(false)

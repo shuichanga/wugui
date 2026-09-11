@@ -375,7 +375,6 @@ wugui/
 │   ├── ResidenceSwitcher.vue  # 住所切换器
 │   ├── RoomCard.vue           # 首页房间卡片
 │   ├── RoomLocationsCard.vue  # 可折叠房间卡片（家具 + 格位）
-│   ├── SearchPopover.vue      # 悬浮搜索弹窗
 │   └── UserAvatar.vue         # 用户头像
 │
 ├── composables/               # Vue 组合式函数

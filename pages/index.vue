@@ -1,40 +1,28 @@
 <template>
   <main class="mx-auto max-w-md px-4 pt-4">
-    <!-- 顶栏：住所切换 + 标题 + 设置入口 -->
-    <header class="relative -mx-4 flex items-center justify-between bg-primary px-4 py-3 text-white">
-      <div class="flex items-center gap-2">
-        <ResidenceSwitcher @switched="onSwitched" :inverse="true" />
-        <SearchPopover @search="onSearch" />
+    <!-- 顶栏：住所切换 + 标题 + 设置入口；底部大圆弧过渡，标题下问候语+日期 -->
+    <header class="relative -mx-4 rounded-b-[2rem] bg-primary px-4 pb-4 pt-3 text-white">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <ResidenceSwitcher @switched="onSwitched" :inverse="true" />
+        </div>
+        <h1 class="absolute left-1/2 -translate-x-1/2 text-xl text-white">物归</h1>
+        <NuxtLink to="/settings" aria-label="设置">
+          <UserAvatar :name="auth.user?.displayName" :email="auth.user?.email" :src="auth.user?.avatarUrl" :size="32" />
+        </NuxtLink>
       </div>
-      <h1 class="absolute left-1/2 -translate-x-1/2 text-xl text-white">物归</h1>
-      <NuxtLink to="/settings" aria-label="设置">
-        <UserAvatar :name="auth.user?.displayName" :email="auth.user?.email" :src="auth.user?.avatarUrl" :size="32" />
-      </NuxtLink>
+      <!-- 问候语与日期依赖客户端本地时间，hydration 后渲染（SSR 输出等高占位防跳动） -->
+      <p class="mt-1.5 text-center text-xs text-white/70">
+        <template v-if="hydrated">{{ greeting }} · {{ today }}</template>
+        <template v-else>&nbsp;</template>
+      </p>
     </header>
 
-    <!-- 搜索结果 -->
-    <template v-if="searched">
-      <section class="mt-4" aria-label="搜索结果">
-        <div class="flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-text-secondary">
-            搜索"{{ lastKeyword }}" · {{ results.length }}件
-          </h2>
-          <button type="button" class="text-sm text-primary" @click="clearSearch">清除</button>
-        </div>
-        <p v-if="!results.length" class="mt-2 p-4 text-sm text-text-tertiary">没有找到匹配的物品</p>
-        <ul v-else class="mt-2 flex flex-col gap-2">
-          <li v-for="item in results" :key="item.id">
-            <ItemCard :item="item" />
-          </li>
-        </ul>
-      </section>
-    </template>
-
     <!-- 新手引导：空间或物品未就绪时显示（数据加载完成前挂起，防刷新闪现） -->
-    <section v-if="!searched && !loading && (!rooms.length || !recent.length)" class="mt-4" aria-label="新手引导">
+    <section v-if="!loading && (!rooms.length || !recent.length)" class="mt-4" aria-label="新手引导">
       <div class="rounded-lg border border-primary/40 bg-neutral-surface p-4">
         <h2 class="text-base font-semibold">开始整理你的家</h2>
-        <p class="mt-1 text-sm text-text-secondary">三步上手，物品再也不怕找不到</p>
+        <p class="text-sm text-text-secondary">三步上手，物品再也不怕找不到</p>
         <ol class="mt-3 flex flex-col gap-2">
           <!-- 步骤 1：添加空间 -->
           <li class="flex items-center gap-3 rounded-md bg-neutral-sunken px-3 py-2.5">
@@ -81,7 +69,7 @@
     </section>
 
     <!-- 空间看板 -->
-    <section v-if="!searched" class="mt-4" aria-label="空间看板">
+    <section class="mt-4" aria-label="空间看板">
       <div class="flex items-center justify-between">
         <h2 class="text-sm font-semibold text-text-secondary">空间看板</h2>
         <span v-if="rooms.length" class="text-xs text-text-tertiary">共 {{ totalItems }} 件 · {{ rooms.length }} 个房间</span>
@@ -92,28 +80,17 @@
     </section>
 
     <!-- 最近查看：横向滚动缩略卡 -->
-    <section v-if="!searched && recentViews.length" class="mt-6" aria-label="最近查看">
+    <section v-if="recentViews.length" class="mt-6" aria-label="最近查看">
       <h2 class="text-sm font-semibold text-text-secondary">最近查看</h2>
       <ul class="-mx-4 mt-2 flex gap-2 overflow-x-auto px-4 pb-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]">
-        <li v-for="item in recentViews" :key="item.id" class="shrink-0">
-          <NuxtLink :to="`/items/${item.id}`"
-                    class="flex w-28 flex-col rounded-lg border border-border bg-neutral-surface p-2">
-            <img v-if="item.photoUrl" :src="item.photoUrl" alt="物品照片"
-                 class="h-20 w-full rounded-md object-cover" loading="lazy" />
-            <div v-else class="flex h-20 w-full items-center justify-center rounded-md bg-neutral-sunken">
-              <Package :size="20" class="text-text-tertiary" aria-hidden="true" />
-            </div>
-            <p class="mt-1.5 truncate text-sm font-medium">{{ item.name }}</p>
-            <p class="truncate text-xs font-medium" :style="{ color: viewRoomColor(item) }">
-              {{ firstRoom(item) }}
-            </p>
-          </NuxtLink>
+        <li v-for="item in recentViews" :key="item.id" class="w-28 shrink-0">
+          <ItemThumbCard :item="item" />
         </li>
       </ul>
     </section>
 
     <!-- 最近添加 -->
-    <section v-if="!searched" class="mt-6" aria-label="最近添加">
+    <section class="mt-6" aria-label="最近添加">
       <h2 class="text-sm font-semibold text-text-secondary">最近添加</h2>
       <p v-if="!loading && !recent.length" class="mt-2 p-4 text-sm text-text-tertiary">
         还没有物品，去底部"添加"录入第一件吧
@@ -128,7 +105,7 @@
 </template>
 
 <script setup lang="ts">
-import { Check, Package } from 'lucide-vue-next'
+import { Check } from 'lucide-vue-next'
 import type { ItemSummary } from '~/server/utils/items'
 
 const auth = useAuthStore()
@@ -158,17 +135,6 @@ const { data: recentViews, status: recentViewsStatus, refresh: refreshRecentView
   return res.items
 }, { server: false, default: () => [], getCachedData: swrCache })
 
-// 最近查看卡片：首段房间名 + 房间色（与 ItemCard 色条语义一致）
-const { getRoomColors } = useRoomStyle()
-function firstRoom(item: ItemSummary): string {
-  const path = item.locationPath || ''
-  const idx = path.indexOf('/')
-  return idx === -1 ? path : path.slice(0, idx)
-}
-function viewRoomColor(item: ItemSummary): string {
-  return getRoomColors(firstRoom(item)).accent
-}
-
 // 引导卡步骤完成状态：房间已建 / 房间下有家具 / 已录入物品
 const onboard = computed(() => ({
   room: rooms.value.length > 0,
@@ -176,27 +142,24 @@ const onboard = computed(() => ({
   item: recent.value.length > 0,
 }))
 
-// 数据首次加载中：挂起引导卡与空态，避免刷新时闪现"没有空间/物品"后再被数据填充
+// 数据首次加载中：挂起引导卡与空态，避免刷新时闪现"没有空间/物品"后再被数据填充。
+// hydration 期间恒为 false（与服务端渲染一致），规避 pending 分支的 hydration mismatch
+const hydrated = useHydrated()
 const loading = computed(() =>
-  roomsStatus.value === 'pending' || recentStatus.value === 'pending' || recentViewsStatus.value === 'pending')
+  hydrated.value && (roomsStatus.value === 'pending' || recentStatus.value === 'pending' || recentViewsStatus.value === 'pending'))
 
-// 搜索
-const lastKeyword = ref('')
-const searched = ref(false)
-const results = ref<ItemSummary[]>([])
-
-async function onSearch(kw: string) {
-  lastKeyword.value = kw
-  const res = await apiFetch<{ items: ItemSummary[] }>(`/api/items?keyword=${encodeURIComponent(kw)}`)
-  results.value = res.items
-  searched.value = true
-}
-
-function clearSearch() {
-  lastKeyword.value = ''
-  searched.value = false
-  refreshRecent()
-}
+// 问候语与日期：依赖客户端本地时间，hydration 后填充
+const greeting = computed(() => {
+  const h = new Date().getHours()
+  const period = h < 6 ? '夜深了' : h < 11 ? '早上好' : h < 13 ? '中午好' : h < 18 ? '下午好' : '晚上好'
+  const name = auth.user?.displayName?.trim()
+  return name ? `${period}，${name}` : period
+})
+const today = computed(() => {
+  const d = new Date()
+  const week = ['日', '一', '二', '三', '四', '五', '六']
+  return `${d.getMonth() + 1}月${d.getDate()}日 周${week[d.getDay()]}`
+})
 
 // 切换住所后刷新本页数据
 function onSwitched() {
@@ -208,7 +171,6 @@ function onSwitched() {
 // 列表内左滑删除：本地移除 + 刷新空间计数
 function onDeleted(id: string) {
   recent.value = recent.value.filter(x => x.id !== id)
-  results.value = results.value.filter(x => x.id !== id)
   recentViews.value = (recentViews.value ?? []).filter(x => x.id !== id)
   refreshRooms()
   refreshNuxtData('location-tree')

@@ -158,7 +158,7 @@ const emit = defineEmits<{ save: [payload: ItemFormPayload, keepGoing: boolean] 
 // 真实空间树做级联
 const { data: tree, refresh: refreshTree } = await useAsyncData('location-tree', () =>
   apiFetch<LocationTreeNode[]>('/api/locations'),
-{ server: false })
+{ server: false, default: () => [], getCachedData: swrCache })
 const rooms = computed(() => tree.value ?? [])
 
 const form = reactive({
