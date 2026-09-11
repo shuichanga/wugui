@@ -1,5 +1,5 @@
 <template>
-  <main class="mx-auto max-w-md px-4 pt-4">
+  <main class="mx-auto max-w-md px-4">
     <!-- 顶栏：住所切换 + 标题 + 设置入口；底部大圆弧过渡，标题下问候语+日期 -->
     <header class="relative -mx-4 rounded-b-[2rem] bg-primary px-4 pb-4 pt-3 text-white">
       <div class="flex items-center justify-between">
@@ -20,10 +20,15 @@
 
     <!-- 新手引导：空间或物品未就绪时显示（数据加载完成前挂起，防刷新闪现） -->
     <section v-if="!loading && (!rooms.length || !recent.length)" class="mt-4" aria-label="新手引导">
-      <div class="rounded-lg border border-primary/40 bg-neutral-surface p-4">
-        <h2 class="text-base font-semibold">开始整理你的家</h2>
-        <p class="text-sm text-text-secondary">三步上手，物品再也不怕找不到</p>
-        <ol class="mt-3 flex flex-col gap-2">
+      <div class="relative overflow-hidden rounded-lg border border-primary/40 bg-neutral-surface p-4">
+        <svg class="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 200 120"
+             preserveAspectRatio="xMidYMid slice" fill="none" aria-hidden="true">
+          <circle cx="170" cy="12" r="42" fill="#059669" opacity="0.06" />
+          <circle cx="24" cy="108" r="22" fill="#059669" opacity="0.05" />
+        </svg>
+        <h2 class="relative text-base font-semibold">开始整理你的家</h2>
+        <p class="relative text-sm text-text-secondary">三步上手，物品再也不怕找不到</p>
+        <ol class="relative mt-3 flex flex-col gap-2">
           <!-- 步骤 1：添加空间 -->
           <li class="flex items-center gap-3 rounded-md bg-neutral-sunken px-3 py-2.5">
             <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold"

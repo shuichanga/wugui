@@ -1,11 +1,11 @@
 <template>
-  <main class="mx-auto max-w-md px-4 pt-4">
-    <header class="relative -mx-4 flex items-center justify-between bg-primary px-4 py-3 text-white">
+  <main class="mx-auto max-w-md px-4">
+    <header class="relative -mx-4 flex h-12 items-center justify-between bg-primary px-4 text-white">
       <NuxtLink to="/locations" class="flex items-center gap-1 text-sm text-white/90 hover:text-white" aria-label="返回空间树">
         <ArrowLeft :size="16" aria-hidden="true" />
         <span>空间</span>
       </NuxtLink>
-      <h1 class="max-w-56 truncate text-lg">{{ locationName }}</h1>
+      <h1 class="absolute left-1/2 max-w-56 -translate-x-1/2 truncate text-lg">{{ locationName }}</h1>
       <span class="w-12" aria-hidden="true"></span>
     </header>
 

@@ -1,9 +1,9 @@
 <template>
-  <main class="mx-auto max-w-md px-4 pt-4">
+  <main class="mx-auto max-w-md px-4">
     <!-- sticky：页头（主题色）与筛选区（页面底色）上下分离，滚动列表时常驻 -->
     <div class="sticky top-0 z-10 -mx-4">
       <!-- 头部形态与空间/我的页统一：左占位 + 绝对居中标题 + 右侧计数 -->
-      <header class="relative flex items-center justify-between bg-primary px-4 py-3 text-white">
+      <header class="relative flex h-12 items-center justify-between bg-primary px-4 text-white">
         <span class="w-12" aria-hidden="true"></span>
         <h1 class="absolute left-1/2 -translate-x-1/2 text-lg">物品</h1>
         <span class="shrink-0 text-xs text-white/80">共 {{ total }} 件</span>
@@ -63,11 +63,37 @@
       <!-- 有缓存数据时刷新不闪加载态 -->
       <p v-else-if="firstStatus === 'pending' && !list.length" class="p-4 text-sm text-text-tertiary">加载中…</p>
       <template v-else>
+        <!-- 当前筛选 chips：点 × 逐项移除（空间级联回上级），一键清除全部 -->
+        <div v-if="hasFilter && list.length" class="mb-3 flex flex-wrap items-center gap-1.5">
+          <button v-if="keyword" type="button" :class="chipClass" @click="clearKeyword">
+            "{{ keyword }}"
+            <X :size="12" aria-hidden="true" />
+          </button>
+          <button v-if="locationChain.room" type="button" :class="chipClass" @click="setQuery({ location_id: undefined })">
+            {{ locationChain.room.name }}
+            <X :size="12" aria-hidden="true" />
+          </button>
+          <button v-if="locationChain.furniture" type="button" :class="chipClass" @click="setQuery({ location_id: locationChain.room?.id })">
+            {{ locationChain.furniture.name }}
+            <X :size="12" aria-hidden="true" />
+          </button>
+          <button v-if="locationChain.compartment" type="button" :class="chipClass" @click="setQuery({ location_id: locationChain.furniture?.id })">
+            {{ locationChain.compartment.name }}
+            <X :size="12" aria-hidden="true" />
+          </button>
+          <button v-if="activeTag" type="button" :class="chipClass" @click="toggleTag(activeTag)">
+            {{ activeTag }}
+            <X :size="12" aria-hidden="true" />
+          </button>
+          <button type="button" class="text-xs font-medium text-primary hover:underline" @click="clearFilters">清除全部</button>
+        </div>
+
         <div v-if="list.length" class="grid grid-cols-3 gap-2">
           <ItemThumbCard v-for="item in list" :key="item.id" :item="item" />
         </div>
-        <div v-else class="rounded-lg border border-border bg-neutral-surface p-4 text-center">
-          <p class="text-sm text-text-secondary">{{ hasFilter ? '没有匹配的物品' : '还没有物品' }}</p>
+        <div v-else class="rounded-lg border border-border bg-neutral-surface p-6 text-center">
+          <Package :size="28" class="mx-auto text-text-tertiary" aria-hidden="true" />
+          <p class="mt-2 text-sm text-text-secondary">{{ hasFilter ? '没有匹配的物品' : '还没有物品' }}</p>
           <button v-if="hasFilter" type="button" class="mt-2 text-sm font-medium text-primary" @click="clearFilters">清除筛选</button>
           <NuxtLink v-else to="/add" class="mt-2 inline-block text-sm font-medium text-primary">去录入第一件</NuxtLink>
         </div>
@@ -83,7 +109,7 @@
 </template>
 
 <script setup lang="ts">
-import { Search, X } from 'lucide-vue-next'
+import { Package, Search, X } from 'lucide-vue-next'
 import type { ItemSummary } from '~/server/utils/items'
 import type { LocationTreeNode } from '~/server/utils/locations'
 
@@ -214,6 +240,9 @@ const tags = computed(() => tagsRes.value.tags)
 
 // ---- 筛选操作 ----
 const keywordDraft = ref('')
+
+// 筛选 chip 统一样式
+const chipClass = 'flex shrink-0 items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary'
 
 function setQuery(patch: Record<string, string | undefined>, mode: 'replace' | 'push' = 'replace') {
   const query = { ...route.query }

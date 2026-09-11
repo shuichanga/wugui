@@ -3,13 +3,13 @@
   <template v-if="isEdit">
     <NuxtPage />
   </template>
-  <main v-else class="mx-auto max-w-md px-4 pt-4">
-    <header class="relative -mx-4 flex items-center justify-between bg-primary px-4 py-3 text-white">
+  <main v-else class="mx-auto max-w-md px-4">
+    <header class="relative -mx-4 flex h-12 items-center justify-between bg-primary px-4 text-white">
       <button type="button" class="flex items-center gap-1 text-sm text-white/90 hover:text-white" @click="goBack">
         <ArrowLeft :size="16" aria-hidden="true" />
         <span>返回</span>
       </button>
-      <h1 class="text-lg">物品详情</h1>
+      <h1 class="absolute left-1/2 -translate-x-1/2 text-lg">物品详情</h1>
       <NuxtLink :to="`/items/${id}/edit`" class="flex items-center gap-1 text-sm text-white/90 hover:text-white" aria-label="编辑物品">
         <Pencil :size="16" aria-hidden="true" />
         <span>编辑</span>
@@ -19,21 +19,24 @@
     <p v-if="pending" class="mt-8 p-4 text-sm text-text-tertiary">加载中…</p>
 
     <template v-else-if="item">
-      <section class="mt-4 rounded-lg border border-border bg-neutral-surface p-4">
-        <!-- 照片区：最多3张，R2 预签名 GET URL；点击放大看全图 -->
-        <div v-if="item.photos?.length" class="flex gap-2">
+      <!-- 照片区：横向滑动大图，点击放大看全图 -->
+      <section class="mt-4" aria-label="物品照片">
+        <div v-if="item.photos?.length"
+             class="-mx-4 flex snap-x snap-mandatory gap-2 overflow-x-auto px-4 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]">
           <img v-for="(p, i) in item.photos" :key="p.id" :src="p.url" alt="物品照片"
-               class="h-24 flex-1 cursor-zoom-in rounded-md object-cover" @click="lightboxIndex = i" />
+               class="h-56 w-full flex-none cursor-zoom-in snap-center rounded-lg object-cover" @click="lightboxIndex = i" />
         </div>
-        <div v-else class="flex h-40 w-full items-center justify-center rounded-md bg-neutral-sunken">
+        <div v-else class="flex h-56 w-full items-center justify-center rounded-lg border border-border bg-neutral-surface">
           <Package :size="32" class="text-text-tertiary" aria-hidden="true" />
         </div>
+      </section>
 
-        <div class="mt-4 flex items-baseline justify-between gap-2">
+      <!-- 信息卡 -->
+      <section class="mt-4 rounded-lg border border-border bg-neutral-surface p-4">
+        <div class="flex items-baseline justify-between gap-2">
           <h2 class="text-xl">{{ item.name }}</h2>
           <span class="text-sm text-text-tertiary">×{{ item.quantity }}</span>
         </div>
-
         <dl class="mt-3 flex flex-col gap-2 text-sm">
           <div class="flex items-start gap-1">
             <MapPin :size="16" class="mt-0.5 shrink-0 text-text-tertiary" aria-hidden="true" />
@@ -54,16 +57,18 @@
             </div>
           </div>
         </dl>
+      </section>
 
-        <ul v-if="item.tags.length" class="mt-3 flex flex-wrap gap-1.5">
+      <!-- 标签与备注 -->
+      <section v-if="item.tags.length || item.notes" class="mt-4 rounded-lg border border-border bg-neutral-surface p-4">
+        <ul v-if="item.tags.length" class="flex flex-wrap gap-1.5">
           <li v-for="tag in item.tags" :key="tag"
               class="rounded border px-2 py-0.5 text-xs"
               :style="tagStyle(tag)">
             {{ tag }}
           </li>
         </ul>
-
-        <p v-if="item.notes" class="mt-3 border-t border-border pt-3 text-sm text-text-secondary">
+        <p v-if="item.notes" class="text-sm text-text-secondary" :class="item.tags.length ? 'mt-3 border-t border-border pt-3' : ''">
           {{ item.notes }}
         </p>
       </section>
@@ -117,7 +122,7 @@ async function remove() {
     await apiFetch(`/api/items/${id}`, { method: 'DELETE' })
     await navigateTo('/')
   } catch (e: unknown) {
-    await alertDialog('删除失败', (e as { data?: { statusMessage?: string } })?.data?.statusMessage)
+    await alertDialog('删除失败', errMsg(e) || '请稍后重试')
   }
 }
 

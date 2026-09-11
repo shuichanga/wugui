@@ -1,59 +1,61 @@
 <template>
-  <div class="relative overflow-hidden rounded-lg border border-border bg-neutral-surface">
-    <!-- 左滑露出的操作层 -->
-    <div class="absolute inset-y-0 right-0 flex" aria-hidden="true">
+  <div class="group relative overflow-hidden rounded-lg border border-border bg-neutral-surface">
+    <!-- 左滑/hover 露出的操作层 -->
+    <div class="absolute inset-y-0 right-0 flex">
       <button type="button" class="w-16 bg-primary text-sm font-medium text-white" @click="goEdit">编辑</button>
       <button type="button" class="w-16 bg-error text-sm font-medium text-white" @click="onDelete">删除</button>
     </div>
 
-    <!-- 前景卡片：跟随手势横移（border-left 作为左侧空间色条） -->
-    <NuxtLink :to="`/items/${item.id}`"
-              class="flex h-full items-center gap-3 bg-neutral-surface py-3 pl-4 pr-3"
-              :style="{ transform: `translateX(${offsetX}px)`, transition: dragging ? 'none' : 'transform 0.2s ease', borderLeftWidth: '6px', borderLeftColor: roomColor }"
-              @click="onLinkClick"
-              @touchstart="onTouchStart"
-              @touchmove="onTouchMove"
-              @touchend="onTouchEnd"
-              @touchcancel="onTouchEnd">
-      <!-- 缩略图：有照片显示，无照片图标兜底（有照片时放大到 80×64） -->
-      <img v-if="item.photoUrl" :src="item.photoUrl" alt="物品照片"
-           class="h-16 w-20 shrink-0 rounded-md object-cover" />
-      <div v-else class="flex h-16 w-20 shrink-0 items-center justify-center rounded-md bg-neutral-sunken">
-        <Package :size="24" class="text-text-tertiary" aria-hidden="true" />
-      </div>
+    <!-- 前景卡片：触屏跟手横移；hover 设备悬停整卡平移露出操作层 -->
+    <div class="slide-on-hover transition-transform duration-200">
+      <NuxtLink :to="`/items/${item.id}`"
+                class="flex h-full items-center gap-3 bg-neutral-surface py-3 pl-4 pr-3"
+                :style="{ transform: `translateX(${offsetX}px)`, transition: dragging ? 'none' : 'transform 0.2s ease', borderLeftWidth: '6px', borderLeftColor: roomColor }"
+                @click="onLinkClick"
+                @touchstart="onTouchStart"
+                @touchmove="onTouchMove"
+                @touchend="onTouchEnd"
+                @touchcancel="onTouchEnd">
+        <!-- 缩略图：有照片显示，无照片图标兜底 -->
+        <img v-if="item.photoUrl" :src="item.photoUrl" alt="物品照片"
+             class="h-16 w-20 shrink-0 rounded-md object-cover" />
+        <div v-else class="flex h-16 w-20 shrink-0 items-center justify-center rounded-md bg-neutral-sunken">
+          <Package :size="24" class="text-text-tertiary" aria-hidden="true" />
+        </div>
 
-      <div class="min-w-0 flex-1">
-        <div class="flex items-baseline justify-between gap-2">
-          <h3 class="truncate text-base font-medium">{{ item.name }}</h3>
-          <span class="shrink-0 text-xs text-text-tertiary">×{{ item.quantity }}</span>
-        </div>
-        <!-- 空间 chip：首级房间用房间色高亮 -->
-        <p class="mt-1 flex items-center gap-1 text-sm text-text-secondary">
-          <MapPin :size="16" class="shrink-0 text-text-tertiary" aria-hidden="true" />
-          <span class="truncate">
-            <span class="font-medium" :style="{ color: roomColor }">{{ firstSegment }}</span>
-            <span v-if="restPath">/ {{ restPath }}</span>
-          </span>
-        </p>
-        <div class="mt-1.5 flex items-center justify-between gap-2">
-          <ul class="flex min-w-0 flex-wrap gap-1">
-            <li v-for="tag in visibleTags" :key="tag"
-                class="rounded border px-1.5 py-0.5 text-xs"
-                :style="tagStyle(tag)">
-              {{ tag }}
-            </li>
-            <li v-if="hiddenTagCount > 0"
-                class="rounded border border-border bg-neutral-sunken px-1.5 py-0.5 text-xs text-text-secondary">
-              +{{ hiddenTagCount }}
-            </li>
-          </ul>
-          <p class="flex shrink-0 items-center gap-1 text-xs text-text-tertiary">
-            <UserAvatar :name="item.ownerName" :src="item.ownerAvatarUrl" :size="16" />
-            {{ item.ownerName }} · {{ timeAgo(item.createdAt) }}
+        <div class="min-w-0 flex-1">
+          <div class="flex items-baseline justify-between gap-2">
+            <h3 class="truncate text-base font-medium">{{ item.name }}</h3>
+            <span class="shrink-0 text-xs text-text-tertiary">×{{ item.quantity }}</span>
+          </div>
+          <!-- 空间 chip：首级房间用房间色高亮 -->
+          <p class="mt-1 flex items-center gap-1 text-sm text-text-secondary">
+            <MapPin :size="16" class="shrink-0 text-text-tertiary" aria-hidden="true" />
+            <span class="truncate">
+              <span class="font-medium" :style="{ color: roomColor }">{{ firstSegment }}</span>
+              <span v-if="restPath">/ {{ restPath }}</span>
+            </span>
           </p>
+          <div class="mt-1.5 flex items-center justify-between gap-2">
+            <ul class="flex min-w-0 flex-wrap gap-1">
+              <li v-for="tag in visibleTags" :key="tag"
+                  class="rounded border px-1.5 py-0.5 text-xs"
+                  :style="tagStyle(tag)">
+                {{ tag }}
+              </li>
+              <li v-if="hiddenTagCount > 0"
+                  class="rounded border border-border bg-neutral-sunken px-1.5 py-0.5 text-xs text-text-secondary">
+                +{{ hiddenTagCount }}
+              </li>
+            </ul>
+            <p class="flex shrink-0 items-center gap-1 text-xs text-text-tertiary">
+              <UserAvatar :name="item.ownerName" :src="item.ownerAvatarUrl" :size="16" />
+              {{ item.ownerName }} · {{ timeAgo(item.createdAt) }}
+            </p>
+          </div>
         </div>
-      </div>
-    </NuxtLink>
+      </NuxtLink>
+    </div>
   </div>
 </template>
 
@@ -95,6 +97,10 @@ const startX = ref(0)
 const startY = ref(0)
 const axis = ref<'h' | 'v' | null>(null)
 
+// 手势仅在纯触屏设备启用；hover 设备用悬停平移露出操作层，避免双通道叠加位移
+const touchEnabled = ref(true)
+onMounted(() => { touchEnabled.value = window.matchMedia('(hover: none)').matches })
+
 // 其他卡片打开时收起自己
 watch(swipedId, (id) => {
   if (id !== props.item.id) close()
@@ -134,6 +140,7 @@ function close() {
 }
 
 function onTouchStart(e: TouchEvent) {
+  if (!touchEnabled.value) return
   const t = e.touches[0]!
   startX.value = t.clientX
   startY.value = t.clientY
@@ -191,9 +198,8 @@ async function onDelete() {
     await apiFetch(`/api/items/${props.item.id}`, { method: 'DELETE' })
   } catch (e: unknown) {
     // 404 = 物品已被删除（如在其它设备操作过），目标状态已达成，视为成功
-    const err = e as { statusCode?: number; data?: { statusCode?: number; statusMessage?: string } }
-    if (err?.statusCode !== 404 && err?.data?.statusCode !== 404) {
-      await alertDialog('删除失败', err?.data?.statusMessage ?? '请稍后重试')
+    if (errStatus(e) !== 404) {
+      await alertDialog('删除失败', errMsg(e) || '请稍后重试')
       return
     }
   }
@@ -201,3 +207,12 @@ async function onDelete() {
   emit('deleted', props.item.id)
 }
 </script>
+
+<style scoped>
+/* hover 设备（PC）：悬停整卡平移露出操作层；触屏设备走左滑手势，不受影响 */
+@media (hover: hover) {
+  .group:hover .slide-on-hover {
+    transform: translateX(-8rem);
+  }
+}
+</style>

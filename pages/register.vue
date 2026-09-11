@@ -135,7 +135,7 @@ async function onSubmit() {
     useRecentLocations().clear()
     await navigateTo(res.householdId ? '/' : '/settings')
   } catch (e: unknown) {
-    error.value = (e as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '注册失败，请稍后再试'
+    error.value = errMsg(e) || '注册失败，请稍后再试'
   } finally {
     loading.value = false
   }

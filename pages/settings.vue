@@ -1,8 +1,8 @@
 <template>
-  <main class="mx-auto max-w-md px-4 pt-4">
-    <header class="relative -mx-4 flex items-center justify-between bg-primary px-4 py-3 text-white">
+  <main class="mx-auto max-w-md px-4">
+    <header class="relative -mx-4 flex h-12 items-center justify-between bg-primary px-4 text-white">
       <span class="w-12" aria-hidden="true"></span>
-      <h1 class="text-lg">我的</h1>
+      <h1 class="absolute left-1/2 -translate-x-1/2 text-lg">我的</h1>
       <span class="w-12" aria-hidden="true"></span>
     </header>
 
@@ -176,7 +176,7 @@ async function onAvatarPick(e: Event) {
     await auth.fetchMe()
     flash('头像已更新')
   } catch (err: unknown) {
-    flash((err as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '头像更新失败')
+    flash(errMsg(err) || '头像更新失败')
   } finally {
     avatarUploading.value = false
   }
@@ -190,7 +190,7 @@ async function removeAvatar() {
     await auth.fetchMe()
     flash('头像已移除')
   } catch (err: unknown) {
-    flash((err as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '移除失败')
+    flash(errMsg(err) || '移除失败')
   } finally {
     avatarUploading.value = false
   }
@@ -242,7 +242,7 @@ async function submitRename(h: { id: string }) {
     await auth.fetchMe()
     flash('已改名')
   } catch (e: unknown) {
-    flash((e as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '改名失败')
+    flash(errMsg(e) || '改名失败')
   }
 }
 
@@ -257,7 +257,7 @@ async function resetInvite(h: { id: string }) {
     await auth.fetchMe()
     flash('邀请码已重置')
   } catch (e: unknown) {
-    flash((e as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '重置失败')
+    flash(errMsg(e) || '重置失败')
   }
 }
 
@@ -287,7 +287,7 @@ async function kickMember(h: { id: string }, m: { userId: string; displayName?: 
     members.value = members.value.filter(x => x.userId !== m.userId)
     flash('已移除')
   } catch (e: unknown) {
-    flash((e as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '移除失败')
+    flash(errMsg(e) || '移除失败')
   }
 }
 
@@ -303,7 +303,7 @@ async function leaveHousehold(h: { id: string; name: string }) {
     await auth.fetchMe()
     flash('已退出')
   } catch (e: unknown) {
-    flash((e as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '退出失败')
+    flash(errMsg(e) || '退出失败')
   }
 }
 
@@ -315,7 +315,7 @@ async function createHousehold() {
     await auth.fetchMe()
     await navigateTo('/')
   } catch (e: unknown) {
-    flash((e as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '创建失败')
+    flash(errMsg(e) || '创建失败')
   }
 }
 
@@ -330,7 +330,7 @@ async function joinHousehold() {
     await auth.fetchMe()
     await navigateTo('/')
   } catch (e: unknown) {
-    flash((e as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '加入失败')
+    flash(errMsg(e) || '加入失败')
   }
 }
 
@@ -401,7 +401,7 @@ async function exportData(format: 'json' | 'csv') {
     }
     flash(`已导出 ${data.items.length} 件物品`)
   } catch (e: unknown) {
-    flash((e as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '导出失败')
+    flash(errMsg(e) || '导出失败')
   } finally {
     exporting.value = ''
   }
@@ -446,7 +446,7 @@ async function onImportPick(e: Event) {
     refreshNuxtData('rooms-dashboard')
     refreshNuxtData('recent-items')
   } catch (err: unknown) {
-    flash((err as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '导入失败')
+    flash(errMsg(err) || '导入失败')
   } finally {
     importing.value = false
   }

@@ -96,7 +96,7 @@ async function onSubmit() {
     useRecentLocations().clear()
     await navigateTo('/')
   } catch (e: unknown) {
-    error.value = (e as { data?: { statusMessage?: string } })?.data?.statusMessage ?? '登录失败，请稍后再试'
+    error.value = errMsg(e) || '登录失败，请稍后再试'
   } finally {
     loading.value = false
   }
