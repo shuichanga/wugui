@@ -768,6 +768,10 @@ bucket_name = "wugui-photos"
 ### `nuxt.config.ts` 关键配置
 
 ```typescript
+import { readFileSync } from 'node:fs'
+
+const pkg = JSON.parse(readFileSync('./package.json', 'utf8'))
+
 {
   compatibilityDate: '2025-07-15',
   modules: ['@pinia/nuxt'],
@@ -776,6 +780,8 @@ bucket_name = "wugui-photos"
     modules: ['nitro-cloudflare-dev'],
   },
   vite: { plugins: [tailwindcss()] },
+  // 版本号：package.json 为单一数据源，可用 APP_VERSION 环境变量覆盖
+  runtimeConfig: { public: { appVersion: process.env.APP_VERSION ?? pkg.version } },
   app: {
     head: {
       title: '物归',
