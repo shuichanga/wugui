@@ -94,14 +94,17 @@
       </ul>
     </section>
 
-    <!-- 最近添加 -->
+    <!-- 最近添加：仅展示 30 天内新增物品 -->
     <section class="mt-6" aria-label="最近添加">
       <h2 class="text-sm font-semibold text-text-secondary">最近添加</h2>
-      <p v-if="!loading && !recent.length" class="mt-2 p-4 text-sm text-text-tertiary">
+      <p v-if="!loading && !recentList.length && !totalItems" class="mt-2 p-4 text-sm text-text-tertiary">
         还没有物品，去底部"添加"录入第一件吧
       </p>
-      <ul v-else-if="recent.length" class="mt-2 flex flex-col gap-2">
-        <li v-for="item in recent" :key="item.id">
+      <p v-else-if="!loading && !recentList.length && totalItems" class="mt-2 p-4 text-sm text-text-tertiary">
+        最近 30 天没有新增物品
+      </p>
+      <ul v-else-if="recentList.length" class="mt-2 flex flex-col gap-2">
+        <li v-for="item in recentList" :key="item.id">
           <ItemCard :item="item" />
         </li>
       </ul>
@@ -128,11 +131,18 @@ const { data: rooms, status: roomsStatus, refresh: refreshRooms } = await useAsy
 
 const totalItems = computed(() => rooms.value.reduce((sum, r) => sum + r.count, 0))
 
-// 最近添加
+// 最近添加：limit 拉全一点，前端过滤 30 天内新增
 const { data: recent, status: recentStatus, refresh: refreshRecent } = await useAsyncData('recent-items', async () => {
-  const res = await apiFetch<{ items: ItemSummary[] }>('/api/items?limit=10')
+  const res = await apiFetch<{ items: ItemSummary[] }>('/api/items?limit=30')
   return res.items
 }, { server: false, default: () => [], getCachedData: swrCache })
+
+// 最近添加的展示列表：30 天内新增（依赖客户端时间，放 computed 保证 hydration 稳定）
+const RECENT_DAYS = 30
+const recentList = computed(() => {
+  const cutoff = Date.now() - RECENT_DAYS * 24 * 60 * 60 * 1000
+  return recent.value.filter(i => new Date(i.createdAt).getTime() >= cutoff)
+})
 
 // 最近查看（当前用户视角；onMounted 刷新以覆盖从详情页返回的缓存）
 const { data: recentViews, status: recentViewsStatus, refresh: refreshRecentViews } = await useAsyncData('recent-views', async () => {

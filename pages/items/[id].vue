@@ -53,7 +53,7 @@
             <UserAvatar :name="item.ownerName" :src="item.ownerAvatarUrl" :size="16" />
             <div>
               <dt class="sr-only">录入人</dt>
-              <dd class="text-text-secondary">{{ item.ownerName }} · {{ timeAgo(item.createdAt) }}</dd>
+              <dd class="text-text-secondary">{{ item.ownerName }} · {{ formatDateTime(item.createdAt) }}</dd>
             </div>
           </div>
         </dl>

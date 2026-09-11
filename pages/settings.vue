@@ -3,7 +3,9 @@
     <header class="relative -mx-4 flex h-12 items-center justify-between bg-primary px-4 text-white">
       <span class="w-12" aria-hidden="true"></span>
       <h1 class="absolute left-1/2 -translate-x-1/2 text-lg">我的</h1>
-      <span class="w-12" aria-hidden="true"></span>
+      <NuxtLink to="/about" class="flex h-full w-12 items-center justify-end text-sm text-white/90 hover:text-white" aria-label="关于">
+        关于
+      </NuxtLink>
     </header>
 
     <p v-if="!auth.loaded" class="mt-8 p-4 text-sm text-text-tertiary">加载中…</p>

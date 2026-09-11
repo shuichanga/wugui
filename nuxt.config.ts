@@ -1,4 +1,8 @@
+import { readFileSync } from 'node:fs'
 import tailwindcss from '@tailwindcss/vite'
+
+// 版本号：单一数据源为 package.json；也支持 APP_VERSION 环境变量覆盖（用于 CI 发布场景）
+const pkg = JSON.parse(readFileSync('./package.json', 'utf8'))
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
@@ -11,6 +15,11 @@ export default defineNuxtConfig({
   },
   vite: {
     plugins: [tailwindcss()],
+  },
+  runtimeConfig: {
+    public: {
+      appVersion: process.env.APP_VERSION ?? pkg.version,
+    },
   },
   app: {
     head: {
