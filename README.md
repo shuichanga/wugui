@@ -83,7 +83,8 @@
 | PWA | 支持添加到主屏；Service Worker 缓存静态资源并提供页面离线兜底，API 直连不缓存 |
 | 新手引导 | 首页三步引导卡（建空间 → 添家具 → 录物品），逐步打勾、完成后自动消失 |
 | 统一弹窗 | 应用内 DOM 对话框替代原生 confirm/alert（部分移动端浏览器原生弹窗静默失效） |
-| 底部导航 | 移动端底部 Tab 导航 |
+| 底部导航 | 移动端 5 段 Tab 导航（首页 / 物品 / ＋添加 / 空间 / 我的） |
+| 关于页 | 品牌、数据说明、技术栈与 GitHub 入口，版本号跟随 `package.json` |
 
 ---
 
@@ -353,13 +354,15 @@ wugui/
 │   └── pwa.client.ts          # Service Worker 注册（仅生产环境）
 │
 ├── pages/                     # 页面（路由）
-│   ├── index.vue              # 首页（搜索 + 引导卡 + 空间看板 + 最近查看/添加）
+│   ├── index.vue              # 首页（问候语 + 引导卡 + 空间看板 + 最近查看/添加）
 │   ├── add.vue                # 添加物品
+│   ├── about.vue              # 关于（品牌、数据说明、技术栈、GitHub）
 │   ├── login.vue              # 登录
 │   ├── register.vue           # 注册
 │   ├── settings.vue           # 设置（用户 + 住所管理 + 数据备份）
 │   ├── locations.vue          # 空间列表
 │   ├── locations/[id].vue     # 空间详情
+│   ├── items/index.vue        # 物品总览（搜索 + 三级级联 + 标签筛选）
 │   ├── items/[id].vue         # 物品详情
 │   └── items/[id]/edit.vue    # 编辑物品
 │
