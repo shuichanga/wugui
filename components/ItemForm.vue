@@ -82,8 +82,13 @@
           </button>
         </li>
       </ul>
-      <input id="item-tag" v-model="tagDraft" type="text" class="input-base" placeholder="输入后回车添加"
-             @keydown.enter.prevent="addTag" />
+      <div class="flex gap-2">
+        <input id="item-tag" v-model="tagDraft" type="text" class="input-base flex-1" placeholder="输入标签，逗号分隔可一次添加多个"
+               @keydown.enter.prevent="addTag" />
+        <button type="button" class="btn-secondary shrink-0 px-3 text-sm" :disabled="!tagDraft.trim()" @click="addTag">
+          添加
+        </button>
+      </div>
       <ul class="mt-2 flex flex-wrap gap-1.5">
         <li v-for="s in TAG_SUGGESTIONS" :key="s">
           <button type="button" class="rounded-full border border-border px-2 py-0.5 text-xs text-text-secondary"
@@ -312,6 +317,16 @@ function rememberLocation() {
 }
 
 // ---- 标签 ----
+// 逗号（中英文/顿号）实时拆分：输入或粘贴含逗号的内容立即成签，最后一段留在输入框继续编辑
+watch(tagDraft, (v) => {
+  if (!/[,，、]/.test(v)) return
+  const parts = v.split(/[,，、]/).map(s => s.trim()).filter(Boolean)
+  tagDraft.value = parts.pop() ?? ''
+  for (const t of parts) {
+    if (!form.tags.includes(t)) form.tags.push(t)
+  }
+})
+
 function addTag() {
   const t = tagDraft.value.trim()
   if (t && !form.tags.includes(t)) form.tags.push(t)
