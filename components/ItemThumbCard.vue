@@ -1,15 +1,22 @@
 <template>
+  <!-- 物品卡（gcard）：渐变图区 + 名称/位置/标签 -->
   <NuxtLink :to="`/items/${item.id}`"
-            class="flex flex-col rounded-lg border border-border bg-neutral-surface p-2">
+            class="block overflow-hidden rounded-2xl border border-border bg-neutral-surface shadow-level-1">
     <img v-if="item.photoUrl" :src="item.photoUrl" alt="物品照片"
-         class="aspect-square w-full rounded-md object-cover" loading="lazy" />
-    <div v-else class="flex aspect-square w-full items-center justify-center rounded-md bg-neutral-sunken">
-      <Package :size="20" class="text-text-tertiary" aria-hidden="true" />
+         class="h-[58px] w-full object-cover" loading="lazy" />
+    <div v-else class="flex h-[58px] w-full items-center justify-center bg-gradient-to-br from-tint to-primary-soft">
+      <Package :size="26" class="text-primary/60" aria-hidden="true" />
     </div>
-    <p class="mt-1.5 truncate text-sm font-medium">{{ item.name }}</p>
-    <p class="truncate text-xs font-medium" :style="{ color: roomColor }" :title="item.locationPath">
-      {{ item.locationPath || '未放置' }}
-    </p>
+    <div class="px-3 pb-2.5 pt-2">
+      <p class="truncate text-sm font-semibold">{{ item.name }}</p>
+      <p class="mb-1.5 mt-0.5 truncate text-2xs text-text-tertiary" :title="item.locationPath">
+        {{ shortPath || '未放置' }}
+      </p>
+      <span v-if="item.tags.length" class="inline-block rounded-full px-2 py-1 text-2xs leading-none"
+            :style="tagStyle(item.tags[0])">
+        {{ item.tags[0] }}
+      </span>
+    </div>
   </NuxtLink>
 </template>
 
@@ -19,11 +26,9 @@ import type { ItemSummary } from '~/server/utils/items'
 
 const props = defineProps<{ item: ItemSummary }>()
 
-// 色条语义沿用 ItemCard：取路径首段（房间名）决定配色
-const { getRoomColors } = useRoomStyle()
-const roomColor = computed(() => {
-  const path = props.item.locationPath || ''
-  const idx = path.indexOf('/')
-  return getRoomColors(idx === -1 ? path : path.slice(0, idx)).accent
+// 位置路径显示前两段（房间 · 格位），避免三段全展挤压卡片
+const shortPath = computed(() => {
+  const segs = (props.item.locationPath || '').split('/').map(s => s.trim()).filter(Boolean)
+  return segs.slice(0, 2).join(' · ')
 })
 </script>

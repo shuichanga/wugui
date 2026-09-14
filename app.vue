@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-dvh" :class="{ 'pb-20': showNav }">
+  <div class="min-h-dvh" :class="{ 'pb-24': showNav }">
     <NuxtPage />
     <AppBottomNav v-if="showNav" />
     <AppDialog />

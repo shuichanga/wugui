@@ -1,85 +1,82 @@
 <template>
-  <main class="mx-auto max-w-md px-4">
-    <header class="relative -mx-4 flex h-12 items-center justify-between bg-primary px-4 text-white">
-      <button type="button" class="flex items-center gap-1 text-sm text-white/90 hover:text-white" @click="goBack">
-        <ArrowLeft :size="16" aria-hidden="true" />
-        <span>返回</span>
-      </button>
-      <h1 class="absolute left-1/2 -translate-x-1/2 text-lg">关于</h1>
-      <span class="w-12" aria-hidden="true"></span>
-    </header>
+  <main class="mx-auto max-w-md px-4 pb-6">
+    <AppTopbar title="关于" fallback="/settings" />
 
-    <!-- 品牌区 -->
-    <section class="mt-6 flex flex-col items-center text-center">
-      <div class="flex items-center gap-3">
-        <img src="/apple-touch-icon.png" alt="物归" class="h-10 w-10 rounded-xl" />
-        <h2 class="text-xl font-semibold">物归</h2>
+    <!-- 品牌区：logo + 版本药丸 + 标语 + 三绿点收尾 -->
+    <section class="flex flex-col items-center pt-7 text-center" aria-label="品牌">
+      <img src="/apple-touch-icon.png" alt="物归" class="h-[78px] w-[78px] rounded-[24px] shadow-primary" />
+      <h2 class="mt-3.5 text-[22px] font-extrabold tracking-widest">物归</h2>
+      <p class="mt-1 text-xs tracking-[0.35em] text-text-tertiary">归位每一件物品</p>
+      <div class="mt-3 flex gap-1.5" aria-hidden="true">
+        <i class="h-1.5 w-1.5 rounded-full bg-primary" />
+        <i class="h-1.5 w-1.5 rounded-full bg-primary opacity-55" />
+        <i class="h-1.5 w-1.5 rounded-full bg-primary opacity-30" />
       </div>
-      <p class="mt-2 text-sm text-text-tertiary">归位每一件物品</p>
-      <p v-if="appVersion" class="mt-1 font-mono text-xs text-text-tertiary">v{{ appVersion }}</p>
     </section>
 
     <!-- 简介 -->
-    <section class="mt-6 rounded-lg border border-border bg-neutral-surface p-4">
-      <h2 class="text-sm font-semibold text-text-secondary">关于物归</h2>
-      <p class="mt-2 text-sm leading-relaxed text-text-secondary">
-        物归是一个家庭物品管理应用。为每一件物品拍照、选定收纳位置，全家人共享同一份清单，
-        再也不会"我以为在厨房，你以为是客厅"。
-      </p>
+    <section class="mt-6" aria-label="关于物归">
+      <SectionTitle title="关于物归">
+        <template #aux>
+          <span class="rounded-full bg-tint px-2 py-0.5 text-2xs font-semibold text-primary-dark">v{{ appVersion }}</span>
+        </template>
+      </SectionTitle>
+      <div class="mt-3 rounded-2xl border border-border bg-neutral-surface px-3.5 py-3 shadow-level-1">
+        <p class="text-sm leading-relaxed text-text-secondary">
+          物归是一个开源的家庭物品管理应用，帮你把家里的东西「放得明确、找得回来」。
+          多住所、房间—家具—格子三级定位，全家人一起维护。
+        </p>
+      </div>
     </section>
 
-    <!-- 数据说明 -->
-    <section class="mt-4 rounded-lg border border-border bg-neutral-surface p-4">
-      <h2 class="text-sm font-semibold text-text-secondary">数据存储</h2>
-      <ul class="mt-2 flex flex-col gap-2 text-sm text-text-secondary">
-        <li class="flex items-start gap-2">
-          <Database :size="16" class="mt-0.5 shrink-0 text-text-tertiary" aria-hidden="true" />
-          <span>物品元数据存于 Cloudflare D1</span>
-        </li>
-        <li class="flex items-start gap-2">
-          <ImageIcon :size="16" class="mt-0.5 shrink-0 text-text-tertiary" aria-hidden="true" />
-          <span>照片存于 Cloudflare R2</span>
-        </li>
-        <li class="flex items-start gap-2">
-          <ShieldCheck :size="16" class="mt-0.5 shrink-0 text-text-tertiary" aria-hidden="true" />
-          <span>密码使用 Argon2 加盐散列，仅存哈希</span>
-        </li>
-      </ul>
-      <p class="mt-3 text-xs text-text-tertiary">
-        可在"我的"页导出 JSON 或 CSV 作为本地备份。
-      </p>
+    <!-- 数据与安全 -->
+    <section class="mt-6" aria-label="数据与安全">
+      <SectionTitle title="数据与安全" />
+      <div class="mt-3 overflow-hidden rounded-2xl border border-border bg-neutral-surface shadow-level-1">
+        <div class="flex items-center gap-3 px-3.5 py-3">
+          <span class="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[11px] bg-tint text-primary">
+            <Database :size="16" aria-hidden="true" />
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="block text-sm font-semibold">数据存储</span>
+            <small class="mt-0.5 block text-2xs text-text-tertiary">物品存于 Cloudflare D1 · 照片存于 R2</small>
+          </span>
+        </div>
+        <div class="flex items-center gap-3 border-t border-border px-3.5 py-3">
+          <span class="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[11px] bg-tint text-primary">
+            <ShieldCheck :size="16" aria-hidden="true" />
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="block text-sm font-semibold">密码加密</span>
+            <small class="mt-0.5 block text-2xs text-text-tertiary">Argon2id 加盐散列，仅存哈希</small>
+          </span>
+        </div>
+      </div>
+      <p class="mt-2 px-1 text-2xs text-text-tertiary">可在"我的"页导出 JSON 或 CSV 作为本地备份。</p>
     </section>
 
-    <!-- 开源与反馈 -->
-    <section class="mt-4 rounded-lg border border-border bg-neutral-surface p-4">
-      <h2 class="text-sm font-semibold text-text-secondary">开源与反馈</h2>
-      <p class="mt-2 text-sm text-text-secondary">
-        物归是开源项目，欢迎提交问题或参与共建。
-      </p>
+    <!-- 项目 -->
+    <section class="mt-6" aria-label="项目">
+      <SectionTitle title="项目" />
       <a href="https://github.com/shuichanga/wugui" target="_blank" rel="noopener noreferrer"
-         class="mt-3 flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2.5 text-sm font-medium text-white hover:bg-primary/90">
-        <Github :size="16" aria-hidden="true" />
-        GitHub 仓库
+         class="mt-3 flex h-[46px] items-center justify-center gap-2 rounded-xl border-[1.5px] border-border-strong bg-neutral-surface text-sm font-semibold text-text-primary shadow-level-1 hover:bg-neutral-sunken">
+        <Github :size="17" aria-hidden="true" />
+        开源仓库 · GitHub
       </a>
     </section>
 
-    <!-- 底部 -->
-    <footer class="mt-8 mb-4 text-center">
-      <p class="text-xs text-text-tertiary">© {{ year }} 物归 · 用心整理每一个家</p>
-      <p class="text-xs text-text-tertiary">make with <a href="https://shuichanga.cn" target="_blank" rel="noopener noreferrer">水常</a></p>
+    <footer class="mt-8 pb-2 text-center">
+      <p class="text-2xs tracking-wide text-text-disabled">
+        © {{ year }} 物归 · 用心整理每一个家 by <span class="font-semibold text-primary-dark">水常</span>
+      </p>
     </footer>
   </main>
 </template>
 
 <script setup lang="ts">
-import { ArrowLeft, Database, Github, Image as ImageIcon, ShieldCheck } from 'lucide-vue-next'
+import { Database, Github, ShieldCheck } from 'lucide-vue-next'
 
 const config = useRuntimeConfig()
 const appVersion = config.public.appVersion
 const year = new Date().getFullYear()
-
-function goBack() {
-  if (window.history.length > 1) history.back()
-  else navigateTo('/settings')
-}
 </script>

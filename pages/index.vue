@@ -1,36 +1,40 @@
 <template>
   <main class="mx-auto max-w-md px-4">
-    <!-- 顶栏：住所切换 + 标题 + 设置入口；底部大圆弧过渡，标题下问候语+日期 -->
-    <header class="relative -mx-4 rounded-b-[2rem] bg-primary px-4 pb-4 pt-3 text-white">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <ResidenceSwitcher @switched="onSwitched" :inverse="true" />
-        </div>
-        <h1 class="absolute left-1/2 -translate-x-1/2 text-xl text-white">物归</h1>
-        <NuxtLink to="/settings" aria-label="设置">
-          <UserAvatar :name="auth.user?.displayName" :email="auth.user?.email" :src="auth.user?.avatarUrl" :size="32" />
-        </NuxtLink>
+    <!-- 问候头：透明融入背景，左问候块（含住所切换）+ 右头像 -->
+    <header class="flex items-center justify-between pt-4">
+      <div class="min-w-0">
+        <p class="text-lg font-bold tracking-wide">{{ greeting }}</p>
+        <!-- 问候语/日期依赖客户端本地时间，hydration 后渲染（SSR 输出等高占位防跳动） -->
+        <p class="mt-1 flex h-5 items-center text-xs text-text-tertiary">
+          <template v-if="hydrated">
+            <ResidenceSwitcher @switched="onSwitched">
+              {{ today }} · <span class="font-medium text-text-secondary">{{ auth.currentHousehold?.name }}</span>
+            </ResidenceSwitcher>
+          </template>
+          <template v-else>&nbsp;</template>
+        </p>
       </div>
-      <!-- 问候语与日期依赖客户端本地时间，hydration 后渲染（SSR 输出等高占位防跳动） -->
-      <p class="mt-1.5 text-center text-xs text-white/70">
-        <template v-if="hydrated">{{ greeting }} · {{ today }}</template>
-        <template v-else>&nbsp;</template>
-      </p>
+      <NuxtLink to="/settings" aria-label="设置">
+        <UserAvatar :name="auth.user?.displayName" :email="auth.user?.email" :src="auth.user?.avatarUrl" :size="44" dot />
+      </NuxtLink>
     </header>
 
     <!-- 新手引导：空间或物品未就绪时显示（数据加载完成前挂起，防刷新闪现） -->
-    <section v-if="!loading && (!rooms.length || !recent.length)" class="mt-4" aria-label="新手引导">
-      <div class="relative overflow-hidden rounded-lg border border-primary/40 bg-neutral-surface p-4">
+    <section v-if="!loading && (!rooms.length || !recent.length)" class="mt-5" aria-label="新手引导">
+      <div class="relative overflow-hidden rounded-2xl border border-border bg-neutral-surface p-4 shadow-level-1">
         <svg class="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 200 120"
              preserveAspectRatio="xMidYMid slice" fill="none" aria-hidden="true">
-          <circle cx="170" cy="12" r="42" fill="#059669" opacity="0.06" />
-          <circle cx="24" cy="108" r="22" fill="#059669" opacity="0.05" />
+          <circle cx="170" cy="12" r="42" class="fill-primary" opacity="0.06" />
+          <circle cx="24" cy="108" r="22" class="fill-primary" opacity="0.05" />
         </svg>
-        <h2 class="relative text-base font-semibold">开始整理你的家</h2>
-        <p class="relative text-sm text-text-secondary">三步上手，物品再也不怕找不到</p>
+        <h2 class="relative flex items-center gap-2 text-[15px] font-bold">
+          <i class="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
+          开始整理你的家
+        </h2>
+        <p class="relative mt-1 text-xs text-text-tertiary">三步上手，物品再也不怕找不到</p>
         <ol class="relative mt-3 flex flex-col gap-2">
           <!-- 步骤 1：添加空间 -->
-          <li class="flex items-center gap-3 rounded-md bg-neutral-sunken px-3 py-2.5">
+          <li class="flex items-center gap-3 rounded-xl bg-neutral-sunken px-3 py-2.5">
             <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
                   :class="onboard.room ? 'bg-success text-white' : 'bg-primary text-white'">
               <Check v-if="onboard.room" :size="14" aria-hidden="true" />
@@ -38,26 +42,26 @@
             </span>
             <div class="min-w-0 flex-1">
               <p class="text-sm font-medium">添加空间</p>
-              <p class="text-xs text-text-tertiary">先建房间，如客厅、卧室</p>
+              <p class="text-2xs text-text-tertiary">先建房间，如客厅、卧室</p>
             </div>
-            <NuxtLink v-if="!onboard.room" to="/locations" class="shrink-0 text-xs font-semibold text-primary">去添加</NuxtLink>
+            <NuxtLink v-if="!onboard.room" to="/locations" class="shrink-0 text-xs font-semibold text-primary-dark">去添加</NuxtLink>
           </li>
           <!-- 步骤 2：添加家具（可选） -->
-          <li class="flex items-center gap-3 rounded-md bg-neutral-sunken px-3 py-2.5">
+          <li class="flex items-center gap-3 rounded-xl bg-neutral-sunken px-3 py-2.5">
             <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
                   :class="onboard.furniture ? 'bg-success text-white' : 'bg-neutral-surface text-text-secondary ring-1 ring-border'">
               <Check v-if="onboard.furniture" :size="14" aria-hidden="true" />
               <template v-else>2</template>
             </span>
             <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium">添加家具<span class="ml-1 text-xs font-normal text-text-tertiary">可选</span></p>
-              <p class="text-xs text-text-tertiary">如电视柜、衣柜，不放物品也可跳过</p>
+              <p class="text-sm font-medium">添加家具<span class="ml-1 text-2xs font-normal text-text-tertiary">可选</span></p>
+              <p class="text-2xs text-text-tertiary">如电视柜、衣柜，不放物品也可跳过</p>
             </div>
             <NuxtLink v-if="onboard.room && !onboard.furniture" to="/locations"
-                      class="shrink-0 text-xs font-semibold text-primary">去添加</NuxtLink>
+                      class="shrink-0 text-xs font-semibold text-primary-dark">去添加</NuxtLink>
           </li>
           <!-- 步骤 3：录入物品 -->
-          <li class="flex items-center gap-3 rounded-md bg-neutral-sunken px-3 py-2.5">
+          <li class="flex items-center gap-3 rounded-xl bg-neutral-sunken px-3 py-2.5">
             <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
                   :class="onboard.item ? 'bg-success text-white' : (onboard.room ? 'bg-primary text-white' : 'bg-neutral-surface text-text-secondary ring-1 ring-border')">
               <Check v-if="onboard.item" :size="14" aria-hidden="true" />
@@ -65,47 +69,60 @@
             </span>
             <div class="min-w-0 flex-1">
               <p class="text-sm font-medium">录入第一件物品</p>
-              <p class="text-xs text-text-tertiary">拍照、选好空间就行</p>
+              <p class="text-2xs text-text-tertiary">拍照、选好空间就行</p>
             </div>
-            <NuxtLink v-if="onboard.room && !onboard.item" to="/add" class="shrink-0 text-xs font-semibold text-primary">去录入</NuxtLink>
+            <NuxtLink v-if="onboard.room && !onboard.item" to="/add" class="shrink-0 text-xs font-semibold text-primary-dark">去录入</NuxtLink>
           </li>
         </ol>
       </div>
     </section>
 
     <!-- 空间看板 -->
-    <section class="mt-4" aria-label="空间看板">
-      <div class="flex items-center justify-between">
-        <h2 class="text-sm font-semibold text-text-secondary">空间看板</h2>
-        <span v-if="rooms.length" class="text-xs text-text-tertiary">共 {{ totalItems }} 件 · {{ rooms.length }} 个房间</span>
-      </div>
-      <div v-if="rooms.length" class="mt-2 grid grid-cols-2 gap-3">
-        <RoomCard v-for="room in rooms" :key="room.id" :room="room" :total-count="totalItems" />
+    <section class="mt-5" aria-label="空间看板">
+      <SectionTitle title="空间看板">
+        <template #aux>
+          <span v-if="rooms.length">共 {{ totalItems }} 件 · {{ rooms.length }} 个房间</span>
+        </template>
+      </SectionTitle>
+      <div v-if="rooms.length" class="mt-3 grid grid-cols-2 gap-2.5">
+        <RoomCard v-for="room in rooms" :key="room.id" :room="room" :total-count="totalItems" :variant="boardStyle" />
       </div>
     </section>
 
-    <!-- 最近查看：横向滚动缩略卡 -->
-    <section v-if="recentViews.length" class="mt-6" aria-label="最近查看">
-      <h2 class="text-sm font-semibold text-text-secondary">最近查看</h2>
-      <ul class="-mx-4 mt-2 flex gap-2 overflow-x-auto px-4 pb-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]">
-        <li v-for="item in recentViews" :key="item.id" class="w-28 shrink-0">
-          <ItemThumbCard :item="item" />
-        </li>
-      </ul>
+    <!-- 最近查看：2 列图文卡 -->
+    <section v-if="recentViews.length" class="mt-5" aria-label="最近查看">
+      <SectionTitle title="最近查看">
+        <template #aux>
+          <NuxtLink to="/items" class="flex items-center gap-0.5 hover:text-text-secondary">
+            全部<ChevronRight :size="12" aria-hidden="true" />
+          </NuxtLink>
+        </template>
+      </SectionTitle>
+      <div class="mt-3 grid grid-cols-2 gap-2.5">
+        <ItemRecentCard v-for="item in recentViews" :key="item.id" :item="item" />
+      </div>
     </section>
 
     <!-- 最近添加：仅展示 30 天内新增物品 -->
-    <section class="mt-6" aria-label="最近添加">
-      <h2 class="text-sm font-semibold text-text-secondary">最近添加</h2>
-      <p v-if="!loading && !recentList.length && !totalItems" class="mt-2 p-4 text-sm text-text-tertiary">
+    <section class="mt-5" aria-label="最近添加">
+      <SectionTitle title="最近添加">
+        <template #aux>
+          <NuxtLink to="/items" class="flex items-center gap-0.5 hover:text-text-secondary">
+            全部<ChevronRight :size="12" aria-hidden="true" />
+          </NuxtLink>
+        </template>
+      </SectionTitle>
+      <p v-if="!loading && !recentList.length && !totalItems"
+         class="mt-2 rounded-2xl border border-border bg-neutral-surface p-4 text-sm text-text-tertiary shadow-level-1">
         还没有物品，去底部"添加"录入第一件吧
       </p>
-      <p v-else-if="!loading && !recentList.length && totalItems" class="mt-2 p-4 text-sm text-text-tertiary">
+      <p v-else-if="!loading && !recentList.length && totalItems"
+         class="mt-2 rounded-2xl border border-border bg-neutral-surface p-4 text-sm text-text-tertiary shadow-level-1">
         最近 30 天没有新增物品
       </p>
-      <ul v-else-if="recentList.length" class="mt-2 flex flex-col gap-2">
+      <ul v-else-if="recentList.length" class="mt-3 flex flex-col gap-2">
         <li v-for="item in recentList" :key="item.id">
-          <ItemCard :item="item" />
+          <RecentItemRow :item="item" />
         </li>
       </ul>
     </section>
@@ -113,10 +130,11 @@
 </template>
 
 <script setup lang="ts">
-import { Check } from 'lucide-vue-next'
+import { Check, ChevronRight } from 'lucide-vue-next'
 import type { ItemSummary } from '~/server/utils/items'
 
 const auth = useAuthStore()
+const { boardStyle } = usePreferences()
 
 // 空间看板：仅第一层级（房间）；hasChildren 用于引导卡"已添加家具"判定
 const { data: rooms, status: roomsStatus, refresh: refreshRooms } = await useAsyncData('rooms-dashboard', async () => {
@@ -150,7 +168,7 @@ const { data: recentViews, status: recentViewsStatus, refresh: refreshRecentView
   return res.items
 }, { server: false, default: () => [], getCachedData: swrCache })
 
-// 引导卡步骤完成状态：房间已建 / 房间下有家具 / 已录入物品
+// 引导卡步骤完成状态：房间已建 / 房间下有家具 / 已录入物品（按全部物品判定，不受 30 天窗口影响）
 const onboard = computed(() => ({
   room: rooms.value.length > 0,
   furniture: rooms.value.some(r => r.hasChildren),
@@ -183,13 +201,7 @@ function onSwitched() {
   refreshRecentViews()
 }
 
-// 列表内左滑删除：本地移除 + 刷新空间计数
-function onDeleted(id: string) {
-  recent.value = recent.value.filter(x => x.id !== id)
-  recentViews.value = (recentViews.value ?? []).filter(x => x.id !== id)
-  refreshRooms()
-  refreshNuxtData('location-tree')
-}
+// 列表数据在详情页删除后由 onMounted 统一刷新，无需本地移除逻辑
 
 onMounted(async () => {
   if (!auth.loaded) await auth.fetchMe()

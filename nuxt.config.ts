@@ -28,7 +28,7 @@ export default defineNuxtConfig({
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
         { name: 'description', content: '家庭收纳管理：记录物品与收纳空间，全家人共享' },
-        { name: 'theme-color', content: '#059669' },
+        { name: 'theme-color', content: '#f3f6f2' },
       ],
       link: [
         { rel: 'icon', href: '/favicon.ico', sizes: '48x48' },

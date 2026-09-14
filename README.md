@@ -377,7 +377,7 @@ wugui/
 │   ├── PhotoUploader.vue      # 照片上传器
 │   ├── ResidenceSwitcher.vue  # 住所切换器
 │   ├── RoomCard.vue           # 首页房间卡片
-│   ├── RoomLocationsCard.vue  # 可折叠房间卡片（家具 + 格位）
+│   ├── RoomRowCard.vue        # 空间行卡（点击展开家具/格位）
 │   └── UserAvatar.vue         # 用户头像
 │
 ├── composables/               # Vue 组合式函数

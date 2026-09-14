@@ -2,7 +2,8 @@
   <Teleport to="body">
     <Transition name="toast">
       <div v-if="state.visible" role="status"
-           class="toast-float fixed left-1/2 top-4 z-50 rounded-lg bg-neutral-800 px-4 py-2.5 text-sm text-white shadow-level-2">
+           class="toast-float fixed left-1/2 top-4 z-50 rounded-lg px-4 py-2.5 text-sm font-medium shadow-level-2"
+           :class="state.type === 'error' ? 'bg-error-soft text-error' : 'bg-tint text-primary-dark'">
         {{ state.message }}
       </div>
     </Transition>

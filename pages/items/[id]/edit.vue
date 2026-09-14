@@ -1,13 +1,6 @@
 <template>
   <main class="mx-auto max-w-md px-4">
-    <header class="relative -mx-4 flex h-12 items-center justify-between bg-primary px-4 text-white">
-      <NuxtLink :to="`/items/${id}`" class="flex items-center gap-1 text-sm text-white/90 hover:text-white" aria-label="返回详情">
-        <ArrowLeft :size="16" aria-hidden="true" />
-        <span>返回</span>
-      </NuxtLink>
-      <h1 class="absolute left-1/2 -translate-x-1/2 text-lg">编辑物品</h1>
-      <span class="w-12" aria-hidden="true"></span>
-    </header>
+    <AppTopbar title="编辑物品" :fallback="`/items/${id}`" />
 
     <p v-if="pending" class="mt-8 p-4 text-sm text-text-tertiary">加载中…</p>
 
@@ -39,7 +32,7 @@
 </template>
 
 <script setup lang="ts">
-import { ArrowLeft, X, RotateCcw } from 'lucide-vue-next'
+import { X, RotateCcw } from 'lucide-vue-next'
 import type { ItemSummary } from '~/server/utils/items'
 import type { ItemFormPayload } from '~/components/ItemForm.vue'
 import type { PendingPhoto } from '~/components/PhotoUploader.vue'

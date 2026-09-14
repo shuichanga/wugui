@@ -4,49 +4,74 @@
     <NuxtPage />
   </template>
   <main v-else class="mx-auto max-w-md px-4">
-    <header class="relative -mx-4 flex h-12 items-center justify-between bg-primary px-4 text-white">
-      <span class="w-12" aria-hidden="true"></span>
-      <h1 class="absolute left-1/2 -translate-x-1/2 text-lg">空间</h1>
-      <button type="button" class="flex items-center gap-1 text-sm text-white/90 hover:text-white" @click="formOpen = !formOpen">
-        <Plus :size="16" aria-hidden="true" />
-        <span>{{ formOpen ? '收起' : '新增空间' }}</span>
+    <!-- 页头：大标题 + 住所/房间数副行 + 绿色加号方钮 -->
+    <header class="flex items-center justify-between pt-4">
+      <div class="min-w-0">
+        <p class="text-lg font-bold tracking-wide">空间</p>
+        <!-- 房间数依赖数据加载，hydration 前等高占位防跳动 -->
+        <p class="mt-1 flex h-5 items-center text-xs text-text-tertiary">
+          <template v-if="hydrated">{{ auth.currentHousehold?.name ?? '' }} · {{ tree.length }} 个房间</template>
+          <template v-else>&nbsp;</template>
+        </p>
+      </div>
+      <button type="button"
+              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-primary text-white shadow-primary transition-colors hover:bg-primary-dark"
+              :aria-label="formOpen ? '收起新增空间' : '新增空间'" :aria-expanded="formOpen"
+              @click="formOpen = !formOpen">
+        <Plus :size="18" aria-hidden="true" />
       </button>
     </header>
 
     <!-- 新增空间 -->
-    <form v-if="formOpen" class="mt-3 flex flex-col gap-3 rounded-lg border border-border bg-neutral-surface p-4" @submit.prevent="addLocation">
+    <form v-if="formOpen" class="mt-4 flex flex-col gap-3 rounded-2xl border border-border bg-neutral-surface p-4 shadow-level-1" @submit.prevent="addLocation">
       <section>
-        <label for="loc-name" class="mb-1 block text-sm font-medium">名称</label>
+        <label for="loc-name" class="mb-2 block text-xs font-semibold text-text-tertiary">名称</label>
         <input id="loc-name" v-model="form.name" type="text" class="input-base" placeholder="例如：客厅、电视柜、第2抽屉" required
                @focus="nameFocused = true" @blur="nameFocused = false" />
         <div v-if="nameFocused && filteredSuggestions.length" class="mt-2 flex flex-wrap gap-1.5" @mousedown.prevent>
           <button v-for="s in filteredSuggestions" :key="s" type="button"
-                  class="rounded border border-border bg-neutral-sunken px-2 py-0.5 text-xs text-text-secondary hover:border-primary hover:text-primary"
+                  class="rounded-full border border-border bg-neutral-sunken px-2 py-1 text-2xs text-text-secondary hover:border-primary hover:text-primary"
                   @click="pickSuggestion(s)">
             {{ s }}
           </button>
         </div>
       </section>
       <section>
-        <label for="loc-parent" class="mb-1 block text-sm font-medium">上级空间 <span class="font-normal text-text-tertiary">（不选则为房间）</span></label>
+        <label for="loc-parent" class="mb-2 block text-xs font-semibold text-text-tertiary">
+          上级空间 <span class="font-normal">（不选则为房间）</span>
+        </label>
         <select id="loc-parent" v-model="form.parentId" class="input-base">
           <option value="">无（新建房间）</option>
           <option v-for="opt in parentOptions" :key="opt.id" :value="opt.id">{{ opt.label }}</option>
         </select>
       </section>
-      <p v-if="error" class="rounded-md border border-border bg-neutral-sunken p-2 text-sm text-error" role="alert">{{ error }}</p>
+      <p v-if="error" class="rounded-md border border-border bg-error-soft p-2 text-sm text-error" role="alert">{{ error }}</p>
       <button type="submit" class="btn-primary" :disabled="adding">{{ adding ? '添加中…' : '添加' }}</button>
     </form>
 
-    <!-- 空间卡片 -->
-    <section class="mt-4" aria-label="空间看板">
-      <p v-if="pending" class="p-4 text-sm text-text-tertiary">加载中…</p>
-      <p v-else-if="!tree?.length" class="p-4 text-sm text-text-tertiary">还没有空间，点右上角"新增空间"创建第一个房间</p>
-      <ul v-else class="flex flex-col gap-3">
+    <!-- 空间行卡列表 -->
+    <section class="mt-5" aria-label="空间列表">
+      <SectionTitle title="房间">
+        <template #aux>点开查看家具与格子</template>
+      </SectionTitle>
+
+      <p v-if="pending" class="mt-3 p-4 text-sm text-text-tertiary">加载中…</p>
+      <p v-else-if="!tree?.length" class="mt-3 rounded-2xl border border-border bg-neutral-surface p-4 text-sm text-text-tertiary shadow-level-1">
+        还没有空间，点右上角"＋"创建第一个房间
+      </p>
+      <ul v-else class="mt-3 flex flex-col gap-2">
         <li v-for="room in tree" :key="room.id">
-          <RoomLocationsCard :room="room" @delete="removeLocation" />
+          <RoomRowCard :room="room" @delete="removeLocation" />
         </li>
       </ul>
+
+      <!-- 添加房间：虚线按钮（与右上角＋同效） -->
+      <button v-if="tree?.length" type="button"
+              class="mt-2 flex h-[46px] w-full items-center justify-center gap-1.5 rounded-2xl border-[1.5px] border-dashed border-border-strong text-sm font-medium text-text-tertiary transition-colors hover:border-primary hover:text-primary"
+              @click="formOpen = !formOpen">
+        <Plus :size="16" aria-hidden="true" />
+        {{ formOpen ? '收起表单' : '添加房间' }}
+      </button>
     </section>
   </main>
 </template>
@@ -58,6 +83,7 @@ import type { LocationTreeNode } from '~/server/utils/locations'
 // 嵌套路由：/locations/:id 时父组件只作为出口
 const route = useRoute()
 const isChild = computed(() => route.name === 'locations-id')
+const auth = useAuthStore()
 
 const { data: tree, pending, refresh } = await useAsyncData('location-tree', () =>
   apiFetch<LocationTreeNode[]>('/api/locations'),

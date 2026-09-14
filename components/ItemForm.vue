@@ -1,45 +1,43 @@
 <template>
-  <form class="mt-4 flex flex-col gap-4" @submit.prevent="onSubmit(false)">
+  <form class="mt-4 flex flex-col gap-2.5" @submit.prevent="onSubmit(false)">
     <!-- 名称 -->
-    <section>
-      <label for="item-name" class="mb-1 block text-sm font-medium">名称 <span class="text-error">*</span></label>
+    <section class="rounded-2xl border border-border bg-neutral-surface px-3.5 py-3 shadow-level-1">
+      <label for="item-name" class="mb-2 block text-xs font-semibold text-text-tertiary">
+        名称 <span class="text-error">*</span>
+      </label>
       <input id="item-name" v-model="form.name" type="text" class="input-base" placeholder="例如：螺丝刀套装" required />
     </section>
 
     <!-- 空间级联 -->
-    <section>
-      <span class="mb-1 block text-sm font-medium">收纳空间 <span class="text-error">*</span></span>
+    <section class="rounded-2xl border border-border bg-neutral-surface px-3.5 py-3 shadow-level-1">
+      <span class="mb-2 block text-xs font-semibold text-text-tertiary">
+        收纳空间 <span class="text-error">*</span>
+      </span>
 
       <!-- 最近空间：1 tap 直选 -->
       <div v-if="showRecent && recentList.length" class="mb-2 flex flex-wrap gap-1.5">
         <button v-for="r in recentList" :key="r.id" type="button"
-                class="rounded-full border border-primary bg-primary px-2.5 py-1 text-xs text-white"
+                class="rounded-full bg-tint px-2.5 py-1 text-2xs font-medium text-primary-dark"
                 @click="applyRecent(r)">
           {{ r.label }}
         </button>
       </div>
 
-      <div class="grid grid-cols-3 gap-2">
-        <select v-model="form.roomId" class="input-base" aria-label="房间"
-                @change="onRoomChange">
-          <option value="" disabled>房间</option>
-          <option v-for="room in rooms" :key="room.id" :value="room.id">{{ room.name }}</option>
-          <option value="__add">＋ 添加新房间</option>
-        </select>
-        <select v-model="form.furnitureId" class="input-base" aria-label="家具"
-                :disabled="!selectedRoom"
-                @change="onFurnitureChange">
-          <option value="" disabled>家具</option>
-          <option v-for="f in furnitureOptions" :key="f.id" :value="f.id">{{ f.name }}</option>
-          <option v-if="selectedRoom" value="__add">＋ 添加新家具</option>
-        </select>
-        <select v-model="form.compartmentId" class="input-base" aria-label="格位"
-                :disabled="!selectedFurniture"
-                @change="onCompartmentChange">
-          <option value="">不选格位</option>
-          <option v-for="c in compartmentOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
-          <option v-if="selectedFurniture" value="__add">＋ 添加新格位</option>
-        </select>
+      <div class="grid grid-cols-3 gap-1.5">
+        <label v-for="level in cascades" :key="level.key"
+               class="block rounded-md border-[1.5px] bg-neutral-surface px-2.5 py-2"
+               :class="level.filled ? 'border-primary bg-tint-2' : 'border-border-strong'">
+          <span class="block text-2xs text-text-tertiary">{{ level.label }}</span>
+          <span class="mt-0.5 flex items-center justify-between gap-1">
+            <select v-model="level.model.value" class="min-w-0 flex-1 appearance-none bg-transparent text-xs font-semibold text-text-primary outline-none"
+                    :aria-label="level.label" :disabled="level.disabled" @change="level.onChange">
+              <option value="" disabled>{{ level.placeholder }}</option>
+              <option v-for="opt in level.options" :key="opt.id" :value="opt.id">{{ opt.name }}</option>
+              <option v-if="level.canAdd" value="__add">＋ 新增</option>
+            </select>
+            <ChevronDown :size="10" class="shrink-0 text-text-tertiary" aria-hidden="true" />
+          </span>
+        </label>
       </div>
 
       <!-- 内联添加空间 -->
@@ -56,25 +54,34 @@
       </div>
     </section>
 
-    <!-- 数量 -->
-    <section>
-      <span class="mb-1 block text-sm font-medium">数量</span>
-      <div class="flex items-center gap-3">
-        <button type="button" class="h-10 w-10 rounded-md border border-input-border text-lg" aria-label="减少"
-                @click="form.quantity > 1 && form.quantity--">−</button>
-        <input :value="form.quantity" type="number" min="1" class="input-base w-20 text-center"
+    <!-- 数量 stepper -->
+    <section class="flex items-center justify-between rounded-2xl border border-border bg-neutral-surface px-3.5 py-3 shadow-level-1">
+      <span class="text-xs font-semibold text-text-tertiary">数量</span>
+      <div class="flex items-center gap-4">
+        <button type="button"
+                class="flex h-[34px] w-[34px] items-center justify-center rounded-md border-[1.5px] border-border-strong bg-neutral-surface text-text-secondary"
+                aria-label="减少" @click="form.quantity > 1 && form.quantity--">
+          <Minus :size="15" aria-hidden="true" />
+        </button>
+        <input :value="form.quantity" type="number" min="1"
+               class="w-12 appearance-none bg-transparent text-center text-[17px] font-bold text-text-primary outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                @change="form.quantity = Math.max(1, Number(($event.target as HTMLInputElement).value) || 1)" />
-        <button type="button" class="h-10 w-10 rounded-md border border-input-border text-lg" aria-label="增加"
-                @click="form.quantity++">+</button>
+        <button type="button"
+                class="flex h-[34px] w-[34px] items-center justify-center rounded-md border-[1.5px] border-border-strong bg-neutral-surface text-text-secondary"
+                aria-label="增加" @click="form.quantity++">
+          <Plus :size="15" aria-hidden="true" />
+        </button>
       </div>
     </section>
 
     <!-- 标签 -->
-    <section>
-      <label for="item-tag" class="mb-1 block text-sm font-medium">标签</label>
+    <section class="rounded-2xl border border-border bg-neutral-surface px-3.5 py-3 shadow-level-1">
+      <label for="item-tag" class="mb-2 block text-xs font-semibold text-text-tertiary">
+        标签 <span class="font-normal">（选填）</span>
+      </label>
       <ul v-if="form.tags.length" class="mb-2 flex flex-wrap gap-1.5">
         <li v-for="tag in form.tags" :key="tag"
-            class="flex items-center gap-1 rounded border px-2 py-0.5 text-xs"
+            class="flex items-center gap-1 rounded-full px-2 py-1 text-2xs leading-none"
             :style="tagStyle(tag)">
           {{ tag }}
           <button type="button" aria-label="移除标签" @click="removeTag(tag)">
@@ -83,16 +90,19 @@
         </li>
       </ul>
       <div class="flex gap-2">
-        <input id="item-tag" v-model="tagDraft" type="text" class="input-base flex-1" placeholder="输入标签，逗号分隔可一次添加多个"
+        <input id="item-tag" v-model="tagDraft" type="text" class="input-base flex-1" placeholder="输入标签，逗号分隔可批量添加"
                @keydown.enter.prevent="addTag" />
         <button type="button" class="btn-secondary shrink-0 px-3 text-sm" :disabled="!tagDraft.trim()" @click="addTag">
           添加
         </button>
       </div>
-      <ul class="mt-2 flex flex-wrap gap-1.5">
-        <li v-for="s in TAG_SUGGESTIONS" :key="s">
-          <button type="button" class="rounded-full border border-border px-2 py-0.5 text-xs text-text-secondary"
-                  @click="addTagFromSuggestion(s)">+ {{ s }}</button>
+      <ul class="mt-2 flex gap-1.5 overflow-x-auto [scrollbar-width:thin]">
+        <li v-for="s in TAG_SUGGESTIONS" :key="s" class="shrink-0">
+          <button type="button"
+                  class="rounded-full border border-border bg-neutral-surface px-2.5 py-1 text-2xs text-text-secondary hover:border-text-tertiary"
+                  @click="addTagFromSuggestion(s)">
+            {{ s }}
+          </button>
         </li>
       </ul>
     </section>
@@ -101,13 +111,15 @@
     <slot />
 
     <!-- 备注 -->
-    <section>
-      <label for="item-notes" class="mb-1 block text-sm font-medium">备注</label>
+    <section class="rounded-2xl border border-border bg-neutral-surface px-3.5 py-3 shadow-level-1">
+      <label for="item-notes" class="mb-2 block text-xs font-semibold text-text-tertiary">
+        备注 <span class="font-normal">（选填）</span>
+      </label>
       <textarea id="item-notes" v-model="form.notes" rows="2" class="input-base" placeholder="选填"></textarea>
     </section>
 
     <!-- 操作 -->
-    <div class="mb-4 flex gap-3">
+    <div class="mb-4 mt-1 flex gap-2.5">
       <button v-if="showKeepGoing" type="button" class="btn-secondary flex-1" @click="onSubmit(true)">
         保存并继续
       </button>
@@ -119,7 +131,7 @@
 </template>
 
 <script setup lang="ts">
-import { X } from 'lucide-vue-next'
+import { ChevronDown, Minus, Plus, X } from 'lucide-vue-next'
 import type { LocationTreeNode } from '~/server/utils/locations'
 
 export interface ItemFormPayload {
@@ -176,6 +188,31 @@ const selectedRoom = computed(() => rooms.value.find(r => r.id === form.roomId))
 const selectedFurniture = computed(() => selectedRoom.value?.children?.find(f => f.id === form.furnitureId))
 const furnitureOptions = computed(() => selectedRoom.value?.children ?? [])
 const compartmentOptions = computed(() => selectedFurniture.value?.children ?? [])
+
+// 空间级联 seg 配置：标题/占位/选项/新增能力/变更回调（filled 态高亮品牌绿边）
+const cascades = computed(() => [
+  {
+    key: 'room', label: '房间', placeholder: '选择房间',
+    model: toRef(form, 'roomId'),
+    options: rooms.value, disabled: false,
+    canAdd: true, filled: Boolean(form.roomId),
+    onChange: onRoomChange,
+  },
+  {
+    key: 'furniture', label: '家具', placeholder: '选择家具',
+    model: toRef(form, 'furnitureId'),
+    options: furnitureOptions.value, disabled: !selectedRoom.value,
+    canAdd: Boolean(selectedRoom.value), filled: Boolean(form.furnitureId),
+    onChange: onFurnitureChange,
+  },
+  {
+    key: 'compartment', label: '格位', placeholder: '不选格位',
+    model: toRef(form, 'compartmentId'),
+    options: compartmentOptions.value, disabled: !selectedFurniture.value,
+    canAdd: Boolean(selectedFurniture.value), filled: Boolean(form.compartmentId),
+    onChange: onCompartmentChange,
+  },
+])
 
 // ---- 内联添加空间 ----
 const addingLevel = ref<'room' | 'furniture' | 'compartment' | null>(null)

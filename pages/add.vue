@@ -1,13 +1,6 @@
 <template>
   <main class="mx-auto max-w-md px-4">
-    <header class="relative -mx-4 flex h-12 items-center justify-between bg-primary px-4 text-white">
-      <NuxtLink to="/" class="flex items-center gap-1 text-sm text-white/90 hover:text-white" aria-label="返回首页">
-        <ArrowLeft :size="16" aria-hidden="true" />
-        <span>首页</span>
-      </NuxtLink>
-      <h1 class="absolute left-1/2 -translate-x-1/2 text-lg">添加物品</h1>
-      <span class="w-12" aria-hidden="true"></span>
-    </header>
+    <AppTopbar title="添加物品" fallback="/" />
 
     <ItemForm show-keep-going :submitting="saving" @save="onSave">
       <!-- 照片：前端压缩，保存后上传 -->
@@ -22,7 +15,7 @@
 </template>
 
 <script setup lang="ts">
-import { ArrowLeft } from 'lucide-vue-next'
+import { Camera } from 'lucide-vue-next'
 import type { PendingPhoto } from '~/components/PhotoUploader.vue'
 import type { ItemFormPayload } from '~/components/ItemForm.vue'
 

@@ -1,20 +1,20 @@
-<template>
+﻿<template>
   <main class="mx-auto max-w-md px-4">
-    <header class="relative -mx-4 flex h-12 items-center justify-between bg-primary px-4 text-white">
-      <span class="w-12" aria-hidden="true"></span>
-      <h1 class="absolute left-1/2 -translate-x-1/2 text-lg">我的</h1>
-      <NuxtLink to="/about" class="flex h-full w-12 items-center justify-end text-sm text-white/90 hover:text-white" aria-label="关于">
-        关于
-      </NuxtLink>
-    </header>
+    <AppTopbar title="我的" fallback="/">
+      <template #right>
+        <NuxtLink to="/about" class="text-sm font-medium text-primary-dark hover:text-primary" aria-label="关于">
+          关于
+        </NuxtLink>
+      </template>
+    </AppTopbar>
 
     <p v-if="!auth.loaded" class="mt-8 p-4 text-sm text-text-tertiary">加载中…</p>
 
     <template v-else>
       <!-- 当前用户 -->
-      <section class="mt-4 flex items-center gap-3 rounded-lg border border-border bg-neutral-surface p-4">
+      <section class="mt-4 flex items-center gap-3.5 rounded-2xl border border-border bg-neutral-surface p-3.5 shadow-level-1">
         <div class="relative shrink-0">
-          <UserAvatar :name="auth.user?.displayName" :email="auth.user?.email" :src="auth.user?.avatarUrl" :size="48" />
+          <UserAvatar :name="auth.user?.displayName" :email="auth.user?.email" :src="auth.user?.avatarUrl" :size="56" />
           <label class="absolute -bottom-1 -right-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-primary text-white ring-2 ring-neutral-bg"
                  title="更换头像">
             <Camera :size="12" aria-hidden="true" />
@@ -22,57 +22,66 @@
           </label>
         </div>
         <div class="min-w-0 flex-1">
-          <p class="truncate text-base font-medium">{{ auth.user?.displayName ?? '未设置昵称' }}</p>
-          <p class="truncate text-sm text-text-secondary">{{ auth.user?.email }}</p>
+          <p class="truncate text-[17px] font-bold">{{ auth.user?.displayName ?? '未设置昵称' }}</p>
+          <p class="mt-1 truncate text-xs text-text-tertiary">{{ auth.user?.email }}</p>
         </div>
-        <button v-if="auth.user?.avatarUrl" type="button" class="shrink-0 text-xs text-error"
-                :disabled="avatarUploading" @click="removeAvatar">移除头像</button>
+        <button v-if="auth.user?.avatarUrl" type="button"
+                class="shrink-0 rounded-full bg-tint px-3 py-1.5 text-xs font-semibold text-primary-dark"
+                :disabled="avatarUploading" @click="removeAvatar">
+          移除头像
+        </button>
       </section>
 
       <!-- 我的住所 -->
       <section class="mt-6" aria-label="我的住所">
-        <h2 class="text-sm font-semibold text-text-secondary">我的住所</h2>
+        <SectionTitle title="我的住所">
+          <template #aux>{{ auth.households.length }} 个</template>
+        </SectionTitle>
 
         <p v-if="!auth.households.length"
-           class="mt-2 rounded-lg border border-border bg-neutral-surface p-3 text-sm text-text-secondary">
+           class="mt-3 rounded-2xl border border-border bg-neutral-surface p-3.5 text-sm text-text-secondary shadow-level-1">
           你还没有加入任何住所：创建一个自己的住所，或输入家人分享给你的邀请码加入。
         </p>
 
-        <ul v-else class="mt-2 flex flex-col gap-2">
+        <ul v-else class="mt-3 flex flex-col gap-2">
           <li v-for="h in auth.households" :key="h.id"
-              class="rounded-lg border border-border bg-neutral-surface p-3">
+              class="rounded-2xl border border-border bg-neutral-surface p-3.5 shadow-level-1">
             <div class="flex items-center justify-between gap-2">
-              <div class="min-w-0">
-                <p class="flex items-center gap-2 truncate text-sm font-medium">
-                  {{ h.name }}
-                  <span v-if="h.id === auth.currentHouseholdId"
-                        class="shrink-0 rounded bg-primary px-1.5 py-0.5 text-xs text-white">当前</span>
-                  <span v-else-if="h.role === 'owner'"
-                        class="shrink-0 rounded border border-border px-1.5 py-0.5 text-xs text-text-tertiary">我创建的</span>
-                </p>
-                <p v-if="h.role === 'owner' && h.inviteCode" class="mt-0.5 text-xs text-text-tertiary">
-                  邀请码
-                  <button type="button" class="font-mono text-text-secondary underline decoration-dotted"
-                          title="点击复制" @click="copyCode(h.inviteCode!)">{{ h.inviteCode }}</button>
-                </p>
-              </div>
+              <p class="flex min-w-0 items-center gap-2 text-sm font-bold">
+                <span class="truncate">{{ h.name }}</span>
+                <span v-if="h.id === auth.currentHouseholdId"
+                      class="shrink-0 rounded-full bg-tint px-2 py-0.5 text-2xs font-semibold text-primary-dark">当前</span>
+                <span v-else-if="h.role === 'owner'"
+                      class="shrink-0 rounded-full border border-border px-2 py-0.5 text-2xs font-normal text-text-tertiary">我创建的</span>
+              </p>
               <button v-if="h.id !== auth.currentHouseholdId" type="button"
-                      class="shrink-0 rounded-md border border-primary px-3 py-1.5 text-xs font-semibold text-primary"
+                      class="shrink-0 rounded-full bg-tint px-3 py-1.5 text-xs font-semibold text-primary-dark"
                       @click="switchTo(h.id)">
                 切换
               </button>
             </div>
 
-            <!-- 住所管理操作 -->
-            <div class="mt-2 flex flex-wrap gap-2 border-t border-border pt-2">
+            <!-- 邀请码行 -->
+            <div v-if="h.role === 'owner' && h.inviteCode"
+                 class="mt-2.5 flex items-center gap-2 rounded-md border border-border-tint bg-surface-tint px-2.5 py-2">
+              <span class="shrink-0 text-2xs text-text-tertiary">邀请码</span>
+              <button type="button" class="truncate font-mono text-sm font-bold tracking-widest"
+                      title="点击复制" @click="copyCode(h.inviteCode!)">{{ h.inviteCode }}</button>
+              <Copy :size="14" class="ml-auto shrink-0 text-text-tertiary" aria-hidden="true" />
+            </div>
+
+            <!-- 住所管理链接行 -->
+            <div class="mt-2.5 flex items-center gap-1.5 text-xs">
               <template v-if="h.role === 'owner'">
-                <button type="button" class="text-xs text-primary" @click="startRename(h)">改名</button>
-                <button type="button" class="text-xs text-primary" @click="resetInvite(h)">重置邀请码</button>
-                <button type="button" class="text-xs text-primary" @click="toggleMembers(h)">
+                <button type="button" class="font-medium text-primary-dark hover:text-primary" @click="toggleMembers(h)">
                   {{ expandedId === h.id ? '收起成员' : '管理成员' }}
                 </button>
+                <span class="text-border-strong">·</span>
+                <button type="button" class="font-medium text-primary-dark hover:text-primary" @click="startRename(h)">改名</button>
+                <span class="text-border-strong">·</span>
+                <button type="button" class="font-medium text-primary-dark hover:text-primary" @click="resetInvite(h)">重置邀请码</button>
               </template>
-              <button v-else type="button" class="text-xs text-error" @click="leaveHousehold(h)">退出该住所</button>
+              <button v-else type="button" class="font-medium text-error" @click="leaveHousehold(h)">退出该住所</button>
             </div>
 
             <!-- 改名表单 -->
@@ -102,11 +111,11 @@
         </ul>
 
         <!-- 创建 / 加入 -->
-        <div class="mt-3 flex gap-2">
-          <button type="button" class="btn-secondary flex-1 px-2 py-2 text-sm" @click="showCreate = !showCreate">
-            创建新住所
+        <div class="mt-3 flex gap-2.5">
+          <button type="button" class="btn-secondary flex-1 px-2 py-2.5 text-sm" @click="showCreate = !showCreate">
+            创建住所
           </button>
-          <button type="button" class="btn-secondary flex-1 px-2 py-2 text-sm" @click="showJoin = !showJoin">
+          <button type="button" class="btn-secondary flex-1 px-2 py-2.5 text-sm" @click="showJoin = !showJoin">
             加入住所
           </button>
         </div>
@@ -121,46 +130,98 @@
         </form>
       </section>
 
-      <!-- 数据导入 / 导出 -->
-      <section v-if="auth.households.length" class="mt-6" aria-label="数据导入导出">
-        <h2 class="text-sm font-semibold text-text-secondary">数据备份</h2>
-        <div class="mt-2 rounded-lg border border-border bg-neutral-surface p-3">
-          <p class="text-xs text-text-tertiary">导出当前住所的全部空间和物品（含标签），JSON 适合备份，CSV 可用表格软件打开。</p>
-          <div class="mt-2 flex gap-2">
-            <button type="button" class="btn-secondary flex-1 px-2 py-2 text-sm" :disabled="exporting !== ''" @click="exportData('json')">
-              {{ exporting === 'json' ? '导出中…' : '导出 JSON' }}
+      <!-- 外观偏好 -->
+      <section class="mt-6" aria-label="外观偏好">
+        <h2 class="text-sm font-semibold text-text-secondary">外观偏好</h2>
+        <div class="mt-2 flex items-center justify-between rounded-lg border border-border bg-neutral-surface p-3">
+          <div>
+            <p class="text-sm font-medium">空间看板背景</p>
+            <p class="mt-0.5 text-xs text-text-tertiary">房间卡的配色风格</p>
+          </div>
+          <div class="flex rounded-lg bg-neutral-sunken p-1" role="group" aria-label="看板背景风格">
+            <button type="button"
+                    class="rounded-md px-3 py-1 text-xs font-medium transition-colors"
+                    :class="boardStyle === 'clean' ? 'bg-neutral-surface text-primary shadow-level-1' : 'text-text-secondary'"
+                    :aria-pressed="boardStyle === 'clean'"
+                    @click="setBoardStyle('clean')">
+              简洁
             </button>
-            <button type="button" class="btn-secondary flex-1 px-2 py-2 text-sm" :disabled="exporting !== ''" @click="exportData('csv')">
-              {{ exporting === 'csv' ? '导出中…' : '导出 CSV' }}
+            <button type="button"
+                    class="rounded-md px-3 py-1 text-xs font-medium transition-colors"
+                    :class="boardStyle === 'colorful' ? 'bg-neutral-surface text-primary shadow-level-1' : 'text-text-secondary'"
+                    :aria-pressed="boardStyle === 'colorful'"
+                    @click="setBoardStyle('colorful')">
+              彩色
             </button>
           </div>
-          <label class="btn-secondary mt-2 block w-full cursor-pointer px-2 py-2 text-center text-sm"
+        </div>
+      </section>
+
+      <!-- 数据备份 -->
+      <section v-if="auth.households.length" class="mt-6" aria-label="数据备份">
+        <SectionTitle title="数据备份" />
+        <div class="mt-3 overflow-hidden rounded-2xl border border-border bg-neutral-surface shadow-level-1">
+          <button type="button"
+                  class="flex w-full items-center gap-3 px-3.5 py-3 text-left transition-colors hover:bg-neutral-sunken/50"
+                  :disabled="exporting !== ''" @click="exportData('json')">
+            <span class="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[11px] bg-tint text-primary">
+              <Code2 :size="16" aria-hidden="true" />
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block text-sm font-semibold">导出 JSON 备份</span>
+              <small class="mt-0.5 block text-2xs text-text-tertiary">完整数据，用于迁移或恢复</small>
+            </span>
+            <ChevronRight :size="16" class="shrink-0 text-text-disabled" aria-hidden="true" />
+          </button>
+          <button type="button"
+                  class="flex w-full items-center gap-3 border-t border-border px-3.5 py-3 text-left transition-colors hover:bg-neutral-sunken/50"
+                  :disabled="exporting !== ''" @click="exportData('csv')">
+            <span class="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[11px] bg-info-soft text-info">
+              <Table :size="16" aria-hidden="true" />
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block text-sm font-semibold">导出 CSV 表格</span>
+              <small class="mt-0.5 block text-2xs text-text-tertiary">适合在表格软件中查看</small>
+            </span>
+            <ChevronRight :size="16" class="shrink-0 text-text-disabled" aria-hidden="true" />
+          </button>
+          <label class="flex w-full cursor-pointer items-center gap-3 border-t border-border px-3.5 py-3 transition-colors hover:bg-neutral-sunken/50"
                  :class="importing ? 'pointer-events-none opacity-60' : ''">
-            {{ importing ? '导入中…' : '合并导入备份（JSON）' }}
+            <span class="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[11px] bg-warning-soft text-warning">
+              <Upload :size="16" aria-hidden="true" />
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block text-sm font-semibold">{{ importing ? '导入中…' : '合并导入' }}</span>
+              <small class="mt-0.5 block text-2xs text-text-tertiary">缺失的新增，已存在的跳过</small>
+            </span>
+            <ChevronRight :size="16" class="shrink-0 text-text-disabled" aria-hidden="true" />
             <input type="file" accept=".json,application/json" class="hidden" :disabled="importing" @change="onImportPick" />
           </label>
-          <p class="mt-1.5 text-xs text-text-tertiary">合并导入：缺失的空间和物品会新增，已存在的物品跳过，不删除任何现有数据。</p>
         </div>
       </section>
 
       <!-- 退出登录 -->
       <div class="mt-8 mb-4">
-        <button type="button" class="w-full rounded-lg border border-border py-3 text-sm font-semibold text-error"
+        <button type="button"
+                class="w-full rounded-xl border border-border bg-neutral-surface py-3 text-sm font-semibold text-error shadow-level-1"
                 @click="onLogout">
           退出登录
         </button>
+        <p class="mt-6 text-center text-2xs tracking-wide text-text-disabled">物归 v{{ appVersion }} · 开源项目</p>
       </div>
     </template>
   </main>
 </template>
 
 <script setup lang="ts">
-import { Camera } from 'lucide-vue-next'
+import { Camera, ChevronRight, Code2, Copy, Table, Upload } from 'lucide-vue-next'
 import { compressImage } from '~/composables/useImageCompress'
 
 const auth = useAuthStore()
 const { confirmDialog, alertDialog } = useDialog()
 const { toast } = useToast()
+const { boardStyle, setBoardStyle } = usePreferences()
+const appVersion = useRuntimeConfig().public.appVersion
 const avatarUploading = ref(false)
 
 // 更换头像：前端压缩到 256px，multipart 上传
@@ -178,7 +239,7 @@ async function onAvatarPick(e: Event) {
     await auth.fetchMe()
     flash('头像已更新')
   } catch (err: unknown) {
-    flash(errMsg(err) || '头像更新失败')
+    flash(errMsg(err) || '头像更新失败', 'error')
   } finally {
     avatarUploading.value = false
   }
@@ -192,7 +253,7 @@ async function removeAvatar() {
     await auth.fetchMe()
     flash('头像已移除')
   } catch (err: unknown) {
-    flash(errMsg(err) || '移除失败')
+    flash(errMsg(err) || '移除失败', 'error')
   } finally {
     avatarUploading.value = false
   }
@@ -209,8 +270,8 @@ const expandedId = ref('')
 const members = ref<{ userId: string; role: string; email: string; displayName: string | null }[]>([])
 const membersPending = ref(false)
 
-function flash(text: string) {
-  toast(text)
+function flash(text: string, type: 'success' | 'error' = 'success') {
+  toast(text, type)
 }
 
 async function onLogout() {
@@ -244,7 +305,7 @@ async function submitRename(h: { id: string }) {
     await auth.fetchMe()
     flash('已改名')
   } catch (e: unknown) {
-    flash(errMsg(e) || '改名失败')
+    flash(errMsg(e) || '改名失败', 'error')
   }
 }
 
@@ -259,7 +320,7 @@ async function resetInvite(h: { id: string }) {
     await auth.fetchMe()
     flash('邀请码已重置')
   } catch (e: unknown) {
-    flash(errMsg(e) || '重置失败')
+    flash(errMsg(e) || '重置失败', 'error')
   }
 }
 
@@ -289,7 +350,7 @@ async function kickMember(h: { id: string }, m: { userId: string; displayName?: 
     members.value = members.value.filter(x => x.userId !== m.userId)
     flash('已移除')
   } catch (e: unknown) {
-    flash(errMsg(e) || '移除失败')
+    flash(errMsg(e) || '移除失败', 'error')
   }
 }
 
@@ -305,7 +366,7 @@ async function leaveHousehold(h: { id: string; name: string }) {
     await auth.fetchMe()
     flash('已退出')
   } catch (e: unknown) {
-    flash(errMsg(e) || '退出失败')
+    flash(errMsg(e) || '退出失败', 'error')
   }
 }
 
@@ -317,7 +378,7 @@ async function createHousehold() {
     await auth.fetchMe()
     await navigateTo('/')
   } catch (e: unknown) {
-    flash(errMsg(e) || '创建失败')
+    flash(errMsg(e) || '创建失败', 'error')
   }
 }
 
@@ -332,7 +393,7 @@ async function joinHousehold() {
     await auth.fetchMe()
     await navigateTo('/')
   } catch (e: unknown) {
-    flash(errMsg(e) || '加入失败')
+    flash(errMsg(e) || '加入失败', 'error')
   }
 }
 
@@ -341,7 +402,7 @@ async function copyCode(code: string) {
     await navigator.clipboard.writeText(code)
     flash('邀请码已复制')
   } catch {
-    flash(`复制失败，邀请码：${code}`)
+    flash(`复制失败，邀请码：${code}`, 'error')
   }
 }
 
@@ -403,7 +464,7 @@ async function exportData(format: 'json' | 'csv') {
     }
     flash(`已导出 ${data.items.length} 件物品`)
   } catch (e: unknown) {
-    flash(errMsg(e) || '导出失败')
+    flash(errMsg(e) || '导出失败', 'error')
   } finally {
     exporting.value = ''
   }
@@ -422,13 +483,13 @@ async function onImportPick(e: Event) {
   try {
     data = JSON.parse(await file.text())
   } catch {
-    flash('文件不是有效的 JSON')
+    flash('文件不是有效的 JSON', 'error')
     return
   }
   const locCount = Array.isArray(data.locations) ? data.locations.length : 0
   const itemCount = Array.isArray(data.items) ? data.items.length : 0
   if (!locCount && !itemCount) {
-    flash('文件中没有可导入的数据')
+    flash('文件中没有可导入的数据', 'error')
     return
   }
 
@@ -448,7 +509,7 @@ async function onImportPick(e: Event) {
     refreshNuxtData('rooms-dashboard')
     refreshNuxtData('recent-items')
   } catch (err: unknown) {
-    flash(errMsg(err) || '导入失败')
+    flash(errMsg(err) || '导入失败', 'error')
   } finally {
     importing.value = false
   }

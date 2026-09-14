@@ -22,7 +22,7 @@
         <label for="reg-invite" class="mb-1 block text-sm font-medium">住所邀请码 <span class="font-normal text-text-tertiary">（必填，向家人索取）</span></label>
         <input id="reg-invite" v-model="inviteCode" type="text" class="input-base uppercase" placeholder="输入 6 位邀请码" required />
         <label v-if="inviteCode.trim()" class="mt-2 flex items-center gap-2 text-sm text-text-secondary">
-          <input v-model="joinHousehold" type="checkbox" class="h-4 w-4 accent-[#059669]" />
+          <input v-model="joinHousehold" type="checkbox" class="h-4 w-4 accent-primary" />
           注册后加入该住所（不勾选则仅创建账号，之后可再加入）
         </label>
       </section>
@@ -75,7 +75,7 @@
           <label for="reg-invite" class="mb-1 block text-sm font-medium">住所邀请码 <span class="font-normal text-text-tertiary">（必填，向家人索取）</span></label>
           <input id="reg-invite" v-model="inviteCode" type="text" class="form-input uppercase" placeholder="输入 6 位邀请码" required />
           <label v-if="inviteCode.trim()" class="mt-2 flex items-center gap-2 text-sm text-text-secondary">
-            <input v-model="joinHousehold" type="checkbox" class="h-4 w-4 accent-[#059669]" />
+            <input v-model="joinHousehold" type="checkbox" class="h-4 w-4 accent-primary" />
             注册后加入该住所
           </label>
         </section>
