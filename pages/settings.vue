@@ -156,46 +156,28 @@
           </div>
         </div>
 
-        <!-- 主题配色：每张卡 = 该主题微缩首页预览（问候语/住所取真实数据，房间名为示意） -->
+        <!-- 主题配色：三列色板卡，卡内为该主题的真实配色（色值为示意数据，非组件样式 token） -->
         <div class="mt-2 rounded-lg border border-border bg-neutral-surface p-3">
           <p class="text-sm font-medium">主题配色</p>
           <p class="mt-0.5 text-xs text-text-tertiary">整体界面的配色方案</p>
           <div class="mt-3 grid grid-cols-3 gap-2" role="group" aria-label="主题配色">
-            <button v-for="t in THEME_OPTIONS" :key="t.id" type="button"
+            <button v-for="t in THEMES" :key="t.id" type="button"
                     class="rounded-lg border p-2 transition-colors"
-                    :class="theme === t.id ? 'border-primary bg-tint' : 'border-border bg-neutral-surface hover:bg-neutral-sunken/60'"
+                    :class="theme === t.id ? 'border-primary' : 'border-border hover:bg-neutral-sunken/60'"
                     :aria-pressed="theme === t.id"
                     @click="setTheme(t.id)">
-              <span class="block rounded-md p-2" :style="{ backgroundColor: t.bg, color: t.ink, fontFamily: t.font }">
-                <span class="block truncate text-xs font-bold leading-tight">{{ greeting }}</span>
-                <span class="mt-0.5 block truncate text-2xs opacity-60">
-                  {{ hydrated ? `${today} · ${auth.currentHousehold?.name ?? ''}` : '\u00A0' }}
-                </span>
-                <span class="mt-2 flex flex-col gap-1 rounded-md border p-1.5"
-                      :style="{ backgroundColor: t.surface, borderColor: t.border }">
-                  <span class="flex items-center gap-1">
-                    <span class="h-3 w-3 shrink-0 rounded" :style="{ backgroundColor: t.tint }" />
-                    <span class="min-w-0 flex-1 truncate text-2xs font-semibold">客厅</span>
-                    <span class="shrink-0 text-2xs opacity-55">2件</span>
-                  </span>
-                  <span class="h-0.5 overflow-hidden rounded-full" :style="{ backgroundColor: t.track }">
-                    <span class="block h-full w-2/5 rounded-full" :style="{ backgroundColor: t.signal }" />
-                  </span>
-                  <span class="flex items-center gap-1">
-                    <span class="h-3 w-3 shrink-0 rounded" :style="{ backgroundColor: t.tint }" />
-                    <span class="min-w-0 flex-1 truncate text-2xs font-semibold">主卧</span>
-                    <span class="shrink-0 text-2xs opacity-55">空</span>
-                  </span>
-                </span>
-                <span class="mt-2 flex h-5 items-center justify-center rounded-md text-2xs font-semibold text-white"
-                      :style="{ backgroundColor: t.primary }">
-                  ＋ 添加物品
-                </span>
+              <span class="block flex h-14 items-center justify-around gap-1 rounded-md px-1.5"
+                    :style="{ backgroundColor: t.bg }">
+                <span class="h-7 w-7 rounded-full" :style="{ backgroundColor: t.primary }" />
+                <span class="h-7 w-7 rounded-full ring-1 ring-inset ring-black/10" :style="{ backgroundColor: t.tint }" />
+                <span class="h-7 w-7 rounded-full" :style="{ backgroundColor: t.signal }" />
               </span>
-              <span class="mt-2 flex items-center justify-center gap-1 text-xs font-medium"
-                    :class="theme === t.id ? 'text-primary' : 'text-text-secondary'">
-                <span v-if="theme === t.id" class="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-white">
-                  <Check :size="10" :stroke-width="3" aria-hidden="true" />
+              <span class="mt-2 flex items-center justify-center gap-1 text-xs"
+                    :class="theme === t.id ? 'font-medium text-primary' : 'text-text-secondary'"
+                    :style="{ fontFamily: t.font }">
+                <span class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full"
+                      :class="theme === t.id ? 'bg-primary text-white' : 'border border-border-strong'">
+                  <Check v-if="theme === t.id" :size="10" :stroke-width="3" aria-hidden="true" />
                 </span>
                 {{ t.label }}
               </span>
@@ -269,21 +251,19 @@ const auth = useAuthStore()
 const { confirmDialog, alertDialog } = useDialog()
 const { toast } = useToast()
 const { theme, setTheme, boardStyle, setBoardStyle } = usePreferences()
-const { greeting, today } = useGreeting()
-const hydrated = useHydrated()
 
-// 主题缩略卡：微缩首页预览用各主题真实色值/字体栈内联渲染（内容示意，非组件样式 token；字体随卡所属主题而非当前激活主题）
-const THEME_OPTIONS: { id: ThemeId; label: string; bg: string; ink: string; surface: string; border: string; tint: string; track: string; signal: string; primary: string; font: string }[] = [
+// 主题色板卡：展示各主题真实配色（色值为示意数据，非组件样式 token；字体随卡所属主题）
+const THEMES: { id: ThemeId; label: string; bg: string; primary: string; tint: string; signal: string; font: string }[] = [
   {
-    id: 'oasis', label: '清新绿洲', bg: '#f3f6f2', ink: '#182720', surface: '#ffffff', border: '#e4eae5', tint: '#e3f3ea', track: '#eaf0ea', signal: '#16a34a', primary: '#16a34a',
+    id: 'oasis', label: '清新绿洲', bg: '#f3f6f2', primary: '#16a34a', tint: '#e3f3ea', signal: '#16a34a',
     font: `'PingFang SC', 'HarmonyOS Sans SC', 'Noto Sans CJK SC', 'Source Han Sans SC', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif`,
   },
   {
-    id: 'timber', label: '暖木收纳', bg: '#f6f1e7', ink: '#3d3527', surface: '#fffdf8', border: '#eae1cd', tint: '#f0e7d4', track: '#efe6d2', signal: '#33604a', primary: '#33604a',
+    id: 'timber', label: '暖木收纳', bg: '#f6f1e7', primary: '#33604a', tint: '#f0e7d4', signal: '#33604a',
     font: `'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'SimSun', serif`,
   },
   {
-    id: 'inkstone', label: '现代墨石', bg: '#f2f2f0', ink: '#17191b', surface: '#ffffff', border: '#e6e6e3', tint: '#f2f2f0', track: '#ededea', signal: '#0e9f6e', primary: '#17191b',
+    id: 'inkstone', label: '现代墨石', bg: '#f2f2f0', primary: '#17191b', tint: '#e4e6e6', signal: '#0e9f6e',
     font: `'PingFang SC', 'HarmonyOS Sans SC', 'Noto Sans CJK SC', 'Source Han Sans SC', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif`,
   },
 ]

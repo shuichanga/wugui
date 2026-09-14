@@ -181,7 +181,7 @@ const hydrated = useHydrated()
 const loading = computed(() =>
   hydrated.value && (roomsStatus.value === 'pending' || recentStatus.value === 'pending' || recentViewsStatus.value === 'pending'))
 
-// 问候语与日期：抽取到 useGreeting 供首页问候头与设置页主题缩略卡共用
+// 问候语与日期：抽取到 useGreeting 复用
 const { greeting, today } = useGreeting()
 
 // 切换住所后刷新本页数据
