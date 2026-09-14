@@ -7,7 +7,7 @@
     <!-- 页头：大标题 + 住所/房间数副行 + 绿色加号方钮 -->
     <header class="flex items-center justify-between pt-4">
       <div class="min-w-0">
-        <p class="text-lg font-bold tracking-wide">空间</p>
+        <p class="font-display text-lg font-bold tracking-wide">空间</p>
         <!-- 房间数依赖数据加载，hydration 前等高占位防跳动 -->
         <p class="mt-1 flex h-5 items-center text-xs text-text-tertiary">
           <template v-if="hydrated">{{ auth.currentHousehold?.name ?? '' }} · {{ tree.length }} 个房间</template>

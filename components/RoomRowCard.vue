@@ -8,7 +8,7 @@
               :class="room.itemCount > 0 ? 'bg-tint text-primary' : 'bg-neutral-sunken text-text-disabled'">
           <LocationIcon :slug="iconSlug" :size="18" />
         </span>
-        <span class="min-w-0 flex-1 truncate text-sm font-semibold">{{ room.name }}</span>
+        <span class="font-display min-w-0 flex-1 truncate text-sm font-semibold">{{ room.name }}</span>
         <span class="shrink-0 text-xs" :class="room.itemCount > 0 ? 'text-text-tertiary' : 'text-text-disabled'">
           <template v-if="room.itemCount > 0"><b class="text-sm font-bold text-primary">{{ room.itemCount }}</b>件</template>
           <template v-else>空</template>

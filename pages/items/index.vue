@@ -3,7 +3,7 @@
     <!-- 页头：大标题 + 住所/计数副行 + 头像（不 sticky，滚走） -->
     <header class="flex items-center justify-between pt-4">
       <div class="min-w-0">
-        <p class="text-lg font-bold tracking-wide">物品</p>
+        <p class="font-display text-lg font-bold tracking-wide">物品</p>
         <!-- 计数依赖数据加载，hydration 前等高占位防跳动 -->
         <p class="mt-1 flex h-5 items-center text-xs text-text-tertiary">
           <template v-if="hydrated">{{ auth.currentHousehold?.name ?? '' }} · 共 {{ total }} 件</template>

@@ -30,6 +30,13 @@ export default defineNuxtConfig({
         { name: 'description', content: '家庭收纳管理：记录物品与收纳空间，全家人共享' },
         { name: 'theme-color', content: '#f3f6f2' },
       ],
+      // 防首帧闪烁：渲染前从 localStorage 读主题挂到 <html data-theme>（默认清新绿洲无属性）
+      script: [
+        {
+          innerHTML:
+            "try{var p=JSON.parse(localStorage.getItem('wugui-prefs')||'{}');if(p.theme&&p.theme!=='oasis')document.documentElement.dataset.theme=p.theme}catch(e){}",
+        },
+      ],
       link: [
         { rel: 'icon', href: '/favicon.ico', sizes: '48x48' },
         { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/favicon-16x16.png' },

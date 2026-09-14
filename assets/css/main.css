@@ -28,6 +28,9 @@
   --color-text-tertiary: #8a978f;  /* ink-3 */
   --color-text-disabled: #aebbb2;  /* 空态图标 / "到底了" */
 
+  /* 信号色：进度条填充等"数据信号"，默认等同主绿（墨石主题下降级为独立绿） */
+  --color-signal: #16a34a;
+
   /* 功能色（标签分色 / 危险操作软底） */
   --color-success: #16a34a;
   --color-warning: #b45309;
@@ -46,6 +49,9 @@
   --text-xl: 24px;
   --text-2xl: 32px;
 
+  /* 标题展示字体（问候语/页面大标题/小节标题/房间名）：默认黑体；暖木主题覆盖为宋体（系统字体栈，零下载） */
+  --font-display: 'PingFang SC', 'HarmonyOS Sans SC', 'Noto Sans CJK SC', 'Source Han Sans SC', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
+
   /* 圆角刻度（原型体系）：md 小控件 / lg 中小卡 / xl 行卡按钮 / 2xl 标准卡 / 3xl hero */
   --radius-md: 12px;
   --radius-lg: 14px;
@@ -58,6 +64,73 @@
   --shadow-level-2: 0 4px 12px rgba(24, 39, 32, 0.1);
   --shadow-primary: 0 10px 22px rgba(22, 163, 74, 0.3);
   --shadow-fab: 0 10px 22px rgba(22, 163, 74, 0.34), 0 0 0 6px #ffffff;
+}
+
+/*
+ * 配色主题切换：设置页"主题配色"写入 <html data-theme>
+ * 默认无属性 = 清新绿洲（上方 @theme 即默认值）；
+ * 每个主题只需覆盖色值与阴影 token，形状/字号/间距一律不动。
+ */
+
+/* B · 暖木收纳：米白纸感底 + 松绿主色 + 木色 tint 系，标题用宋体带出"家"的温度 */
+:root[data-theme='timber'] {
+  --font-display: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'SimSun', serif;
+  --color-primary: #33604a;
+  --color-primary-dark: #274c39;
+  --color-primary-soft: #e3ece6;
+  --color-tint: #f0e7d4;           /* 木色浅底 */
+  --color-tint-2: #f7f1e3;
+  --color-signal: #33604a;
+
+  --color-neutral-bg: #f6f1e7;
+  --color-neutral-surface: #fffdf8;
+  --color-neutral-sunken: #f0e9da;
+  --color-border: #eae1cd;
+  --color-border-strong: #ddd2b8;
+  --color-input-border: #ddd2b8;
+  --color-track: #efe6d2;
+  --color-surface-tint: #fbf7ee;
+  --color-border-tint: #eae0c9;
+  --color-text-primary: #3d3527;
+  --color-text-secondary: #6e6553;
+  --color-text-tertiary: #9c9180;
+  --color-text-disabled: #b3a893;
+  --color-success: #33604a;
+
+  --shadow-level-1: 0 1px 2px rgba(61, 53, 39, 0.04), 0 8px 24px rgba(61, 53, 39, 0.06);
+  --shadow-level-2: 0 4px 12px rgba(61, 53, 39, 0.1);
+  --shadow-primary: 0 10px 22px rgba(51, 96, 74, 0.28);
+  --shadow-fab: 0 10px 22px rgba(51, 96, 74, 0.32), 0 0 0 6px #fffdf8;
+}
+
+/* C · 现代墨石：灰白底 + 墨黑主色，绿降级为信号色 */
+:root[data-theme='inkstone'] {
+  --color-primary: #17191b;
+  --color-primary-dark: #0b0d0e;
+  --color-primary-soft: #e4e6e6;
+  --color-tint: #f2f2f0;
+  --color-tint-2: #f7f7f5;
+  --color-signal: #0e9f6e;
+
+  --color-neutral-bg: #f2f2f0;
+  --color-neutral-surface: #ffffff;
+  --color-neutral-sunken: #ededea;
+  --color-border: #e6e6e3;
+  --color-border-strong: #d7d7d3;
+  --color-input-border: #d7d7d3;
+  --color-track: #ededea;
+  --color-surface-tint: #f7f7f5;
+  --color-border-tint: #e9e9e6;
+  --color-text-primary: #17191b;
+  --color-text-secondary: #565a58;
+  --color-text-tertiary: #8d908c;
+  --color-text-disabled: #b0b3af;
+  --color-success: #0e9f6e;
+
+  --shadow-level-1: 0 1px 2px rgba(20, 22, 24, 0.04), 0 8px 24px rgba(20, 22, 24, 0.05);
+  --shadow-level-2: 0 4px 12px rgba(20, 22, 24, 0.1);
+  --shadow-primary: 0 10px 22px rgba(23, 25, 27, 0.24);
+  --shadow-fab: 0 10px 22px rgba(23, 25, 27, 0.28), 0 0 0 6px #ffffff;
 }
 
 :root {

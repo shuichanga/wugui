@@ -3,7 +3,7 @@
     <!-- 问候头：透明融入背景，左问候块（含住所切换）+ 右头像 -->
     <header class="flex items-center justify-between pt-4">
       <div class="min-w-0">
-        <p class="text-lg font-bold tracking-wide">{{ greeting }}</p>
+        <p class="font-display text-lg font-bold tracking-wide">{{ greeting }}</p>
         <!-- 问候语/日期依赖客户端本地时间，hydration 后渲染（SSR 输出等高占位防跳动） -->
         <p class="mt-1 flex h-5 items-center text-xs text-text-tertiary">
           <template v-if="hydrated">
@@ -181,18 +181,8 @@ const hydrated = useHydrated()
 const loading = computed(() =>
   hydrated.value && (roomsStatus.value === 'pending' || recentStatus.value === 'pending' || recentViewsStatus.value === 'pending'))
 
-// 问候语与日期：依赖客户端本地时间，hydration 后填充
-const greeting = computed(() => {
-  const h = new Date().getHours()
-  const period = h < 6 ? '夜深了' : h < 11 ? '早上好' : h < 13 ? '中午好' : h < 18 ? '下午好' : '晚上好'
-  const name = auth.user?.displayName?.trim()
-  return name ? `${period}，${name}` : period
-})
-const today = computed(() => {
-  const d = new Date()
-  const week = ['日', '一', '二', '三', '四', '五', '六']
-  return `${d.getMonth() + 1}月${d.getDate()}日 周${week[d.getDay()]}`
-})
+// 问候语与日期：抽取到 useGreeting 供首页问候头与设置页主题缩略卡共用
+const { greeting, today } = useGreeting()
 
 // 切换住所后刷新本页数据
 function onSwitched() {

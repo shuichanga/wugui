@@ -67,7 +67,10 @@
 
     <footer class="mt-8 pb-2 text-center">
       <p class="text-2xs tracking-wide text-text-disabled">
-        © {{ year }} 物归 · 用心整理每一个家 by <span class="font-semibold text-primary-dark">水常</span>
+        © {{ year }} 物归 · 用心整理每一个家
+      </p>
+      <p class="font-display text-2xs tracking-wide text-text-disabled">
+        作者：<a href="https://shuichanga.cn" target="_blank" rel="noopener noreferrer" class="text-primary-dark">水常</a> · 邮箱：rao@shuichanga.cn
       </p>
     </footer>
   </main>

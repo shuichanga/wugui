@@ -13,11 +13,11 @@
         <template v-else>还没有物品</template>
       </span>
     </div>
-    <p class="mb-[5px] mt-1 truncate text-sm font-semibold">{{ room.name }}</p>
+    <p class="font-display mb-[5px] mt-1 truncate text-sm font-semibold">{{ room.name }}</p>
     <!-- 细进度条 + 末端圆点：空房间圆点停在起点（跟随原型） -->
     <div class="relative h-1 rounded-full bg-track">
-      <span class="absolute inset-y-0 left-0 rounded-full bg-primary" :style="{ width: progressWidth }" />
-      <span class="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary ring-2 ring-neutral-surface"
+      <span class="absolute inset-y-0 left-0 rounded-full bg-signal" :style="{ width: progressWidth }" />
+      <span class="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-signal ring-2 ring-neutral-surface"
             :style="{ left: progressWidth }" />
     </div>
   </NuxtLink>
