@@ -91,17 +91,9 @@ export class ApiClient {
   }
 }
 
-// 默认 Web 实例（Nuxt 或浏览器端可用）
+// 默认实例（跨端安全：不在 core 里读 process/globalThis，交给调用方注入）
 let defaultClient: ApiClient | null = null
-export function getClient(config?: ApiClientConfig): ApiClient {
-  if (config) defaultClient = new ApiClient(config)
-  if (!defaultClient) {
-    defaultClient = new ApiClient({
-      baseUrl:
-        typeof process !== 'undefined' && process.env?.NUXT_PUBLIC_API_BASE_URL
-          ? process.env.NUXT_PUBLIC_API_BASE_URL
-          : 'http://localhost:3000',
-    })
-  }
+export function getClient(config: ApiClientConfig): ApiClient {
+  defaultClient = new ApiClient(config)
   return defaultClient
 }
