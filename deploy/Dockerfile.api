@@ -20,7 +20,8 @@ RUN pnpm --filter @wugui/core build \
 
 # 用 pnpm deploy 生成自包含部署包
 # 会自动把 workspace 依赖（@wugui/core）复制进来，脱离符号链接
-RUN pnpm --filter @wugui/api deploy --prod /deployed
+# pnpm v10 必须加 --legacy（除非 .npmrc 配置 inject-workspace-packages=true）
+RUN pnpm --filter @wugui/api deploy --prod --legacy /deployed
 
 # ---- 运行阶段 ----
 FROM node:20-alpine
