@@ -35,3 +35,17 @@ $RECYCLE.BIN
 
 # TypeScript 增量构建缓存
 *.tsbuildinfo
+
+# pnpm workspace
+pnpm-lock.yaml.bak
+
+# NestJS 构建产物
+apps/api/dist
+apps/api/coverage
+apps/api/node_modules
+
+# Docker 数据（本地开发时挂载到宿主机，不入库）
+deploy/data/**
+!deploy/data/.gitkeep
+deploy/mysql-data
+deploy/logs

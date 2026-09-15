@@ -1,0 +1,37 @@
+{
+  "name": "@wugui/api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "物归 API 服务（独立 NestJS + Drizzle + MySQL）",
+  "scripts": {
+    "build": "nest build",
+    "dev": "nest start --watch",
+    "start": "node dist/main.js",
+    "start:prod": "node dist/main.js",
+    "db:migrate": "drizzle-kit migrate",
+    "db:generate": "drizzle-kit generate",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/platform-fastify": "^11.0.0",
+    "@fastify/helmet": "^13.0.0",
+    "@fastify/cors": "^11.0.0",
+    "@wugui/core": "workspace:*",
+    "ali-oss": "^6.20.0",
+    "drizzle-orm": "^0.45.2",
+    "mysql2": "^3.14.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.0",
+    "uuid": "^11.0.0"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.0",
+    "@types/node": "^22.0.0",
+    "drizzle-kit": "^0.31.0",
+    "typescript": "^5.8.3",
+    "tsx": "^4.19.0"
+  }
+}

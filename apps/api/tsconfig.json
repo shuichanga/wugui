@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
