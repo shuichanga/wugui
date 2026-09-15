@@ -168,9 +168,9 @@
                     @click="setTheme(t.id)">
               <span class="block flex h-14 items-center justify-around gap-1 rounded-md px-1.5"
                     :style="{ backgroundColor: t.bg }">
-                <span class="h-7 w-7 rounded-full" :style="{ backgroundColor: t.primary }" />
-                <span class="h-7 w-7 rounded-full ring-1 ring-inset ring-black/10" :style="{ backgroundColor: t.tint }" />
-                <span class="h-7 w-7 rounded-full" :style="{ backgroundColor: t.signal }" />
+                <span class="h-5 w-5 shrink-0 rounded-full" :style="{ backgroundColor: t.primary }" />
+                <span class="h-5 w-5 shrink-0 rounded-full ring-1 ring-inset ring-black/10" :style="{ backgroundColor: t.tint }" />
+                <span class="h-5 w-5 shrink-0 rounded-full" :style="{ backgroundColor: t.signal }" />
               </span>
               <span class="mt-2 flex items-center justify-center gap-1 text-xs"
                     :class="theme === t.id ? 'font-medium text-primary' : 'text-text-secondary'"
