@@ -1,0 +1,58 @@
+# 依赖
+node_modules
+**/node_modules
+
+# 构建产物
+dist
+**/dist
+apps/api/.nest
+
+# Git
+.git
+.gitignore
+
+# 环境变量
+.env
+.env.*
+**/.env
+**/.env.*
+apps/api/.env*
+deploy/.env
+
+# 测试和文档
+*.test.ts
+*.spec.ts
+*.md
+
+# IDE
+.vscode
+.idea
+
+# 编辑器
+.DS_Store
+Thumbs.db
+
+# Nuxt（不部署）
+.nuxt
+.output
+nuxt.config.ts
+app.vue
+pages
+components
+composables
+stores
+plugins
+assets
+public
+wrangler.toml
+
+# Drizzle 本地 schema
+drizzle
+migrations
+server
+
+# deploy 目录本身（构建时不需要）
+deploy
+
+# 日志
+*.log
