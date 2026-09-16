@@ -16,7 +16,9 @@ export class AuthController {
   /** 注册：username + password（+ 可选 email）→ 自动创建自己的住所 */
   @Public()
   @Post('register')
-  async register(@Body() body: Record<string, unknown>, @Res() reply: FastifyReply) {
+  // passthrough: true 是必须的——否则 @Res() 会进入手动响应模式，
+  // return 的值不会写进 HTTP 响应体，导致请求永远挂起直到网关超时
+  async register(@Body() body: Record<string, unknown>, @Res({ passthrough: true }) reply: FastifyReply) {
     const result = await this.authService.register({
       username: String(body.username ?? '').trim(),
       password: String(body.password ?? ''),
@@ -31,7 +33,7 @@ export class AuthController {
   @Public()
   @HttpCode(200)
   @Post('login')
-  async login(@Body() body: Record<string, unknown>, @Res() reply: FastifyReply) {
+  async login(@Body() body: Record<string, unknown>, @Res({ passthrough: true }) reply: FastifyReply) {
     const result = await this.authService.login({
       account: String(body.account ?? body.email ?? body.username ?? ''),
       password: String(body.password ?? ''),
@@ -50,7 +52,7 @@ export class AuthController {
   @Public()
   @HttpCode(200)
   @Post('logout')
-  logout(@Res() reply: FastifyReply) {
+  logout(@Res({ passthrough: true }) reply: FastifyReply) {
     this.session.clearAuthCookie(reply)
     return { ok: true }
   }
@@ -61,7 +63,7 @@ export class AuthController {
   async switchHousehold(
     @Param('householdId') householdId: string,
     @CurrentUser() user: SessionUser,
-    @Res() reply: FastifyReply,
+    @Res({ passthrough: true }) reply: FastifyReply,
   ) {
     const result = await this.authService.switchHousehold(user.id, householdId)
     this.session.setAuthCookie(reply, result.token)
