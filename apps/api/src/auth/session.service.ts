@@ -3,8 +3,9 @@ import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { SignJWT, jwtVerify } from 'jose'
 import { eq } from 'drizzle-orm'
-import { scrypt } from '@noble/hashes/scrypt'
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
+// Node 原生 scrypt（C++ 实现）：@noble/hashes 是纯 JS 版（为 Workers 设计），
+// 在 2C2G 服务器上 N=16384 要 60 秒+，Node 环境必须用原生实现
+import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 import type { FastifyReply } from 'fastify'
 import { householdMembers } from '../db/schema'
 import type { DB } from '../db/database.service'
@@ -29,9 +30,9 @@ export class SessionService {
   // ---- 密码哈希：scrypt（格式与旧 D1 版一致：scrypt$N$r$p$saltHex$hashHex） ----
 
   hashPassword(password: string): string {
-    const salt = crypto.getRandomValues(new Uint8Array(16))
-    const hash = scrypt(password, salt, { N: 16384, r: 8, p: 1, dkLen: 32 })
-    return `scrypt$16384$8$1$${bytesToHex(salt)}$${bytesToHex(hash)}`
+    const salt = randomBytes(16)
+    const hash = scryptSync(password, salt, 32, { N: 16384, r: 8, p: 1 })
+    return `scrypt$16384$8$1$${salt.toString('hex')}$${hash.toString('hex')}`
   }
 
   verifyPassword(password: string, stored: string): boolean {
@@ -39,8 +40,9 @@ export class SessionService {
     if (parts.length !== 6 || parts[0] !== 'scrypt') return false
     const [, n, r, p, saltHex, hashHex] = parts
     try {
-      const hash = scrypt(password, hexToBytes(saltHex), { N: +n, r: +r, p: +p, dkLen: 32 })
-      return bytesToHex(hash) === hashHex
+      const hash = scryptSync(password, Buffer.from(saltHex, 'hex'), 32, { N: +n, r: +r, p: +p })
+      const expected = Buffer.from(hashHex, 'hex')
+      return hash.length === expected.length && timingSafeEqual(hash, expected)
     } catch {
       return false
     }
