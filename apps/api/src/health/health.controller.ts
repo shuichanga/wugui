@@ -1,10 +1,12 @@
 import { Controller, Get } from '@nestjs/common'
 import { DrizzleService } from '../db/database.service'
+import { Public } from '../auth/public.decorator'
 
 @Controller('health')
 export class HealthController {
   constructor(private readonly drizzle: DrizzleService) {}
 
+  @Public()
   @Get()
   getHealth() {
     return {
@@ -16,6 +18,7 @@ export class HealthController {
   }
 
   // 数据库连通性检查
+  @Public()
   @Get('db')
   async checkDb() {
     try {

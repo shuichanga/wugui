@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config'
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify'
 import helmet from '@fastify/helmet'
 import cors from '@fastify/cors'
+import cookie from '@fastify/cookie'
 import { AppModule } from './app.module'
 
 async function bootstrap() {
@@ -15,12 +16,13 @@ async function bootstrap() {
   // 全局前缀：所有路由以 /api 开头
   app.setGlobalPrefix('api')
 
-  // 安全头 + 跨域
+  // 安全头 + 跨域 + cookie 解析（认证 cookie 依赖）
   await app.register(helmet, { contentSecurityPolicy: false })
   await app.register(cors, {
     origin: true,
     credentials: true,
   })
+  await app.register(cookie)
 
   // 请求日志
   const server = app.getHttpAdapter().getInstance()
