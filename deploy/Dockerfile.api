@@ -2,15 +2,17 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# pnpm 10 + corepack（corepack 走国内源下载 pnpm）
+# pnpm 10 + corepack（corepack 走国内源下载 pnpm；版本对齐根 package.json 的 packageManager，避免运行时再下载一次）
 ENV COREPACK_NPM_REGISTRY=https://registry.npmmirror.com
-RUN corepack enable && corepack prepare pnpm@10.12.0 --activate
+RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
 
 # 依赖清单
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json .npmrc ./
 COPY apps/api/package.json apps/api/
 COPY packages/core/package.json packages/core/
-RUN pnpm install --frozen-lockfile
+# 只装 api 及其 workspace 依赖（core），不装根包的 Nuxt 全家桶；
+# --ignore-scripts 跳过根包 postinstall 的 nuxt prepare（Docker 里用不到）
+RUN pnpm install --frozen-lockfile --filter @wugui/api... --ignore-scripts
 
 # 复制源码
 COPY . .
