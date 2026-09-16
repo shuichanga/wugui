@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "689e3f7e-f514-48bd-aca1-09804ba8f000",
+  "id": "60c95647-3bf4-47e9-845f-db0bfcfcfacd",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "household_members": {
@@ -9,14 +9,14 @@
       "columns": {
         "household_id": {
           "name": "household_id",
-          "type": "varchar(32)",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "user_id": {
           "name": "user_id",
-          "type": "varchar(32)",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -64,7 +64,7 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "varchar(32)",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -85,7 +85,7 @@
         },
         "created_by": {
           "name": "created_by",
-          "type": "varchar(32)",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -130,14 +130,14 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "varchar(32)",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "item_id": {
           "name": "item_id",
-          "type": "varchar(32)",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -191,7 +191,7 @@
       "columns": {
         "item_id": {
           "name": "item_id",
-          "type": "varchar(32)",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -231,21 +231,21 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "varchar(32)",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "household_id": {
           "name": "household_id",
-          "type": "varchar(32)",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "location_id": {
           "name": "location_id",
-          "type": "varchar(32)",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -274,7 +274,7 @@
         },
         "owner_id": {
           "name": "owner_id",
-          "type": "varchar(32)",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -334,21 +334,21 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "varchar(32)",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "household_id": {
           "name": "household_id",
-          "type": "varchar(32)",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "parent_id": {
           "name": "parent_id",
-          "type": "varchar(32)",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -430,14 +430,14 @@
       "columns": {
         "user_id": {
           "name": "user_id",
-          "type": "varchar(32)",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "item_id": {
           "name": "item_id",
-          "type": "varchar(32)",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -478,14 +478,14 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "varchar(32)",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "user_id": {
           "name": "user_id",
-          "type": "varchar(32)",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -568,14 +568,14 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "varchar(32)",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "user_id": {
           "name": "user_id",
-          "type": "varchar(32)",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -589,7 +589,7 @@
         },
         "entity_id": {
           "name": "entity_id",
-          "type": "varchar(32)",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -650,7 +650,7 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "varchar(32)",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false

@@ -1,16 +1,16 @@
 CREATE TABLE `household_members` (
-	`household_id` varchar(32) NOT NULL,
-	`user_id` varchar(32) NOT NULL,
+	`household_id` varchar(36) NOT NULL,
+	`user_id` varchar(36) NOT NULL,
 	`role` varchar(16) NOT NULL DEFAULT 'member',
 	`joined_at` datetime NOT NULL,
 	CONSTRAINT `household_members_household_id_user_id_pk` PRIMARY KEY(`household_id`,`user_id`)
 );
 --> statement-breakpoint
 CREATE TABLE `households` (
-	`id` varchar(32) NOT NULL,
+	`id` varchar(36) NOT NULL,
 	`name` varchar(64) NOT NULL,
 	`invite_code` varchar(8) NOT NULL,
-	`created_by` varchar(32) NOT NULL,
+	`created_by` varchar(36) NOT NULL,
 	`created_at` datetime NOT NULL,
 	`updated_at` datetime NOT NULL,
 	CONSTRAINT `households_id` PRIMARY KEY(`id`),
@@ -18,8 +18,8 @@ CREATE TABLE `households` (
 );
 --> statement-breakpoint
 CREATE TABLE `item_photos` (
-	`id` varchar(32) NOT NULL,
-	`item_id` varchar(32) NOT NULL,
+	`id` varchar(36) NOT NULL,
+	`item_id` varchar(36) NOT NULL,
 	`oss_key` varchar(512) NOT NULL,
 	`sort_order` int NOT NULL DEFAULT 0,
 	`created_at` datetime NOT NULL,
@@ -27,28 +27,28 @@ CREATE TABLE `item_photos` (
 );
 --> statement-breakpoint
 CREATE TABLE `item_tags` (
-	`item_id` varchar(32) NOT NULL,
+	`item_id` varchar(36) NOT NULL,
 	`tag` varchar(64) NOT NULL,
 	CONSTRAINT `item_tags_item_id_tag_pk` PRIMARY KEY(`item_id`,`tag`)
 );
 --> statement-breakpoint
 CREATE TABLE `items` (
-	`id` varchar(32) NOT NULL,
-	`household_id` varchar(32) NOT NULL,
-	`location_id` varchar(32) NOT NULL,
+	`id` varchar(36) NOT NULL,
+	`household_id` varchar(36) NOT NULL,
+	`location_id` varchar(36) NOT NULL,
 	`name` varchar(128) NOT NULL,
 	`quantity` int NOT NULL DEFAULT 1,
 	`notes` text,
-	`owner_id` varchar(32) NOT NULL,
+	`owner_id` varchar(36) NOT NULL,
 	`created_at` datetime NOT NULL,
 	`updated_at` datetime NOT NULL,
 	CONSTRAINT `items_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
 CREATE TABLE `locations` (
-	`id` varchar(32) NOT NULL,
-	`household_id` varchar(32) NOT NULL,
-	`parent_id` varchar(32),
+	`id` varchar(36) NOT NULL,
+	`household_id` varchar(36) NOT NULL,
+	`parent_id` varchar(36),
 	`level` varchar(20) NOT NULL,
 	`name` varchar(64) NOT NULL,
 	`icon` varchar(32),
@@ -59,15 +59,15 @@ CREATE TABLE `locations` (
 );
 --> statement-breakpoint
 CREATE TABLE `recent_views` (
-	`user_id` varchar(32) NOT NULL,
-	`item_id` varchar(32) NOT NULL,
+	`user_id` varchar(36) NOT NULL,
+	`item_id` varchar(36) NOT NULL,
 	`viewed_at` datetime NOT NULL,
 	CONSTRAINT `recent_views_user_id_item_id_pk` PRIMARY KEY(`user_id`,`item_id`)
 );
 --> statement-breakpoint
 CREATE TABLE `subscriptions` (
-	`id` varchar(32) NOT NULL,
-	`user_id` varchar(32) NOT NULL,
+	`id` varchar(36) NOT NULL,
+	`user_id` varchar(36) NOT NULL,
 	`plan_type` varchar(32) NOT NULL DEFAULT 'free',
 	`status` varchar(16) NOT NULL DEFAULT 'active',
 	`payment_provider` varchar(16),
@@ -79,10 +79,10 @@ CREATE TABLE `subscriptions` (
 );
 --> statement-breakpoint
 CREATE TABLE `sync_changes` (
-	`id` varchar(32) NOT NULL,
-	`user_id` varchar(32) NOT NULL,
+	`id` varchar(36) NOT NULL,
+	`user_id` varchar(36) NOT NULL,
 	`entity` varchar(32) NOT NULL,
-	`entity_id` varchar(32) NOT NULL,
+	`entity_id` varchar(36) NOT NULL,
 	`op` varchar(16) NOT NULL,
 	`data_json` text,
 	`client_timestamp` datetime NOT NULL,
@@ -91,7 +91,7 @@ CREATE TABLE `sync_changes` (
 );
 --> statement-breakpoint
 CREATE TABLE `users` (
-	`id` varchar(32) NOT NULL,
+	`id` varchar(36) NOT NULL,
 	`username` varchar(32),
 	`email` varchar(255),
 	`email_verified` boolean NOT NULL DEFAULT false,

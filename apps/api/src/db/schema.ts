@@ -1,4 +1,4 @@
-// 物归 - MySQL schema（完整版）
+﻿// 物归 - MySQL schema（完整版）
 // 改造要点：
 //   1. 开放注册：注册即自动创建自己的住所（owner），邀请码保留为"邀请家人加入已有住所"的二级功能
 //   2. username 登录：username 可选（微信登录用户可后补），登录支持 username 或 email
@@ -9,7 +9,7 @@ import { boolean, datetime, index, int, mysqlTable, primaryKey, text, varchar } 
 export const users = mysqlTable(
   'users',
   {
-    id: varchar('id', { length: 32 }).primaryKey(),
+    id: varchar('id', { length: 36 }).primaryKey(),
     // 登录名（用户名+密码）；微信用户可后补
     username: varchar('username', { length: 32 }),
     // 邮箱（可选，找回密码用）；微信用户可能没有
@@ -36,10 +36,10 @@ export const users = mysqlTable(
 )
 
 export const households = mysqlTable('households', {
-  id: varchar('id', { length: 32 }).primaryKey(),
+  id: varchar('id', { length: 36 }).primaryKey(),
   name: varchar('name', { length: 64 }).notNull(),
   inviteCode: varchar('invite_code', { length: 8 }).notNull().unique(),
-  createdBy: varchar('created_by', { length: 32 }).notNull(),
+  createdBy: varchar('created_by', { length: 36 }).notNull(),
   createdAt: datetime('created_at').notNull(),
   updatedAt: datetime('updated_at').notNull(),
 })
@@ -47,8 +47,8 @@ export const households = mysqlTable('households', {
 export const householdMembers = mysqlTable(
   'household_members',
   {
-    householdId: varchar('household_id', { length: 32 }).notNull(),
-    userId: varchar('user_id', { length: 32 }).notNull(),
+    householdId: varchar('household_id', { length: 36 }).notNull(),
+    userId: varchar('user_id', { length: 36 }).notNull(),
     role: varchar('role', { length: 16 }).notNull().default('member'),
     joinedAt: datetime('joined_at').notNull(),
   },
@@ -61,9 +61,9 @@ export const householdMembers = mysqlTable(
 export const locations = mysqlTable(
   'locations',
   {
-    id: varchar('id', { length: 32 }).primaryKey(),
-    householdId: varchar('household_id', { length: 32 }).notNull(),
-    parentId: varchar('parent_id', { length: 32 }),
+    id: varchar('id', { length: 36 }).primaryKey(),
+    householdId: varchar('household_id', { length: 36 }).notNull(),
+    parentId: varchar('parent_id', { length: 36 }),
     level: varchar('level', { length: 20 }).notNull(), // room | furniture | compartment
     name: varchar('name', { length: 64 }).notNull(),
     icon: varchar('icon', { length: 32 }),
@@ -80,13 +80,13 @@ export const locations = mysqlTable(
 export const items = mysqlTable(
   'items',
   {
-    id: varchar('id', { length: 32 }).primaryKey(),
-    householdId: varchar('household_id', { length: 32 }).notNull(),
-    locationId: varchar('location_id', { length: 32 }).notNull(),
+    id: varchar('id', { length: 36 }).primaryKey(),
+    householdId: varchar('household_id', { length: 36 }).notNull(),
+    locationId: varchar('location_id', { length: 36 }).notNull(),
     name: varchar('name', { length: 128 }).notNull(),
     quantity: int('quantity').notNull().default(1),
     notes: text('notes'),
-    ownerId: varchar('owner_id', { length: 32 }).notNull(),
+    ownerId: varchar('owner_id', { length: 36 }).notNull(),
     createdAt: datetime('created_at').notNull(),
     updatedAt: datetime('updated_at').notNull(),
   },
@@ -100,7 +100,7 @@ export const items = mysqlTable(
 export const itemTags = mysqlTable(
   'item_tags',
   {
-    itemId: varchar('item_id', { length: 32 }).notNull(),
+    itemId: varchar('item_id', { length: 36 }).notNull(),
     tag: varchar('tag', { length: 64 }).notNull(),
   },
   (t) => [
@@ -113,8 +113,8 @@ export const itemTags = mysqlTable(
 export const recentViews = mysqlTable(
   'recent_views',
   {
-    userId: varchar('user_id', { length: 32 }).notNull(),
-    itemId: varchar('item_id', { length: 32 }).notNull(),
+    userId: varchar('user_id', { length: 36 }).notNull(),
+    itemId: varchar('item_id', { length: 36 }).notNull(),
     viewedAt: datetime('viewed_at').notNull(),
   },
   (t) => [
@@ -126,8 +126,8 @@ export const recentViews = mysqlTable(
 export const itemPhotos = mysqlTable(
   'item_photos',
   {
-    id: varchar('id', { length: 32 }).primaryKey(),
-    itemId: varchar('item_id', { length: 32 }).notNull(),
+    id: varchar('id', { length: 36 }).primaryKey(),
+    itemId: varchar('item_id', { length: 36 }).notNull(),
     ossKey: varchar('oss_key', { length: 512 }).notNull(),
     sortOrder: int('sort_order').notNull().default(0),
     createdAt: datetime('created_at').notNull(),
@@ -139,8 +139,8 @@ export const itemPhotos = mysqlTable(
 export const subscriptions = mysqlTable(
   'subscriptions',
   {
-    id: varchar('id', { length: 32 }).primaryKey(),
-    userId: varchar('user_id', { length: 32 }).notNull(),
+    id: varchar('id', { length: 36 }).primaryKey(),
+    userId: varchar('user_id', { length: 36 }).notNull(),
     // 'free' | 'cloud_sync_permanent' | ...
     planType: varchar('plan_type', { length: 32 }).notNull().default('free'),
     // 'active' | 'expired'
@@ -160,11 +160,11 @@ export const subscriptions = mysqlTable(
 export const syncChanges = mysqlTable(
   'sync_changes',
   {
-    id: varchar('id', { length: 32 }).primaryKey(),
-    userId: varchar('user_id', { length: 32 }).notNull(),
+    id: varchar('id', { length: 36 }).primaryKey(),
+    userId: varchar('user_id', { length: 36 }).notNull(),
     // 'items' | 'locations' | 'households' | 'item_photos' | 'item_tags'
     entity: varchar('entity', { length: 32 }).notNull(),
-    entityId: varchar('entity_id', { length: 32 }).notNull(),
+    entityId: varchar('entity_id', { length: 36 }).notNull(),
     // 'create' | 'update' | 'delete'
     op: varchar('op', { length: 16 }).notNull(),
     // 变更数据 JSON（delete 时为 null）
