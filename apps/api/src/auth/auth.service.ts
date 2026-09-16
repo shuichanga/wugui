@@ -132,23 +132,44 @@ export class AuthService {
     }
   }
 
-  /** 当前会话信息：用户 + 所有住所成员关系 */
-  async me(userId: string) {
+  /**
+   * 当前会话信息（前端 stores/auth.ts 契约）：
+   *   user: { id, email, displayName, avatarUrl }
+   *   households: [{ id, name, role, inviteCode? }]  —— 邀请码仅 owner 可见
+   *   currentHouseholdId: JWT 里的 hid
+   */
+  async me(userId: string, currentHouseholdId: string) {
     const db = this.drizzle.db
     const found = await db.select().from(users).where(eq(users.id, userId))
     if (!found.length) throw new NotFoundException('用户不存在')
     const user = found[0]
-    const memberships = await this.session.getMemberships(db, userId)
+
+    const rows = await db
+      .select({
+        id: households.id,
+        name: households.name,
+        role: householdMembers.role,
+        inviteCode: households.inviteCode,
+      })
+      .from(householdMembers)
+      .innerJoin(households, eq(households.id, householdMembers.householdId))
+      .where(eq(householdMembers.userId, userId))
+
+    // 前端契约：currentHouseholdId 优先取 JWT 里的 hid；若失效（切换过）则回落到第一个
+    const current = rows.some(r => r.id === currentHouseholdId) ? currentHouseholdId : (rows[0]?.id ?? '')
+
     return {
       user: {
         id: user.id,
-        username: user.username,
-        email: user.email,
-        displayName: user.displayName,
-        avatarKey: user.avatarKey,
+        email: user.email ?? '',
+        displayName: user.displayName ?? null,
+        avatarUrl: user.avatarKey ? `/api/avatars/${user.id}` : null,
       },
-      householdId: memberships[0]?.householdId ?? '',
-      memberships,
+      households: rows.map(r => ({
+        ...r,
+        inviteCode: r.role === 'owner' ? r.inviteCode : undefined,
+      })),
+      currentHouseholdId: current,
     }
   }
 

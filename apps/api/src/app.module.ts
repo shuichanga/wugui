@@ -7,6 +7,9 @@ import { HealthModule } from './health/health.module'
 import { AuthModule } from './auth/auth.module'
 import { AuthGuard } from './auth/auth.guard'
 import { AllExceptionsFilter } from './common/http-exception.filter'
+import { HouseholdsModule } from './households/households.module'
+import { LocationsModule } from './locations/locations.module'
+import { ItemsModule } from './items/items.module'
 
 @Module({
   imports: [
@@ -18,6 +21,9 @@ import { AllExceptionsFilter } from './common/http-exception.filter'
     DatabaseModule,
     AuthModule,
     HealthModule,
+    HouseholdsModule,
+    LocationsModule,
+    ItemsModule,
   ],
   providers: [
     // 全局守卫：除 @Public() 外所有路由需登录

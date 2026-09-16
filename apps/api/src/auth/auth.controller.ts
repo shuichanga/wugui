@@ -3,7 +3,7 @@ import type { FastifyReply } from 'fastify'
 import { AuthService } from './auth.service'
 import { SessionService } from './session.service'
 import { Public } from './public.decorator'
-import { CurrentUser } from './current-user.decorator'
+import { CurrentUser, CurrentHouseholdId } from './current-user.decorator'
 import type { SessionUser } from './session.types'
 
 @Controller('auth')
@@ -42,10 +42,10 @@ export class AuthController {
     return result
   }
 
-  /** 当前会话：用户 + 住所成员关系 */
+  /** 当前会话：用户 + 住所成员关系（前端 stores/auth.ts 契约） */
   @Get('me')
-  async me(@CurrentUser() user: SessionUser) {
-    return this.authService.me(user.id)
+  async me(@CurrentUser() user: SessionUser, @CurrentHouseholdId() householdId: string) {
+    return this.authService.me(user.id, householdId)
   }
 
   /** 登出：清 cookie（多端 Bearer 模式由客户端自行删 token） */

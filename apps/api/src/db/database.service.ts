@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { type SQL } from 'drizzle-orm'
 import { drizzle, type MySql2Database } from 'drizzle-orm/mysql2'
 import mysql from 'mysql2/promise'
 import * as schema from './schema'
@@ -27,6 +28,13 @@ export class DrizzleService implements OnModuleDestroy {
       this._db = drizzle(this.pool, { schema, mode: 'default' })
     }
     return this._db
+  }
+
+  /** 原生 SQL 查询（递归 CTE 等），返回行数组 */
+  async rawQuery<T extends Record<string, unknown>>(query: SQL): Promise<T[]> {
+    // mysql2 execute 返回 [rows, fields] 元组；drizzle 的条件类型在此场景下有歧义，直接断言
+    const [rows] = (await this.db.execute<T>(query)) as unknown as [T[], mysql.FieldPacket[]]
+    return rows
   }
 
   async onModuleDestroy() {
