@@ -11,9 +11,9 @@ export const users = mysqlTable(
   {
     id: varchar('id', { length: 36 }).primaryKey(),
     // 登录名（用户名+密码）；微信用户可后补
-    username: varchar('username', { length: 32 }),
+    username: varchar('username', { length: 32 }).unique(),
     // 邮箱（可选，找回密码用）；微信用户可能没有
-    email: varchar('email', { length: 255 }),
+    email: varchar('email', { length: 255 }).unique(),
     emailVerified: boolean('email_verified').notNull().default(false),
     // 微信用户无密码
     passwordHash: varchar('password_hash', { length: 255 }),
