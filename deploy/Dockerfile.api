@@ -2,7 +2,8 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# pnpm 10 + corepack
+# pnpm 10 + corepack（corepack 走国内源下载 pnpm）
+ENV COREPACK_NPM_REGISTRY=https://registry.npmmirror.com
 RUN corepack enable && corepack prepare pnpm@10.12.0 --activate
 
 # 依赖清单
