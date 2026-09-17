@@ -55,9 +55,19 @@ export class OssService {
     }
   }
 
+  /**
+   * 对象访问路径。桶域名（https://{bucket}.oss-*.aliyuncs.com）host 里已含桶名，
+   * 路径不能再带 /{bucket} 前缀——否则 OSS 会把桶名重复拼进 CanonicalizedResource，
+   * 签名校验必然 403 SignatureDoesNotMatch。非桶域名（CNAME/裸 endpoint）才需要带。
+   */
+  private objectPath(ossKey: string): string {
+    return this.host.includes(`://${this.bucket}.`) ? `/${ossKey}` : `/${this.bucket}/${ossKey}`
+  }
+
   /** 读签名 URL（私有桶 302 用），默认 1 小时有效 */
   signedGetUrl(ossKey: string, expiresSec = 3600): string {
     const expires = Math.floor(Date.now() / 1000) + expiresSec
+    // CanonicalizedResource 恒为 /{bucket}/{key}，与 host 形式无关
     const resource = `/${this.bucket}/${ossKey}`
     const signature = createHmac('sha1', this.accessKeySecret)
       .update(`GET\n\n\n${expires}\n${resource}`)
@@ -67,7 +77,7 @@ export class OssService {
       Expires: String(expires),
       Signature: signature,
     })
-    return `${this.host}${resource}?${query.toString()}`
+    return `${this.host}${this.objectPath(ossKey)}?${query.toString()}`
   }
 
   /** 删除对象；网络失败向上抛，由调用方决定是否容忍 */
@@ -77,7 +87,7 @@ export class OssService {
     const signature = createHmac('sha1', this.accessKeySecret)
       .update(`DELETE\n\n\n${date}\n${resource}`)
       .digest('base64')
-    const res = await fetch(`${this.host}${resource}`, {
+    const res = await fetch(`${this.host}${this.objectPath(ossKey)}`, {
       method: 'DELETE',
       headers: { Date: date, Authorization: `OSS ${this.accessKeyId}:${signature}` },
     })
