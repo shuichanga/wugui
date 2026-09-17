@@ -10,6 +10,7 @@ import { AllExceptionsFilter } from './common/http-exception.filter'
 import { HouseholdsModule } from './households/households.module'
 import { LocationsModule } from './locations/locations.module'
 import { ItemsModule } from './items/items.module'
+import { PhotosModule } from './photos/photos.module'
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { ItemsModule } from './items/items.module'
     HouseholdsModule,
     LocationsModule,
     ItemsModule,
+    PhotosModule,
   ],
   providers: [
     // 全局守卫：除 @Public() 外所有路由需登录
