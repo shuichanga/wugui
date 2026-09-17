@@ -10,7 +10,6 @@ RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json .npmrc ./
 COPY apps/api/package.json apps/api/
 COPY packages/core/package.json packages/core/
-# 只装 api 及其 workspace 依赖（core），不装根包的 Nuxt 全家桶；
 # --ignore-scripts 跳过根包 postinstall 的 nuxt prepare（Docker 里用不到）
 RUN pnpm install --frozen-lockfile --filter @wugui/api... --ignore-scripts
 
@@ -21,17 +20,16 @@ COPY . .
 RUN pnpm --filter @wugui/core build \
  && pnpm --filter @wugui/api build
 
-# 用 pnpm deploy 生成自包含部署包
-# 会自动把 workspace 依赖（@wugui/core）复制进来，脱离符号链接
-# pnpm v10 必须加 --legacy（除非 .npmrc 配置 inject-workspace-packages=true）
-RUN pnpm --filter @wugui/api deploy --prod --legacy /deployed
+# 关键：--offline 让 deploy 完全从本地 store 解析（上面 install 已把全部包缓存进 store），
+# 不再联网拉依赖元数据——服务器 3M 带宽下联网解析必超时（ERR_PNPM_META_FETCH_FAIL 的根因）
+RUN pnpm --filter @wugui/api deploy --prod --legacy --offline /deployed
 
 # ---- 运行阶段 ----
 FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 
-# 复制自包含部署包（包含 dist/ + package.json + node_modules/）
+# 复制自包含部署包（包含 dist/ + package.json + node_modules/，已脱离符号链接）
 COPY --from=builder /deployed ./
 
 EXPOSE 3000
