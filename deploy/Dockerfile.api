@@ -20,17 +20,28 @@ COPY . .
 RUN pnpm --filter @wugui/core build \
  && pnpm --filter @wugui/api build
 
-# 关键：--offline 让 deploy 完全从本地 store 解析（上面 install 已把全部包缓存进 store），
-# 不再联网拉依赖元数据——服务器 3M 带宽下联网解析必超时（ERR_PNPM_META_FETCH_FAIL 的根因）
-RUN pnpm --filter @wugui/api deploy --prod --legacy --offline /deployed
+# 裁剪 devDependencies。锁文件冻结 + 上面 install 已把包全部缓存进 store，纯离线完成
+# （不能用 pnpm deploy：它内部强制按版本范围重新解析依赖元数据，
+#   --offline/--frozen-lockfile 都拦不住，服务器 3M 带宽下必然 ERR_PNPM_META_FETCH_FAIL）
+RUN pnpm install --prod --frozen-lockfile --ignore-scripts
+
+# workspace 符号链接（node_modules/@wugui/core → packages/core）替换为真实文件，
+# 运行镜像里不再有跨目录符号链接
+RUN rm -rf node_modules/@wugui \
+ && mkdir -p node_modules/@wugui/core \
+ && cp -r packages/core/dist node_modules/@wugui/core/dist \
+ && cp packages/core/package.json node_modules/@wugui/core/package.json
 
 # ---- 运行阶段 ----
 FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 
-# 复制自包含部署包（包含 dist/ + package.json + node_modules/，已脱离符号链接）
-COPY --from=builder /deployed ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps/api/dist ./dist
+COPY --from=builder /app/apps/api/package.json ./package.json
+# 数据库迁移 SQL（手动执行 mysql 建表用）
+COPY --from=builder /app/apps/api/drizzle ./drizzle
 
 EXPOSE 3000
 CMD ["node", "dist/main.js"]
