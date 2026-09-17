@@ -41,7 +41,8 @@ export class OssService {
       ['content-length-range', 1, maxBytes],
       ['starts-with', '$Content-Type', 'image/'],
     ]
-    const policy = Buffer.from(JSON.stringify(conditions)).toString('base64')
+    // OSS 要求 policy 为完整文档 { expiration, conditions }，只传数组会 400 InvalidPolicyDocument
+    const policy = Buffer.from(JSON.stringify({ expiration, conditions })).toString('base64')
     const signature = createHmac('sha1', this.accessKeySecret).update(policy).digest('base64')
     return {
       policy,
