@@ -16,10 +16,10 @@ export class OssService {
     this.bucket = config.get<string>('app.oss.bucket') ?? ''
     this.accessKeyId = config.get<string>('app.oss.accessKeyId') ?? ''
     this.accessKeySecret = config.get<string>('app.oss.accessKeySecret') ?? ''
-    // 兜底剥离 .env 里可能误加的引号/反引号和尾部斜杠
+    // 兜底剥离 .env 里可能误加的引号/反引号（含中文弯引号）和尾部斜杠
     const endpoint = (config.get<string>('app.oss.endpoint') ?? '')
       .trim()
-      .replace(/^[`'"]+|[`'"]+$/g, '')
+      .replace(/^[\u2018\u2019\u201C\u201D`'"]+|[\u2018\u2019\u201C\u201D`'"]+$/g, '')
       .replace(/\/+$/, '')
     this.host =
       endpoint || `https://${this.bucket}.${config.get<string>('app.oss.region')}.aliyuncs.com`
