@@ -16,7 +16,11 @@ export class OssService {
     this.bucket = config.get<string>('app.oss.bucket') ?? ''
     this.accessKeyId = config.get<string>('app.oss.accessKeyId') ?? ''
     this.accessKeySecret = config.get<string>('app.oss.accessKeySecret') ?? ''
-    const endpoint = (config.get<string>('app.oss.endpoint') ?? '').replace(/\/+$/, '')
+    // 兜底剥离 .env 里可能误加的引号/反引号和尾部斜杠
+    const endpoint = (config.get<string>('app.oss.endpoint') ?? '')
+      .trim()
+      .replace(/^[`'"]+|[`'"]+$/g, '')
+      .replace(/\/+$/, '')
     this.host =
       endpoint || `https://${this.bucket}.${config.get<string>('app.oss.region')}.aliyuncs.com`
   }
