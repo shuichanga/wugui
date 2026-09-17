@@ -11,6 +11,7 @@ import { HouseholdsModule } from './households/households.module'
 import { LocationsModule } from './locations/locations.module'
 import { ItemsModule } from './items/items.module'
 import { PhotosModule } from './photos/photos.module'
+import { AvatarsModule } from './avatars/avatars.module'
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { PhotosModule } from './photos/photos.module'
     LocationsModule,
     ItemsModule,
     PhotosModule,
+    AvatarsModule,
   ],
   providers: [
     // 全局守卫：除 @Public() 外所有路由需登录

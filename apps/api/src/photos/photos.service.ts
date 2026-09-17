@@ -4,7 +4,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { and, eq } from 'drizzle-orm'
 import { itemPhotos, items } from '../db/schema'
 import { DrizzleService } from '../db/database.service'
-import { OssService } from './oss.service'
+import { OssService } from '../oss/oss.service'
 
 const MAX_PHOTOS = 3
 const MAX_BYTES = 2 * 1024 * 1024
