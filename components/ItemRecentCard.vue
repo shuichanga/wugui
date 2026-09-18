@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <!-- 最近查看卡：上图下文（首图或品牌渐变占位） -->
   <NuxtLink :to="`/items/${item.id}`"
             class="block overflow-hidden rounded-2xl border border-border bg-neutral-surface shadow-level-1">
@@ -24,7 +24,7 @@
 
 <script setup lang="ts">
 import { Package } from 'lucide-vue-next'
-import type { ItemSummary } from '~/server/utils/items'
+import type { ItemSummary } from '~/types/api'
 
 defineProps<{ item: ItemSummary }>()
 </script>

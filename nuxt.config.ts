@@ -9,9 +9,15 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
   modules: ['@pinia/nuxt'],
   css: ['~/assets/css/main.css'],
+  // 纯 SPA：后端数据全部来自独立 NestJS API（同源 /api 由 nginx 反代），本地开发走 devProxy
+  // 无 SSR 依赖（旧 Cloudflare 版所有取数本就是 client-only），静态托管最简单
+  ssr: false,
   nitro: {
-    preset: 'cloudflare-pages',
-    modules: ['nitro-cloudflare-dev'],
+    // 本地开发：/api 代理到本地 NestJS（pnpm dev:api，端口 3000）
+    // devProxy 会剥掉 /api 前缀，故 target 需补回 /api，最终 path = /api/...
+    devProxy: {
+      '/api': { target: 'http://localhost:3000/api', changeOrigin: true },
+    },
   },
   vite: {
     plugins: [tailwindcss()],

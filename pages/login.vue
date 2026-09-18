@@ -6,8 +6,8 @@
 
     <form class="mt-8 flex flex-col gap-4" @submit.prevent="onSubmit">
       <section>
-        <label for="login-email" class="mb-1 block text-sm font-medium">邮箱</label>
-        <input id="login-email" v-model="email" type="email" class="input-base" autocomplete="email" required />
+        <label for="login-email" class="mb-1 block text-sm font-medium">用户名或邮箱</label>
+        <input id="login-email" v-model="account" type="text" class="input-base" autocomplete="username" required />
       </section>
       <section>
         <label for="login-password" class="mb-1 block text-sm font-medium">密码</label>
@@ -38,8 +38,8 @@
 
       <form class="mt-6 flex flex-col gap-4" @submit.prevent="onSubmit">
         <section>
-          <label for="login-email" class="mb-1 block text-sm font-medium">邮箱</label>
-          <input id="login-email" v-model="email" type="email" class="form-input" autocomplete="email" placeholder="请输入邮箱" required @focus="isTyping = true" @blur="isTyping = false" />
+          <label for="login-email" class="mb-1 block text-sm font-medium">用户名或邮箱</label>
+          <input id="login-email" v-model="account" type="text" class="form-input" autocomplete="username" placeholder="用户名或邮箱" required @focus="isTyping = true" @blur="isTyping = false" />
         </section>
 
         <section>
@@ -75,7 +75,7 @@
 <script setup lang="ts">
 import { Eye, EyeOff, ArrowRight } from 'lucide-vue-next'
 
-const email = ref('')
+const account = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
@@ -92,7 +92,7 @@ async function onSubmit() {
   error.value = ''
   loading.value = true
   try {
-    await $fetch('/api/auth/login', { method: 'POST', body: { email: email.value, password: password.value } })
+    await $fetch('/api/auth/login', { method: 'POST', body: { account: account.value.trim(), password: password.value } })
     useRecentLocations().clear()
     await navigateTo('/')
   } catch (e: unknown) {

@@ -33,7 +33,7 @@
 
 <script setup lang="ts">
 import { X, RotateCcw } from 'lucide-vue-next'
-import type { ItemSummary } from '~/server/utils/items'
+import type { ItemSummary } from '~/types/api'
 import type { ItemFormPayload } from '~/components/ItemForm.vue'
 import type { PendingPhoto } from '~/components/PhotoUploader.vue'
 

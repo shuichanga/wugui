@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <!-- 空间行卡：点击行展开家具/格位，右侧箭头进入详情；展开区内含删除入口（防误触） -->
   <div class="overflow-hidden rounded-2xl border border-border bg-neutral-surface shadow-level-1">
     <div class="flex items-center gap-3 px-3.5 py-2.5">
@@ -66,7 +66,7 @@
 
 <script setup lang="ts">
 import { ChevronRight, Trash2 } from 'lucide-vue-next'
-import type { LocationTreeNode } from '~/server/utils/locations'
+import type { LocationTreeNode } from '~/types/api'
 
 const props = defineProps<{ room: LocationTreeNode }>()
 defineEmits<{ delete: [id: string] }>()

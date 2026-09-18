@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <main class="mx-auto max-w-md px-4">
     <AppTopbar title="我的" fallback="/">
       <template #right>
@@ -98,7 +98,7 @@
               <li v-for="m in members" :key="m.userId"
                   class="flex items-center justify-between rounded-md bg-neutral-sunken px-2 py-1.5 text-xs">
                 <span class="truncate">
-                  {{ m.displayName ?? m.email.split('@')[0] }}
+                  {{ m.displayName ?? m.username ?? m.email?.split('@')[0] ?? '成员' }}
                   <span class="text-text-tertiary">（{{ m.role === 'owner' ? '创建者' : '成员' }}）</span>
                 </span>
                 <button v-if="m.role === 'member'" type="button" class="shrink-0 text-error"
@@ -313,7 +313,7 @@ const joinCode = ref('')
 const renamingId = ref('')
 const renameDraft = ref('')
 const expandedId = ref('')
-const members = ref<{ userId: string; role: string; email: string; displayName: string | null }[]>([])
+const members = ref<{ userId: string; role: string; username: string | null; email: string | null; displayName: string | null }[]>([])
 const membersPending = ref(false)
 
 function flash(text: string, type: 'success' | 'error' = 'success') {

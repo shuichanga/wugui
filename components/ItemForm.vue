@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <form class="mt-4 flex flex-col gap-2.5" @submit.prevent="onSubmit(false)">
     <!-- 名称 -->
     <section class="rounded-2xl border border-border bg-neutral-surface px-3.5 py-3 shadow-level-1">
@@ -132,7 +132,7 @@
 
 <script setup lang="ts">
 import { ChevronDown, Minus, Plus, X } from 'lucide-vue-next'
-import type { LocationTreeNode } from '~/server/utils/locations'
+import type { LocationTreeNode } from '~/types/api'
 
 export interface ItemFormPayload {
   name: string

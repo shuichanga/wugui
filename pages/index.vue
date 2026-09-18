@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <main class="mx-auto max-w-md px-4">
     <!-- 问候头：透明融入背景，左问候块（含住所切换）+ 右头像 -->
     <header class="flex items-center justify-between pt-4">
@@ -131,7 +131,7 @@
 
 <script setup lang="ts">
 import { Check, ChevronRight } from 'lucide-vue-next'
-import type { ItemSummary } from '~/server/utils/items'
+import type { ItemSummary } from '~/types/api'
 
 const auth = useAuthStore()
 const { boardStyle } = usePreferences()

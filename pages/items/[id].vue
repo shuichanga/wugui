@@ -109,7 +109,7 @@
 
 <script setup lang="ts">
 import { ChevronRight, Package, Pencil, Trash2 } from 'lucide-vue-next'
-import type { ItemSummary } from '~/server/utils/items'
+import type { ItemSummary } from '~/types/api'
 
 const route = useRoute()
 const id = String(route.params.id)

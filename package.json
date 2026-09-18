@@ -16,10 +16,7 @@
     "db:migrate": "pnpm --filter @wugui/api db:migrate"
   },
   "dependencies": {
-    "@noble/hashes": "^1.8.0",
     "@pinia/nuxt": "^0.11.2",
-    "drizzle-orm": "^0.45.2",
-    "jose": "^6.2.10",
     "lucide-vue-next": "^0.525.0",
     "nuxt": "^3.17.7",
     "pinia": "^3.0.3",
@@ -28,10 +25,8 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.11",
-    "nitro-cloudflare-dev": "^0.2.2",
     "tailwindcss": "^4.1.11",
-    "typescript": "^5.8.3",
-    "wrangler": "^4.128.0"
+    "typescript": "^5.8.3"
   },
   "packageManager": "pnpm@10.13.1+sha512.37ebf1a5c7a30d5fabe0c5df44ee8da4c965ca0c5af3dbab28c3a1681b70a256218d05c81c9c0dcf767ef6b8551eb5b960042b9ed4300c59242336377e01cfad"
 }

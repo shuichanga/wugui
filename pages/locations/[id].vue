@@ -33,8 +33,8 @@
 
 <script setup lang="ts">
 import { Package } from 'lucide-vue-next'
-import type { ItemSummary } from '~/server/utils/items'
-import type { LocationTreeNode } from '~/server/utils/locations'
+import type { ItemSummary } from '~/types/api'
+import type { LocationTreeNode } from '~/types/api'
 
 const route = useRoute()
 const locationId = String(route.params.id)

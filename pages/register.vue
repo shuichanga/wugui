@@ -2,7 +2,7 @@
   <!-- Mobile: original simple style -->
   <main v-if="!isDesktop" class="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 py-8">
     <h1 class="text-center text-2xl">创建账号</h1>
-    <p class="mt-1 text-center text-sm text-text-secondary">加入家人的住所，或创建你自己的</p>
+    <p class="mt-1 text-center text-sm text-text-secondary">注册即创建你自己的住所</p>
 
     <form class="mt-8 flex flex-col gap-4" @submit.prevent="onSubmit">
       <section>
@@ -10,21 +10,18 @@
         <input id="reg-name" v-model="displayName" type="text" class="input-base" placeholder="家人怎么称呼你" />
       </section>
       <section>
-        <label for="reg-email" class="mb-1 block text-sm font-medium">邮箱</label>
-        <input id="reg-email" v-model="email" type="email" class="input-base" autocomplete="email" required />
+        <label for="reg-username" class="mb-1 block text-sm font-medium">用户名</label>
+        <input id="reg-username" v-model="username" type="text" class="input-base" autocomplete="username" required />
+        <p class="mt-1 text-xs text-text-tertiary">2-20 位字母、数字或下划线，用于登录</p>
+      </section>
+      <section>
+        <label for="reg-email" class="mb-1 block text-sm font-medium">邮箱 <span class="font-normal text-text-tertiary">（选填）</span></label>
+        <input id="reg-email" v-model="email" type="email" class="input-base" autocomplete="email" />
       </section>
       <section>
         <label for="reg-password" class="mb-1 block text-sm font-medium">密码</label>
         <input id="reg-password" v-model="password" type="password" class="input-base" autocomplete="new-password" required />
         <p class="mt-1 text-xs text-text-tertiary">至少 8 位</p>
-      </section>
-      <section>
-        <label for="reg-invite" class="mb-1 block text-sm font-medium">住所邀请码 <span class="font-normal text-text-tertiary">（必填，向家人索取）</span></label>
-        <input id="reg-invite" v-model="inviteCode" type="text" class="input-base uppercase" placeholder="输入 6 位邀请码" required />
-        <label v-if="inviteCode.trim()" class="mt-2 flex items-center gap-2 text-sm text-text-secondary">
-          <input v-model="joinHousehold" type="checkbox" class="h-4 w-4 accent-primary" />
-          注册后加入该住所（不勾选则仅创建账号，之后可再加入）
-        </label>
       </section>
 
       <p v-if="error" class="rounded-md border border-border bg-neutral-surface p-3 text-sm text-error" role="alert">{{ error }}</p>
@@ -36,6 +33,7 @@
         已有账号？
         <NuxtLink to="/login" class="text-primary">登录</NuxtLink>
       </p>
+      <p class="text-center text-xs text-text-tertiary">想加入家人的住所？注册后在「我的」页面用邀请码加入</p>
     </form>
   </main>
 
@@ -47,7 +45,7 @@
 
     <main class="flex flex-col justify-center bg-neutral-surface px-10 overflow-y-auto">
       <h1 class="text-center text-2xl font-bold tracking-tight">创建账号</h1>
-      <p class="mt-1 text-center text-sm text-text-secondary">加入家人的住所，或创建你自己的</p>
+      <p class="mt-1 text-center text-sm text-text-secondary">注册即创建你自己的住所</p>
 
       <form class="mt-6 flex flex-col gap-4" @submit.prevent="onSubmit">
         <section>
@@ -56,8 +54,14 @@
         </section>
 
         <section>
-          <label for="reg-email" class="mb-1 block text-sm font-medium">邮箱</label>
-          <input id="reg-email" v-model="email" type="email" class="form-input" autocomplete="email" placeholder="请输入邮箱" required @focus="isTyping = true" @blur="isTyping = false" />
+          <label for="reg-username" class="mb-1 block text-sm font-medium">用户名</label>
+          <input id="reg-username" v-model="username" type="text" class="form-input" autocomplete="username" placeholder="字母、数字或下划线" required @focus="isTyping = true" @blur="isTyping = false" />
+          <p class="mt-1 text-xs text-text-tertiary">2-20 位字母、数字或下划线，用于登录</p>
+        </section>
+
+        <section>
+          <label for="reg-email" class="mb-1 block text-sm font-medium">邮箱 <span class="font-normal text-text-tertiary">（选填）</span></label>
+          <input id="reg-email" v-model="email" type="email" class="form-input" autocomplete="email" placeholder="可用于找回密码" @focus="isTyping = true" @blur="isTyping = false" />
         </section>
 
         <section>
@@ -69,15 +73,6 @@
               <Eye v-else :size="20" aria-hidden="true" />
             </button>
           </div>
-        </section>
-
-        <section>
-          <label for="reg-invite" class="mb-1 block text-sm font-medium">住所邀请码 <span class="font-normal text-text-tertiary">（必填，向家人索取）</span></label>
-          <input id="reg-invite" v-model="inviteCode" type="text" class="form-input uppercase" placeholder="输入 6 位邀请码" required />
-          <label v-if="inviteCode.trim()" class="mt-2 flex items-center gap-2 text-sm text-text-secondary">
-            <input v-model="joinHousehold" type="checkbox" class="h-4 w-4 accent-primary" />
-            注册后加入该住所
-          </label>
         </section>
 
         <p v-if="error" class="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning" role="alert">{{ error }}</p>
@@ -94,6 +89,7 @@
           已有账号？
           <NuxtLink to="/login" class="font-medium text-primary hover:underline">登录</NuxtLink>
         </p>
+        <p class="text-center text-xs text-text-tertiary">想加入家人的住所？注册后在「我的」页面用邀请码加入</p>
       </form>
     </main>
   </div>
@@ -102,11 +98,12 @@
 <script setup lang="ts">
 import { Eye, EyeOff, ArrowRight } from 'lucide-vue-next'
 
+const USERNAME_RE = /^[a-zA-Z0-9_]{2,20}$/
+
 const displayName = ref('')
+const username = ref('')
 const email = ref('')
 const password = ref('')
-const inviteCode = ref('')
-const joinHousehold = ref(true)
 const error = ref('')
 const loading = ref(false)
 const showPassword = ref(false)
@@ -120,20 +117,28 @@ onMounted(() => {
 
 async function onSubmit() {
   error.value = ''
+  if (!USERNAME_RE.test(username.value.trim())) {
+    error.value = '用户名需 2-20 位字母、数字或下划线'
+    return
+  }
+  if (password.value.length < 8) {
+    error.value = '密码至少 8 位'
+    return
+  }
   loading.value = true
   try {
-    const res = await $fetch<{ householdId: string | null }>('/api/auth/register', {
+    // 新契约：注册即自动创建自己的住所；加入家人住所改为注册后在设置页用邀请码
+    await $fetch('/api/auth/register', {
       method: 'POST',
       body: {
-        displayName: displayName.value || undefined,
-        email: email.value,
+        username: username.value.trim(),
         password: password.value,
-        inviteCode: inviteCode.value.trim() || undefined,
-        joinHousehold: joinHousehold.value,
+        email: email.value.trim() || undefined,
+        displayName: displayName.value.trim() || undefined,
       },
     })
     useRecentLocations().clear()
-    await navigateTo(res.householdId ? '/' : '/settings')
+    await navigateTo('/')
   } catch (e: unknown) {
     error.value = errMsg(e) || '注册失败，请稍后再试'
   } finally {

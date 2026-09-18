@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="group relative overflow-hidden rounded-lg border border-border bg-neutral-surface">
     <!-- 左滑/hover 露出的操作层 -->
     <div class="absolute inset-y-0 right-0 flex">
@@ -61,7 +61,7 @@
 
 <script setup lang="ts">
 import { Package, MapPin } from 'lucide-vue-next'
-import type { ItemSummary } from '~/server/utils/items'
+import type { ItemSummary } from '~/types/api'
 
 const props = defineProps<{ item: ItemSummary }>()
 const emit = defineEmits<{ deleted: [id: string] }>()

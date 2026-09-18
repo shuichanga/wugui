@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <!-- 物品卡（gcard）：渐变图区 + 名称/位置/标签 -->
   <NuxtLink :to="`/items/${item.id}`"
             class="block overflow-hidden rounded-2xl border border-border bg-neutral-surface shadow-level-1">
@@ -22,7 +22,7 @@
 
 <script setup lang="ts">
 import { Package } from 'lucide-vue-next'
-import type { ItemSummary } from '~/server/utils/items'
+import type { ItemSummary } from '~/types/api'
 
 const props = defineProps<{ item: ItemSummary }>()
 

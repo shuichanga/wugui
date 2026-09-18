@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <main class="mx-auto max-w-md px-4">
     <!-- 页头：大标题 + 住所/计数副行 + 头像（不 sticky，滚走） -->
     <header class="flex items-center justify-between pt-4">
@@ -94,8 +94,8 @@
 
 <script setup lang="ts">
 import { ChevronDown, Package, Search, X } from 'lucide-vue-next'
-import type { ItemSummary } from '~/server/utils/items'
-import type { LocationTreeNode } from '~/server/utils/locations'
+import type { ItemSummary } from '~/types/api'
+import type { LocationTreeNode } from '~/types/api'
 
 const route = useRoute()
 const router = useRouter()

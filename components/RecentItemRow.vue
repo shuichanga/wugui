@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <!-- 最近添加行卡：小缩略图 + 名称/标签 + 位置 + 时间 -->
   <NuxtLink :to="`/items/${item.id}`"
             class="flex items-center gap-3 rounded-2xl border border-border bg-neutral-surface px-3 py-1.5 shadow-level-1">
@@ -26,7 +26,7 @@
 
 <script setup lang="ts">
 import { Package } from 'lucide-vue-next'
-import type { ItemSummary } from '~/server/utils/items'
+import type { ItemSummary } from '~/types/api'
 
 const props = defineProps<{ item: ItemSummary }>()
 

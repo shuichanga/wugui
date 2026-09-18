@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <!-- 嵌套路由：空间详情子路由时只渲染子页面 -->
   <template v-if="isChild">
     <NuxtPage />
@@ -78,7 +78,7 @@
 
 <script setup lang="ts">
 import { Plus } from 'lucide-vue-next'
-import type { LocationTreeNode } from '~/server/utils/locations'
+import type { LocationTreeNode } from '~/types/api'
 
 // 嵌套路由：/locations/:id 时父组件只作为出口
 const route = useRoute()

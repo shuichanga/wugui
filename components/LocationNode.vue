@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <li class="mt-1">
     <!-- 有子级：可折叠 -->
     <details v-if="node.children?.length" class="group">
@@ -33,7 +33,7 @@
 
 <script setup lang="ts">
 import { ChevronRight, Trash2 } from 'lucide-vue-next'
-import type { LocationTreeNode } from '~/server/utils/locations'
+import type { LocationTreeNode } from '~/types/api'
 
 const props = defineProps<{ node: LocationTreeNode }>()
 const emit = defineEmits<{ delete: [id: string] }>()

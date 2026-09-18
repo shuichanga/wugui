@@ -39,7 +39,7 @@
           </span>
           <span class="min-w-0 flex-1">
             <span class="block text-sm font-semibold">数据存储</span>
-            <small class="mt-0.5 block text-2xs text-text-tertiary">物品存于 Cloudflare D1 · 照片存于 R2</small>
+            <small class="mt-0.5 block text-2xs text-text-tertiary">物品存于自建 MySQL · 照片直传阿里云 OSS</small>
           </span>
         </div>
         <div class="flex items-center gap-3 border-t border-border px-3.5 py-3">
@@ -48,7 +48,7 @@
           </span>
           <span class="min-w-0 flex-1">
             <span class="block text-sm font-semibold">密码加密</span>
-            <small class="mt-0.5 block text-2xs text-text-tertiary">Argon2id 加盐散列，仅存哈希</small>
+            <small class="mt-0.5 block text-2xs text-text-tertiary">scrypt 加盐散列，仅存哈希</small>
           </span>
         </div>
       </div>
