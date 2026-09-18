@@ -1,0 +1,28 @@
+# 仅对 deploy/Dockerfile.web 生效（BuildKit 约定：Dockerfile 同名 + .dockerignore 后缀）
+# Web 构建只需要 Nuxt 应用源码；API 的源码/依赖/构建产物全排除
+node_modules
+**/node_modules
+.git
+.gitignore
+.env
+.env.*
+**/.env
+**/.env.*
+apps
+packages
+.nuxt
+.output
+dist
+**/dist
+screenshots
+*.log
+*.md
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+drizzle
+migrations
+deploy/.env
+deploy/data
+deploy/Dockerfile.api

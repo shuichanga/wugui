@@ -60,6 +60,20 @@ services:
         limits:
           memory: 512M
 
+  web:
+    # 前端静态镜像（nginx 托管 SPA），由 build-web.yml CI 构建
+    # 1panel 站点把 / 反代到 127.0.0.1:8081、/api 继续反代到 8080
+    image: ${WEB_IMAGE:?set WEB_IMAGE in .env}
+    restart: unless-stopped
+    container_name: wugui-web
+    ports:
+      - '127.0.0.1:8081:80'
+    networks: [wugui-net]
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
 networks:
   wugui-net:
     driver: bridge

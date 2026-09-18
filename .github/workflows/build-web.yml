@@ -1,0 +1,70 @@
+# Web 前端 CI：Nuxt 构建静态文件 → nginx 镜像 → 推 ACR，服务器 pull 部署
+# 与 build-api.yml 配套；触发条件 = 前端源码/构建配置变更（API 目录变更不触发本工作流）
+name: build-web
+
+on:
+  push:
+    branches: [refactor/monorepo, main]
+    paths:
+      - 'pages/**'
+      - 'components/**'
+      - 'composables/**'
+      - 'stores/**'
+      - 'plugins/**'
+      - 'public/**'
+      - 'assets/**'
+      - 'types/**'
+      - 'app.vue'
+      - 'nuxt.config.ts'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.npmrc'
+      - 'deploy/Dockerfile.web'
+      - 'deploy/nginx-web.conf'
+      - '.github/workflows/build-web.yml'
+  workflow_dispatch: {}
+
+concurrency:
+  group: build-web
+  cancel-in-progress: true
+
+env:
+  # 命名空间与 ACR 实际创建的不一致时，改这里
+  IMAGE: crpi-wa5pg0kzpf26ojmt.cn-shenzhen.personal.cr.aliyuncs.com/shuichanga/wugui-web
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: crpi-wa5pg0kzpf26ojmt.cn-shenzhen.personal.cr.aliyuncs.com
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      # tag：latest（服务器默认拉）+ sha-xxxxx（回滚锚点）
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile.web
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          # ACR 不认识 buildx 新版 attestation 的 OCI 空描述符，必须关掉
+          provenance: false
+          sbom: false
+          # GitHub 层缓存：依赖层命中后构建只要 2-3 分钟
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
