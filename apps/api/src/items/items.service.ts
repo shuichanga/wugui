@@ -6,6 +6,7 @@ import { DrizzleService } from '../db/database.service'
 import { decorateItems } from '../common/item-summary'
 import { getLocationPathMap } from '../common/location-tree'
 import { LocationsService } from '../locations/locations.service'
+import { OssService } from '../oss/oss.service'
 import type { SessionUser } from '../auth/session.types'
 
 const NAME_MAX = 100
@@ -24,6 +25,7 @@ export class ItemsService {
   constructor(
     private readonly drizzle: DrizzleService,
     private readonly locationsService: LocationsService,
+    private readonly oss: OssService,
   ) {}
 
   /** GET /api/items —— keyword（名称/备注/标签模糊）、location_id（含所有后代）、tag 过滤 */
@@ -175,7 +177,7 @@ export class ItemsService {
     return { ok: true, id }
   }
 
-  /** DELETE /api/items/:id —— 删除物品 + 浏览记录 */
+  /** DELETE /api/items/:id —— 删除物品 + 级联清理（标签 / 浏览记录 / 照片 DB 记录 / OSS 对象） */
   async remove(householdId: string, id: string) {
     const db = this.drizzle.db
     const found = await db
@@ -184,9 +186,25 @@ export class ItemsService {
       .where(and(eq(items.id, id), eq(items.householdId, householdId)))
     if (!found.length) throw new NotFoundException('物品不存在')
 
+    // 照片记录先取出来，删完 DB 再逐个删 OSS 对象（失败只告警，孤儿对象由清理任务兜底）
+    const photoRows = await db
+      .select({ ossKey: itemPhotos.ossKey })
+      .from(itemPhotos)
+      .where(eq(itemPhotos.itemId, id))
+
+    await db.delete(itemPhotos).where(eq(itemPhotos.itemId, id))
+    await db.delete(itemTags).where(eq(itemTags.itemId, id))
     await db.delete(items).where(eq(items.id, id))
-    // 清理该物品的所有浏览记录（GET 侧 join 虽可自然过滤，但这里不留死数据）
     await db.delete(recentViews).where(eq(recentViews.itemId, id))
+
+    // OSS 删除放最后：网络失败不影响已完成的 DB 清理
+    for (const p of photoRows) {
+      try {
+        await this.oss.deleteObject(p.ossKey)
+      } catch (e) {
+        console.warn(`[items] OSS 照片删除失败 ${p.ossKey}:`, e)
+      }
+    }
     return { ok: true }
   }
 
