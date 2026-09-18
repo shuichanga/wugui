@@ -6,6 +6,8 @@ export const appConfig = registerAs('app', () => ({
   databaseUrl: process.env.DATABASE_URL ?? 'mysql://wugui:wugui@localhost:3306/wugui',
   jwtSecret: process.env.JWT_SECRET ?? 'dev-insecure-secret-change-me',
   jwtExpires: process.env.JWT_EXPIRES ?? '7d',
+  // 头像落盘目录（相对 cwd；容器内由 volume 挂到 /app/data/avatars 持久化）
+  avatarDir: process.env.AVATAR_DIR ?? 'data/avatars',
   wechat: {
     appId: process.env.WECHAT_APP_ID ?? '',
     appSecret: process.env.WECHAT_APP_SECRET ?? '',

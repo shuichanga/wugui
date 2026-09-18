@@ -43,6 +43,8 @@ pnpm-lock.yaml.bak
 apps/api/dist
 apps/api/coverage
 apps/api/node_modules
+# 本地开发时头像等落盘数据
+apps/api/data
 
 # Docker 数据（本地开发时挂载到宿主机，不入库）
 deploy/data/**

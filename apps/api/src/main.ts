@@ -5,6 +5,7 @@ import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify
 import helmet from '@fastify/helmet'
 import cors from '@fastify/cors'
 import cookie from '@fastify/cookie'
+import multipart from '@fastify/multipart'
 import { AppModule } from './app.module'
 
 async function bootstrap() {
@@ -23,6 +24,9 @@ async function bootstrap() {
     credentials: true,
   })
   await app.register(cookie)
+
+  // 头像等 multipart 上传：单文件上限 1MB（服务端二次校验）
+  await app.register(multipart, { limits: { fileSize: 1024 * 1024 } })
 
   // 请求日志
   const server = app.getHttpAdapter().getInstance()

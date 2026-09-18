@@ -163,7 +163,8 @@ export class AuthService {
         id: user.id,
         email: user.email ?? '',
         displayName: user.displayName ?? null,
-        avatarUrl: user.avatarKey ? `/api/avatars/${user.id}` : null,
+        // v=文件名（每次上传换 uuid 文件名）→ 头像更换时浏览器缓存自动失效
+        avatarUrl: user.avatarKey ? `/api/avatars/${user.id}?v=${user.avatarKey}` : null,
       },
       households: rows.map(r => ({
         ...r,

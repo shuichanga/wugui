@@ -1,29 +1,34 @@
-// 头像路由：直传凭证 / 上传确认 / 删除（me 前缀）+ 读取 302（avatars 前缀）
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Res } from '@nestjs/common'
-import type { FastifyReply } from 'fastify'
+// 头像路由：multipart 上传 / 删除（me 前缀）+ 读取流式响应（avatars 前缀）
+import { BadRequestException, Controller, Delete, Get, Param, Post, Req, Res } from '@nestjs/common'
+import { createReadStream } from 'node:fs'
+import type { FastifyReply, FastifyRequest } from 'fastify'
 import { CurrentUser } from '../auth/current-user.decorator'
-import type { SessionUser } from '../auth/session.types'
+import type { AuthedRequest, SessionUser } from '../auth/session.types'
 import { AvatarsService } from './avatars.service'
 
 @Controller('me')
 export class MeAvatarController {
   constructor(private readonly service: AvatarsService) {}
 
-  /** POST /api/me/avatar/sign —— 签发头像直传凭证 */
-  @HttpCode(200)
-  @Post('avatar/sign')
-  sign(@Body() body: Record<string, unknown>, @CurrentUser() user: SessionUser) {
-    return this.service.sign(user.id, body?.contentType ? String(body.contentType) : undefined)
+  /**
+   * POST /api/me/avatar —— multipart 上传头像（字段名 file，≤1MB，jpg/png/webp）。
+   * 头像小而低频，直接过服务器落盘，不需要物品照片那套 OSS 三步直传。
+   */
+  @Post('avatar')
+  async upload(@Req() request: FastifyRequest & AuthedRequest, @CurrentUser() user: SessionUser) {
+    // req.file() 由 @fastify/multipart 提供（main.ts 已注册，fileSize 上限 1MB）
+    const part = await request.file()
+    if (!part) throw new BadRequestException('请以 multipart/form-data 上传，文件字段名 file')
+    let buffer: Buffer
+    try {
+      buffer = await part.toBuffer()
+    } catch {
+      throw new BadRequestException('头像不能超过 1MB')
+    }
+    return this.service.save(user.id, { mimeType: part.mimetype, buffer })
   }
 
-  /** POST /api/me/avatar/confirm —— 客户端直传成功后落库（替换旧头像） */
-  @HttpCode(200)
-  @Post('avatar/confirm')
-  confirm(@Body() body: Record<string, unknown>, @CurrentUser() user: SessionUser) {
-    return this.service.confirm(user.id, String(body?.key ?? ''))
-  }
-
-  /** DELETE /api/me/avatar —— 删除头像（DB 引用 + OSS 对象） */
+  /** DELETE /api/me/avatar —— 删除头像（DB 引用 + 磁盘文件） */
   @Delete('avatar')
   remove(@CurrentUser() user: SessionUser) {
     return this.service.remove(user.id)
@@ -35,9 +40,9 @@ export class AvatarsProxyController {
   constructor(private readonly service: AvatarsService) {}
 
   /**
-   * GET /api/avatars/:userId —— 校验同住权限后 302 到 OSS 签名 URL。
-   * 契约来源：/api/auth/me 返回的 user.avatarUrl = /api/avatars/{userId}，
-   * 前端 <img src> 直接用，无需携带 Authorization（登录 cookie 已够）。
+   * GET /api/avatars/:userId —— 校验同住权限后流式返回头像文件。
+   * 契约来源：/api/auth/me 返回的 user.avatarUrl = /api/avatars/{userId}?v={文件名}，
+   * 文件名每次上传都换，配合 immutable 缓存头：浏览器仅在头像更换后重新下载。
    */
   @Get(':userId')
   async get(
@@ -45,7 +50,8 @@ export class AvatarsProxyController {
     @CurrentUser() user: SessionUser,
     @Res() reply: FastifyReply,
   ) {
-    const url = await this.service.signedUrlFor(user.id, userId)
-    return reply.redirect(url, 302)
+    const file = await this.service.getForView(user.id, userId)
+    reply.header('cache-control', 'private, max-age=31536000, immutable')
+    return reply.type(file.mimeType).send(createReadStream(file.filePath))
   }
 }
