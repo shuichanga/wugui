@@ -1,0 +1,59 @@
+# API 镜像 CI：push 到工作分支或手动触发时构建，推到阿里云 ACR，服务器只拉取不构建
+# 一次性配置：
+#   1. 阿里云 ACR 个人版建命名空间/仓库（本地仓库类型），设固定密码
+#   2. GitHub 仓库 Settings → Secrets → Actions 添加 ACR_USERNAME / ACR_PASSWORD
+#   3. 服务器 docker login 一次 ACR（含 VPC 域名）
+name: build-api
+
+on:
+  push:
+    branches: [refactor/monorepo, main]
+    paths:
+      - 'apps/api/**'
+      - 'packages/core/**'
+      - 'deploy/Dockerfile.api'
+      - '.github/workflows/build-api.yml'
+      - 'pnpm-lock.yaml'
+  workflow_dispatch: {}
+
+# 同一时间只跑一次，新 push 取消旧构建
+concurrency:
+  group: build-api
+  cancel-in-progress: true
+
+env:
+  # 命名空间与 ACR 实际创建的不一致时，改这里
+  IMAGE: registry.cn-shenzhen.aliyuncs.com/shuichanga/wugui-api
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: registry.cn-shenzhen.aliyuncs.com
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      # tag：latest（服务器默认拉）+ sha-xxxxx（回滚锚点）
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile.api
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          # GitHub 层缓存：依赖层命中后构建只要 2-3 分钟
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
