@@ -54,6 +54,9 @@ jobs:
           file: deploy/Dockerfile.api
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+          # ACR 不认识 buildx 新版 attestation 的 OCI 空描述符（unknown manifest class），必须关掉
+          provenance: false
+          sbom: false
           # GitHub 层缓存：依赖层命中后构建只要 2-3 分钟
           cache-from: type=gha
           cache-to: type=gha,mode=max
