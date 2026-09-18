@@ -22,8 +22,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # 命名空间与 ACR 实际创建的不一致时，改这里
-  IMAGE: registry.cn-shenzhen.aliyuncs.com/shuichanga/wugui-api
+  # 新版个人实例专属域名（crpi- 前缀）；命名空间与 ACR 实际创建的不一致时，改这里
+  IMAGE: crpi-wa5pg0kzpf26ojmt.cn-shenzhen.personal.cr.aliyuncs.com/shuichanga/wugui-api
 
 jobs:
   build-push:
@@ -35,7 +35,7 @@ jobs:
 
       - uses: docker/login-action@v3
         with:
-          registry: registry.cn-shenzhen.aliyuncs.com
+          registry: crpi-wa5pg0kzpf26ojmt.cn-shenzhen.personal.cr.aliyuncs.com
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
