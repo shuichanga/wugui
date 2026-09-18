@@ -12,6 +12,7 @@ import { LocationsModule } from './locations/locations.module'
 import { ItemsModule } from './items/items.module'
 import { PhotosModule } from './photos/photos.module'
 import { AvatarsModule } from './avatars/avatars.module'
+import { TransferModule } from './transfer/transfer.module'
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { AvatarsModule } from './avatars/avatars.module'
     ItemsModule,
     PhotosModule,
     AvatarsModule,
+    TransferModule,
   ],
   providers: [
     // 全局守卫：除 @Public() 外所有路由需登录

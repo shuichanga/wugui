@@ -11,7 +11,8 @@ import { AppModule } from './app.module'
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter({ logger: { level: 'info' } }),
+    // bodyLimit 10MB：合并导入的 JSON 备份可能较大（默认 1MB 不够）
+    new FastifyAdapter({ logger: { level: 'info' }, bodyLimit: 10 * 1024 * 1024 }),
   )
 
   // 全局前缀：所有路由以 /api 开头
