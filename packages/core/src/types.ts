@@ -89,7 +89,8 @@ export interface LoginInput {
 
 export interface WechatLoginInput {
   code: string
-  username?: string
+  /** 微信头像昵称填写能力拿到的昵称（可选） */
+  nickname?: string
 }
 
 export interface SessionResponse {

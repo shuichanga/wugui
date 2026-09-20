@@ -1,5 +1,6 @@
 // 认证业务：注册（开放注册即建家）/ 登录（username 或 email）/ 会话 / 切换住所
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { eq, or } from 'drizzle-orm'
 import { users, households, householdMembers } from '../db/schema'
 import { DrizzleService } from '../db/database.service'
@@ -26,6 +27,7 @@ export class AuthService {
   constructor(
     private readonly drizzle: DrizzleService,
     private readonly session: SessionService,
+    private readonly config: ConfigService,
   ) {}
 
   /**
@@ -190,6 +192,98 @@ export class AuthService {
       hid: householdId,
     })
     return { householdId, role: target.role, token }
+  }
+
+  /** 微信小程序登录：code2Session 换 openid → 已绑定则登录，未绑定自动建号（注册即建家） */
+  async wechatLogin(code: string, nickname: string | null) {
+    if (!code) throw new BadRequestException('缺少 code')
+    const wx = await this.codeToSession(code)
+
+    const db = this.drizzle.db
+    const found = await db.select().from(users).where(eq(users.openid, wx.openid))
+    if (found.length) {
+      const user = found[0]
+      const memberships = await this.session.getMemberships(db, user.id)
+      const hid = memberships[0]?.householdId ?? ''
+      const token = await this.issueToken({ id: user.id, username: user.username, email: user.email, hid })
+      return {
+        user: { id: user.id, username: user.username, email: user.email, displayName: user.displayName },
+        householdId: hid,
+        token,
+        isNew: false,
+      }
+    }
+
+    // 自动建号：与 register 同构（用户 + 住所 + owner 成员关系）
+    const now = new Date()
+    const userId = crypto.randomUUID()
+    const householdId = crypto.randomUUID()
+    await db.transaction(async (tx) => {
+      await tx.insert(users).values({
+        id: userId,
+        provider: 'wechat',
+        openid: wx.openid,
+        unionid: wx.unionid ?? null,
+        displayName: (nickname ?? '').trim().slice(0, 64) || '微信用户',
+        createdAt: now,
+        updatedAt: now,
+      })
+      await tx.insert(households).values({
+        id: householdId,
+        name: '我的住所',
+        inviteCode: this.session.genInviteCode(),
+        createdBy: userId,
+        createdAt: now,
+        updatedAt: now,
+      })
+      await tx.insert(householdMembers).values({ householdId, userId, role: 'owner', joinedAt: now })
+    })
+    const token = await this.issueToken({ id: userId, username: null, email: null, hid: householdId })
+    return {
+      user: { id: userId, username: null, email: null, displayName: (nickname ?? '').trim() || '微信用户' },
+      householdId,
+      token,
+      isNew: true,
+    }
+  }
+
+  /** 绑定微信到已有账号：登录态下把当前微信 openid 写到该用户（另一账号已占用则拒绝） */
+  async bindWechat(userId: string, code: string) {
+    if (!code) throw new BadRequestException('缺少 code')
+    const wx = await this.codeToSession(code)
+
+    const db = this.drizzle.db
+    const dup = await db.select({ id: users.id }).from(users).where(eq(users.openid, wx.openid))
+    if (dup.length && dup[0].id !== userId) {
+      throw new ConflictException('该微信已绑定其他账号')
+    }
+    await db
+      .update(users)
+      .set({ openid: wx.openid, unionid: wx.unionid ?? null, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+    return { ok: true }
+  }
+
+  /** code2Session：wx.login 的 code 换 openid/unionid；网络/微信侧失败统一为 401 提示重试 */
+  private async codeToSession(code: string): Promise<{ openid: string; unionid: string | null }> {
+    const appid = this.config.get<string>('app.wechat.appId')
+    const secret = this.config.get<string>('app.wechat.appSecret')
+    if (!appid || !secret) throw new BadRequestException('微信登录未配置')
+
+    const url =
+      `https://api.weixin.qq.com/sns/jscode2session?appid=${appid}&secret=${secret}` +
+      `&js_code=${encodeURIComponent(code)}&grant_type=authorization_code`
+    let session: { openid?: string; unionid?: string; errcode?: number; errmsg?: string }
+    try {
+      session = await (await fetch(url)).json() as typeof session
+    } catch {
+      throw new UnauthorizedException('微信登录失败，请重试')
+    }
+    if (!session.openid) {
+      // 40029 code 无效 / 45011 频率限制等——对端一律提示重试
+      throw new UnauthorizedException('微信登录失败，请重试')
+    }
+    return { openid: session.openid, unionid: session.unionid ?? null }
   }
 
   private async issueToken(base: { id: string; username: string | null; email: string | null; hid: string }) {

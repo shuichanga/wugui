@@ -42,6 +42,26 @@ export class AuthController {
     return result
   }
 
+  /** 微信小程序登录：wx.login 的 code 换会话；未绑定 openid 自动建号（小程序 Bearer token） */
+  @Public()
+  @HttpCode(200)
+  @Post('wechat')
+  async wechat(@Body() body: Record<string, unknown>, @Res({ passthrough: true }) reply: FastifyReply) {
+    const result = await this.authService.wechatLogin(
+      String(body.code ?? ''),
+      body.nickname ? String(body.nickname) : null,
+    )
+    this.session.setAuthCookie(reply, result.token)
+    return result
+  }
+
+  /** 绑定微信到当前登录账号（家人用 Web 账号密码 + 小程序 openid 双通道登录） */
+  @HttpCode(200)
+  @Post('wechat/bind')
+  bindWechat(@Body() body: Record<string, unknown>, @CurrentUser() user: SessionUser) {
+    return this.authService.bindWechat(user.id, String(body.code ?? ''))
+  }
+
   /** 当前会话：用户 + 住所成员关系（前端 stores/auth.ts 契约） */
   @Get('me')
   async me(@CurrentUser() user: SessionUser, @CurrentHouseholdId() householdId: string) {
