@@ -16,6 +16,9 @@ dist
 .env
 .env.*
 !.env.example
+# 小程序环境文件不含密钥（仅公开的 API 域名），需要入库
+!apps/miniapp/.env.development
+!apps/miniapp/.env.production
 
 # 测试/调试产物
 screenshots

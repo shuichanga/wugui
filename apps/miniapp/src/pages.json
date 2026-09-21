@@ -1,9 +1,11 @@
 {
   "pages": [
     {
-      "path": "pages/index/index",
+      "path": "pages/home/home",
       "style": {
-        "navigationBarTitleText": "物归"
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "物归",
+        "enablePullDownRefresh": false
       }
     },
     {
@@ -15,19 +17,29 @@
     {
       "path": "pages/item-edit/item-edit",
       "style": {
+        "navigationStyle": "custom",
         "navigationBarTitleText": "物品"
       }
     },
     {
-      "path": "pages/locations/locations",
+      "path": "pages/item-detail/item-detail",
       "style": {
-        "navigationBarTitleText": "收纳空间"
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "物品详情"
       }
     },
     {
-      "path": "pages/settings/settings",
+      "path": "pages/location-detail/location-detail",
       "style": {
-        "navigationBarTitleText": "我的"
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "空间详情"
+      }
+    },
+    {
+      "path": "pages/about/about",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "关于"
       }
     }
   ],
