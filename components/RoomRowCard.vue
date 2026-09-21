@@ -1,22 +1,32 @@
-﻿<template>
+<template>
   <!-- 空间行卡：点击行展开家具/格位，右侧箭头进入详情；展开区内含删除入口（防误触） -->
-  <div class="overflow-hidden rounded-2xl border border-border bg-neutral-surface shadow-level-1">
-    <div class="flex items-center gap-3 px-3.5 py-2.5">
-      <button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" :aria-expanded="expanded"
+  <div class="overflow-hidden rounded-2xl border bg-neutral-surface shadow-level-1"
+       :class="colorful ? 'border-transparent' : 'border-border'">
+    <!-- 房间行：彩色模式下背景与首页空间看板卡一致（展开后横线以下保持原样） -->
+    <div class="relative flex items-center gap-3 overflow-hidden px-3.5 py-2.5"
+         :style="colorful ? { backgroundColor: colors.accent } : undefined">
+      <svg v-if="colorful" class="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 200 120"
+           preserveAspectRatio="xMidYMid slice" fill="none" aria-hidden="true">
+        <circle cx="165" cy="15" r="42" fill="white" opacity="0.08" />
+        <circle cx="185" cy="95" r="28" fill="white" opacity="0.06" />
+      </svg>
+      <button type="button" class="relative flex min-w-0 flex-1 items-center gap-3 text-left" :aria-expanded="expanded"
               @click="expanded = !expanded">
         <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px]"
-              :class="room.itemCount > 0 ? 'bg-tint text-primary' : 'bg-neutral-sunken text-text-disabled'">
-          <LocationIcon :slug="iconSlug" :size="18" />
+              :class="colorful ? 'bg-white/20' : (room.itemCount > 0 ? 'bg-tint text-primary' : 'bg-neutral-sunken text-text-disabled')">
+          <LocationIcon :slug="iconSlug" :size="18" :class="colorful ? 'text-white' : ''" />
         </span>
-        <span class="font-display min-w-0 flex-1 truncate text-sm font-semibold">{{ room.name }}</span>
-        <span class="shrink-0 text-xs" :class="room.itemCount > 0 ? 'text-text-tertiary' : 'text-text-disabled'">
-          <template v-if="room.itemCount > 0"><b class="text-sm font-bold text-primary">{{ room.itemCount }}</b>件</template>
+        <span class="font-display min-w-0 flex-1 truncate text-sm font-semibold" :class="colorful ? 'text-white' : ''">{{ room.name }}</span>
+        <span class="shrink-0 text-xs"
+              :class="colorful ? 'text-white/80' : (room.itemCount > 0 ? 'text-text-tertiary' : 'text-text-disabled')">
+          <template v-if="room.itemCount > 0"><b class="text-sm font-bold" :class="colorful ? 'text-white' : 'text-primary'">{{ room.itemCount }}</b>件</template>
           <template v-else>空</template>
         </span>
       </button>
-      <NuxtLink :to="`/locations/${room.id}`" class="shrink-0 p-1 text-text-disabled hover:text-primary"
+      <NuxtLink :to="`/locations/${room.id}`" class="relative shrink-0 p-1"
+                :class="colorful ? 'text-white/80 hover:text-white' : 'text-text-disabled hover:text-primary'"
                 :aria-label="`进入${room.name}`" @click.stop>
-        <ChevronRight :size="16" class="transition-transform" :class="expanded ? 'rotate-90 text-primary' : ''" aria-hidden="true" />
+        <ChevronRight :size="16" class="transition-transform" :class="[expanded ? 'rotate-90' : '', !colorful && expanded ? 'text-primary' : '']" aria-hidden="true" />
       </NuxtLink>
     </div>
 
@@ -68,10 +78,15 @@
 import { ChevronRight, Trash2 } from 'lucide-vue-next'
 import type { LocationTreeNode } from '~/types/api'
 
-const props = defineProps<{ room: LocationTreeNode }>()
+const props = withDefaults(defineProps<{
+  room: LocationTreeNode
+  variant?: 'clean' | 'colorful'
+}>(), { variant: 'clean' })
 defineEmits<{ delete: [id: string] }>()
 
 const expanded = ref(false)
-const { getRoomIcon, getFurnitureIcon, getCompartmentIcon } = useRoomStyle()
+const { getRoomIcon, getFurnitureIcon, getCompartmentIcon, getRoomColors } = useRoomStyle()
 const iconSlug = getRoomIcon(props.room.name)
+const colors = getRoomColors(props.room.name)
+const colorful = computed(() => props.variant === 'colorful')
 </script>

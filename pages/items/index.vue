@@ -1,18 +1,13 @@
-﻿<template>
+<template>
   <main class="mx-auto max-w-md px-4">
-    <!-- 页头：大标题 + 住所/计数副行 + 头像（不 sticky，滚走） -->
-    <header class="flex items-center justify-between pt-4">
-      <div class="min-w-0">
-        <p class="font-display text-lg font-bold tracking-wide">物品</p>
-        <!-- 计数依赖数据加载，hydration 前等高占位防跳动 -->
-        <p class="mt-1 flex h-5 items-center text-xs text-text-tertiary">
-          <template v-if="hydrated">{{ auth.currentHousehold?.name ?? '' }} · 共 {{ total }} 件</template>
-          <template v-else>&nbsp;</template>
-        </p>
-      </div>
-      <NuxtLink to="/settings" aria-label="设置">
-        <UserAvatar :name="auth.user?.displayName" :email="auth.user?.email" :src="auth.user?.avatarUrl" :size="44" dot />
-      </NuxtLink>
+    <!-- 页头：大标题 + 住所/计数副行（头像已移除，设置入口在"我的"页） -->
+    <header class="pt-4">
+      <p class="font-display text-lg font-bold tracking-wide">物品</p>
+      <!-- 计数依赖数据加载，hydration 前等高占位防跳动 -->
+      <p class="mt-1 flex h-5 items-center text-xs text-text-tertiary">
+        <template v-if="hydrated">{{ auth.currentHousehold?.name ?? '' }} · 共 {{ total }} 件</template>
+        <template v-else>&nbsp;</template>
+      </p>
     </header>
 
     <!-- sticky 筛选区：搜索 + 三级 pill + 标签 chips，滚动列表时常驻 -->

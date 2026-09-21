@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <!-- 嵌套路由：空间详情子路由时只渲染子页面 -->
   <template v-if="isChild">
     <NuxtPage />
@@ -61,7 +61,7 @@
       </p>
       <ul v-else class="mt-3 flex flex-col gap-2">
         <li v-for="room in tree" :key="room.id">
-          <RoomRowCard :room="room" @delete="removeLocation" />
+          <RoomRowCard :room="room" :variant="boardStyle" @delete="removeLocation" />
         </li>
       </ul>
 
@@ -84,6 +84,7 @@ import type { LocationTreeNode } from '~/types/api'
 const route = useRoute()
 const isChild = computed(() => route.name === 'locations-id')
 const auth = useAuthStore()
+const { boardStyle } = usePreferences()
 
 const { data: tree, pending, refresh } = await useAsyncData('location-tree', () =>
   apiFetch<LocationTreeNode[]>('/api/locations'),
