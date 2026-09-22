@@ -176,6 +176,19 @@ export class AuthService {
     }
   }
 
+  /** 更新当前用户昵称（displayName）：小程序微信用户默认为"微信用户"，可在此修改 */
+  async updateDisplayName(userId: string, displayName: string) {
+    const name = (displayName ?? '').trim().slice(0, 64)
+    if (!name) throw new BadRequestException('昵称不能为空')
+
+    const db = this.drizzle.db
+    const found = await db.select({ id: users.id }).from(users).where(eq(users.id, userId))
+    if (!found.length) throw new NotFoundException('用户不存在')
+
+    await db.update(users).set({ displayName: name, updatedAt: new Date() }).where(eq(users.id, userId))
+    return { displayName: name }
+  }
+
   /** 切换当前住所（重签 token，Web 多住所 / 多端统一入口） */
   async switchHousehold(userId: string, householdId: string) {
     const db = this.drizzle.db

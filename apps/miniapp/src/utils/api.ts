@@ -6,7 +6,7 @@ const transport = (url: string, init: { method: string; headers: Record<string, 
   new Promise<{ status: number; json: () => Promise<unknown> }>((resolve, reject) => {
     uni.request({
       url,
-      method: init.method as 'GET' | 'POST' | 'PATCH' | 'DELETE',
+      method: init.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
       header: init.headers,
       data: init.body ?? undefined,
       success: res => resolve({ status: res.statusCode as number, json: async () => res.data }),

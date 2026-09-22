@@ -1,5 +1,7 @@
 <template>
-  <view class="page page-tabbar-footer" :class="themeClass">
+  <!-- page-meta：状态栏/导航带高度写到 page 元素，标题与胶囊对齐 -->
+  <page-meta :page-style="pageStyle" />
+  <view class="page page-tabbar-footer" :class="themeClass" :style="topVars">
     <!-- 顶栏 -->
     <view class="topbar">
       <view class="topbar-back" @tap="goBack"><LocationIcon slug="chevron-left" :size="32" /></view>
@@ -202,6 +204,11 @@ import {
 } from '../../composables/useLocalData'
 import { errMsg } from '../../utils/api'
 import { MAX_PHOTOS, pickLocalPhoto, removeLocalPhotos, tagStyle } from '../../utils/local-photo'
+import { useTheme } from '../../composables/useTheme'
+import { useSafeArea } from '../../composables/useSafeArea'
+
+const { themeClass } = useTheme()
+const { topVars, pageStyle } = useSafeArea()
 
 const TAG_SUGGESTIONS = ['工具', '五金', '耗材', '衣物', '证件', '户外', '玩具', '文具', '厨具', '床品', '电子', '线材']
 
@@ -757,14 +764,22 @@ function onDelete() {
 .tag-input-row {
   display: flex;
   gap: 16rpx;
+  align-items: center;
 }
 .tag-input-row .input-base {
   flex: 1;
+  min-width: 0;
 }
+/* 标签"添加"按钮：与内联添加空间的按钮同尺寸（小号胶囊），
+   复用 .btn-secondary 的主题视觉（背景/描边/圆角/字重），
+   只覆盖紧凑 padding 与字号以对齐旁边的输入框 */
 .add-btn {
-  padding: 0 28rpx;
+  margin: 0;
+  padding: 16rpx 24rpx;
+  font-size: 26rpx;
+  flex-shrink: 0;
+  line-height: 1.4;
   min-width: 140rpx;
-  font-size: 28rpx;
 }
 .suggestions {
   display: flex;

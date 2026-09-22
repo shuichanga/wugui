@@ -1,6 +1,6 @@
 <template>
   <view class="tab-root">
-    <!-- 问候头：头像在左，日期+住所切换在右（对齐 Web 端） -->
+    <!-- 问候头：头像在左，问候+日期/住所切换在右（与上一稿一致） -->
     <view class="greet">
       <view class="avatar" :class="{ 'avatar-photo': avatarPath }" @tap="switchTab('settings')">
         <image v-if="avatarPath" :src="avatarPath" mode="aspectFill" class="avatar-img" />
@@ -101,11 +101,11 @@
             <view class="room-deco room-deco-1"></view>
             <view class="room-deco room-deco-2"></view>
             <view class="room-colorful-row">
-              <view class="room-colorful-icon">
+              <view class="room-colorful-icon" :class="{ 'room-colorful-icon-empty': loc.itemCount === 0 }">
                 <LocationIcon :slug="getRoomIcon(loc.name)" :size="32" state="white" />
               </view>
               <text class="room-colorful-name">{{ loc.name }}</text>
-              <text class="room-colorful-count">{{ loc.itemCount }} 件</text>
+              <text class="room-colorful-count" :class="{ 'room-colorful-count-empty': loc.itemCount === 0 }">{{ loc.itemCount }} 件</text>
             </view>
             <view class="room-colorful-track">
               <view class="room-colorful-fill" :style="{ width: progressWidth(loc) }"></view>
@@ -122,6 +122,7 @@
           <i class="dot"></i>
           <text>最近查看</text>
         </view>
+        <text class="section-title-aux" @tap="switchTab('items')">全部 ›</text>
       </view>
       <view class="grid-2">
         <view
@@ -133,17 +134,13 @@
           <view class="thumb">
             <image v-if="it.photoPaths[0]" :src="it.photoPaths[0]" mode="aspectFill" class="thumb-img" />
             <view v-else class="thumb-placeholder">
-              <LocationIcon slug="package" :size="44" class="thumb-ph-icon" />
+              <LocationIcon slug="package" :size="52" class="thumb-ph-icon" />
             </view>
           </view>
           <view class="recent-body">
-            <view class="recent-row">
-              <text class="recent-name truncate">{{ it.name }}</text>
-              <view v-if="it.tags[0]" class="tag" :style="tagStyle(it.tags[0])">
-                <text>{{ it.tags[0] }}</text>
-              </view>
-            </view>
-            <text class="recent-loc truncate">{{ locationName(it.locationId) || '未放置' }}</text>
+            <view class="recent-name truncate">{{ it.name }}</view>
+            <TagRow v-if="it.tags.length" class="recent-tag-row" :tags="it.tags" />
+            <view class="recent-loc truncate">{{ locationPath(it.locationId) || '未放置' }}</view>
           </view>
         </view>
       </view>
@@ -156,6 +153,7 @@
           <i class="dot"></i>
           <text>最近添加</text>
         </view>
+        <text class="section-title-aux" @tap="switchTab('items')">全部 ›</text>
       </view>
       <view v-if="!recentAdded.length" class="card empty">
         <text class="text-secondary">{{ items.length === 0 ? '还没有物品，点右下角 + 录入第一件' : '最近 30 天没有新增物品' }}</text>
@@ -170,17 +168,15 @@
           <view class="thumb-sm">
             <image v-if="it.photoPaths[0]" :src="it.photoPaths[0]" mode="aspectFill" class="thumb-img" />
             <view v-else class="thumb-placeholder">
-              <LocationIcon slug="package" :size="44" class="thumb-ph-icon" />
+              <LocationIcon slug="package" :size="38" class="thumb-ph-icon" />
             </view>
           </view>
           <view class="row-body">
             <view class="row-title">
               <text class="truncate">{{ it.name }}</text>
-              <view v-if="it.tags[0]" class="tag" :style="tagStyle(it.tags[0])">
-                <text>{{ it.tags[0] }}</text>
-              </view>
             </view>
-            <text class="row-loc truncate">{{ locationName(it.locationId) || '未放置' }}</text>
+            <TagRow v-if="it.tags.length" class="row-tag-row" :tags="it.tags" />
+            <text class="row-loc truncate">{{ locationPath(it.locationId) || '未放置' }}</text>
           </view>
           <text class="row-time">{{ timeLabel(it.createdAt) }}</text>
         </view>
@@ -192,19 +188,20 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import LocationIcon from '../LocationIcon.vue'
+import TagRow from '../TagRow.vue'
 import ResidenceSwitcher from '../ResidenceSwitcher.vue'
 import { useAuth } from '../../composables/useAuth'
 import {
-  buildLocationTree, useStore, type LocalItem, type LocationTreeNode,
+  buildLocationTree, getLocationPath, useStore, type LocalItem, type LocationTreeNode,
 } from '../../composables/useLocalData'
-import { timeLabel, tagStyle } from '../../utils/local-photo'
+import { timeLabel } from '../../utils/local-photo'
 import { useTheme } from '../../composables/useTheme'
 import { useHomeTabs } from '../../composables/useHomeTabs'
 import { useAvatar } from '../../composables/useAvatar'
 import { getRoomColors, getRoomIcon } from '../../utils/room-style'
 
 const { boardStyle } = useTheme()
-const { switchTab, pendingHighlight } = useHomeTabs()
+const { pendingItemRoom, switchTab } = useHomeTabs()
 const { avatarPath } = useAvatar()
 const auth = useAuth()
 const store = useStore()
@@ -260,16 +257,9 @@ function progressWidth(loc: LocationTreeNode): string {
   const pct = (loc.itemCount / totalItems.value) * 100
   return `${Math.max(pct, 4)}%`
 }
-function locationName(id: string): string {
-  const find = (nodes: LocationTreeNode[]): string => {
-    for (const n of nodes) {
-      if (n.id === id) return n.name
-      const hit = find(n.children)
-      if (hit) return hit
-    }
-    return ''
-  }
-  return find(rooms.value)
+// 空间信息列出全部层级（对齐 Web 端 locationPath）：如「主卧 / 床头柜」
+function locationPath(id: string): string {
+  return id ? getLocationPath(id) : ''
 }
 
 function go(url: string) {
@@ -278,10 +268,10 @@ function go(url: string) {
 function goItem(id: string) {
   uni.navigateTo({ url: `/pages/item-detail/item-detail?id=${id}` })
 }
-// 看板卡 → 空间 tab 并展开高亮该房间（瞬时切换，不再跳页）
+// 看板卡 → 物品 tab，列出该空间（含下属层级）的全部物品（对齐 Web 端）
 function goRoom(id: string) {
-  pendingHighlight.value = id
-  switchTab('locations')
+  pendingItemRoom.value = id
+  switchTab('items')
 }
 
 onMounted(refresh)
@@ -291,15 +281,16 @@ defineExpose({ refresh })
 
 <style scoped>
 .tab-root {
-  padding-top: 8rpx;
+  padding-top: 0;
 }
 
-/* 问候头 */
+/* 问候头：占满导航带高度，与右上角胶囊垂直居中（头像在左、文字在右） */
 .greet {
   display: flex;
   align-items: center;
   gap: 20rpx;
-  padding: 20rpx 4rpx 12rpx;
+  min-height: var(--nav-bar-height, 88rpx);
+  padding: 0 4rpx;
 }
 .greet-left {
   display: flex;
@@ -313,7 +304,7 @@ defineExpose({ refresh })
   font-size: 40rpx;
   font-weight: 700;
   letter-spacing: 2rpx;
-  color: #182720;
+  color: var(--color-text);
 }
 .greet-date {
   font-size: 24rpx;
@@ -411,13 +402,13 @@ defineExpose({ refresh })
 .grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16rpx;
+  gap: 20rpx;
   margin-top: 20rpx;
 }
 
-/* 空间卡 */
+/* 空间卡：对齐 Web 端 RoomCard（px-3 pt-2 pb-2） */
 .room-card {
-  padding: 16rpx;
+  padding: 16rpx 24rpx;
   display: flex;
   flex-direction: column;
   gap: 12rpx;
@@ -490,6 +481,11 @@ defineExpose({ refresh })
   justify-content: center;
   flex-shrink: 0;
 }
+/* 空房间在彩色模式下的弱化：底色更淡 + 图标整体半透明 */
+.room-colorful-icon-empty {
+  background: rgba(255, 255, 255, 0.10);
+  opacity: 0.55;
+}
 .room-colorful-name {
   flex: 1;
   min-width: 0;
@@ -504,6 +500,9 @@ defineExpose({ refresh })
   font-size: 22rpx;
   color: rgba(255, 255, 255, 0.85);
   flex-shrink: 0;
+}
+.room-colorful-count-empty {
+  color: rgba(255, 255, 255, 0.55);
 }
 .room-colorful-track {
   position: relative;
@@ -547,39 +546,42 @@ defineExpose({ refresh })
   opacity: 0.6;
 }
 .recent-body {
-  padding: 14rpx 20rpx 20rpx;
+  padding: 12rpx 24rpx 16rpx;
   display: flex;
   flex-direction: column;
-  gap: 6rpx;
-}
-.recent-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12rpx;
+  gap: 4rpx;
 }
 .recent-name {
-  font-size: 26rpx;
+  font-size: 28rpx;
   font-weight: 600;
-  color: #182720;
-  flex: 1;
-  min-width: 0;
+  color: var(--color-text);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recent-tag-row {
+  margin-top: 2rpx;
 }
 .recent-loc {
   font-size: 22rpx;
   color: #8a978f;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* 标签 */
+/* 标签：对齐 Web 端 pill（px-2 py-1 text-2xs leading-none） */
 .tag {
-  padding: 4rpx 12rpx;
+  padding: 8rpx 16rpx;
   border-radius: 999rpx;
-  font-size: 20rpx;
-  line-height: 1.2;
+  font-size: 22rpx;
+  line-height: 1;
   flex-shrink: 0;
 }
 
-/* 最近添加行卡 */
+/* 最近添加行卡：对齐 Web 端 RecentItemRow（px-3 py-1.5 gap-3，40px 圆角xl缩略图） */
 .rows {
   display: flex;
   flex-direction: column;
@@ -587,15 +589,15 @@ defineExpose({ refresh })
   margin-top: 20rpx;
 }
 .row-card {
-  padding: 16rpx 20rpx;
+  padding: 12rpx 24rpx;
   display: flex;
   align-items: center;
-  gap: 20rpx;
+  gap: 24rpx;
 }
 .thumb-sm {
-  width: 96rpx;
-  height: 96rpx;
-  border-radius: 20rpx;
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 24rpx;
   overflow: hidden;
   flex-shrink: 0;
 }
@@ -618,15 +620,20 @@ defineExpose({ refresh })
   align-items: center;
   gap: 12rpx;
 }
-.row-title > text:first-child {
+.row-tag-row {
+  margin-top: 2rpx;
+}
+.row-title > view:first-child {
   font-size: 28rpx;
   font-weight: 600;
-  color: #182720;
+  line-height: 1.25;
+  color: var(--color-text);
   flex: 1;
   min-width: 0;
 }
 .row-loc {
   font-size: 22rpx;
+  line-height: 1.4;
   color: #8a978f;
 }
 .row-time {

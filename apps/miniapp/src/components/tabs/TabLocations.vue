@@ -94,7 +94,7 @@
               @tap="toggleRoom(room.id)"
             >
               <view class="icon-tile" :class="{ 'icon-tile-muted': !isColorful && room.itemCount === 0 }">
-                <LocationIcon :slug="getRoomIcon(room.name)" :size="36" :state="isColorful ? 'white' : 'default'" />
+                <LocationIcon :slug="getRoomIcon(room.name)" :size="36" :state="iconState(room.itemCount)" />
               </view>
               <text class="room-name">{{ room.name }}</text>
               <text v-if="room.itemCount > 0" class="room-count">
@@ -151,7 +151,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import LocationIcon from '../LocationIcon.vue'
 import {
   buildLocationTree,
@@ -160,12 +160,16 @@ import {
   type LocationTreeNode,
 } from '../../composables/useLocalData'
 import { getCompartmentIcon, getFurnitureIcon, getRoomColors, getRoomIcon } from '../../utils/room-style'
-import { useHomeTabs, TAB_ORDER } from '../../composables/useHomeTabs'
 import { useTheme } from '../../composables/useTheme'
 
-const { activeTab, pendingHighlight } = useHomeTabs()
 const { boardStyle } = useTheme()
 const isColorful = computed(() => boardStyle.value === 'colorful')
+
+/** 空间图标颜色：彩色模式固定白；普通模式下空房间用灰版 muted，有物品用主色 default */
+function iconState(itemCount: number): 'default' | 'muted' | 'white' {
+  if (isColorful.value) return 'white'
+  return itemCount === 0 ? 'muted' : 'default'
+}
 
 const tree = ref<LocationTreeNode[]>([])
 const rooms = computed(() => tree.value)
@@ -325,14 +329,6 @@ function refresh() {
   tree.value = buildLocationTree()
 }
 
-// 首页看板卡跳转过来：切到本 tab 时展开高亮房间
-watch(activeTab, (i) => {
-  if (TAB_ORDER[i] === 'locations' && pendingHighlight.value) {
-    expandedId.value = pendingHighlight.value
-    pendingHighlight.value = ''
-  }
-})
-
 onMounted(refresh)
 
 defineExpose({ refresh })
@@ -340,15 +336,16 @@ defineExpose({ refresh })
 
 <style scoped>
 .tab-root {
-  padding-top: 8rpx;
+  padding-top: 0;
 }
 
-/* 页头 */
+/* 页头：占满导航带高度，与右上角胶囊垂直居中 */
 .head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20rpx 4rpx 20rpx;
+  min-height: var(--nav-bar-height, 88rpx);
+  padding: 8rpx 4rpx;
 }
 .head-left {
   display: flex;
@@ -359,7 +356,7 @@ defineExpose({ refresh })
   font-family: var(--font-display);
   font-size: 40rpx;
   font-weight: 700;
-  color: #182720;
+  color: var(--color-text);
   letter-spacing: 2rpx;
 }
 .head-sub {

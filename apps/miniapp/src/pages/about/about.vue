@@ -1,5 +1,7 @@
 <template>
-  <view class="page page-tabbar" :class="themeClass">
+  <!-- page-meta：状态栏/导航带高度写到 page 元素，标题与胶囊对齐 -->
+  <page-meta :page-style="pageStyle" />
+  <view class="page page-tabbar" :class="themeClass" :style="topVars">
     <!-- 顶栏 -->
     <view class="topbar">
       <view class="topbar-back" @tap="goBack">
@@ -62,18 +64,19 @@
       <text class="sec-hint">可在"我的"页导出 JSON 作为本地备份。</text>
     </view>
 
-    <!-- 项目 -->
+    <!-- 项目：GitHub 仓库（对齐 Web 端按钮样式；小程序无法直接跳外部浏览器，点击复制链接） -->
     <view class="section">
       <text class="sec-title">项目</text>
-      <view class="card link-card" @tap="copyGithub">
-        <text class="link-text">开源仓库 · GitHub</text>
-        <text class="link-arrow">›</text>
+      <view class="github-btn" @tap="copyGithub">
+        <LocationIcon slug="github" :size="34" />
+        <text class="github-text">开源仓库 · GitHub</text>
       </view>
     </view>
 
-    <!-- 底部版权 -->
+    <!-- 底部版权与作者：对齐 Web 端 footer -->
     <view class="footer">
       <text class="footer-text">© {{ year }} 物归 · 用心整理每一个家</text>
+      <text class="footer-author">作者：水常 · 邮箱：<text class="footer-link" @tap="copyEmail">rao@shuichanga.cn</text></text>
     </view>
 
     <AppTabbar />
@@ -88,8 +91,10 @@ import LocationIcon from '../../components/LocationIcon.vue'
 import PrivacyPopup from '../../components/PrivacyPopup.vue'
 import { useTheme } from '../../composables/useTheme'
 import { useHomeTabs } from '../../composables/useHomeTabs'
+import { useSafeArea } from '../../composables/useSafeArea'
 const { themeClass } = useTheme()
 const { switchTab } = useHomeTabs()
+const { topVars, pageStyle } = useSafeArea()
 const version = '1.0.0'
 const year = new Date().getFullYear()
 
@@ -98,11 +103,21 @@ function goBack() {
   else switchTab('settings')
 }
 
-function copyGithub() {
+/** 复制到剪贴板：写剪贴板是隐私接口，被拦截/拒绝时 fail 不带提示，这里统一兜底 */
+function copyText(data: string, okTitle: string) {
   uni.setClipboardData({
-    data: 'https://github.com/shuichanga/wugui',
-    success: () => uni.showToast({ title: '链接已复制', icon: 'success' }),
+    data,
+    success: () => uni.showToast({ title: okTitle, icon: 'success' }),
+    fail: () => uni.showToast({ title: '复制失败，请重试', icon: 'none' }),
   })
+}
+
+function copyGithub() {
+  copyText('https://github.com/shuichanga/wugui', '链接已复制')
+}
+
+function copyEmail() {
+  copyText('rao@shuichanga.cn', '邮箱已复制')
 }
 </script>
 
@@ -235,23 +250,23 @@ function copyGithub() {
   padding: 8rpx 4rpx 0;
 }
 
-/* 链接卡 */
-.link-card {
+/* GitHub 按钮：对齐 Web 端（h-46px 圆角xl 1.5px 描边 图标+文字居中） */
+.github-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12rpx;
-  padding: 28rpx 24rpx;
+  gap: 16rpx;
+  height: 92rpx;
+  margin-top: 16rpx;
+  background: var(--color-surface);
+  border: 3rpx solid var(--color-border-strong);
+  border-radius: 24rpx;
+  box-shadow: 0 2rpx 4rpx rgba(24, 39, 32, 0.04), 0 16rpx 48rpx rgba(24, 39, 32, 0.05);
 }
-.link-text {
+.github-text {
   font-size: 28rpx;
   font-weight: 600;
-  color: #182720;
-}
-.link-arrow {
-  font-size: 36rpx;
-  color: #aebbb2;
-  line-height: 1;
+  color: var(--color-text);
 }
 
 /* 底部 */
@@ -263,5 +278,16 @@ function copyGithub() {
   font-size: 22rpx;
   letter-spacing: 2rpx;
   color: #aebbb2;
+}
+.footer-author {
+  display: block;
+  margin-top: 8rpx;
+  font-family: var(--font-display);
+  font-size: 22rpx;
+  letter-spacing: 2rpx;
+  color: #aebbb2;
+}
+.footer-link {
+  color: var(--color-primary-dark);
 }
 </style>

@@ -4,6 +4,8 @@ import { computed, reactive } from 'vue'
 import { api } from '../utils/api'
 
 const KEY = 'wugui:auth'
+// 昵称独立于 auth 缓存另存：登出/清空登录后仍保留，下次登录后与服务端 displayName 合并
+const DISPLAY_NAME_KEY = 'wugui:displayName'
 
 export interface AuthUser {
   id: string
@@ -50,6 +52,11 @@ const state = reactive<AuthState>(load())
 
 function persist() {
   uni.setStorageSync(KEY, JSON.stringify(state))
+  // displayName 冗余写一份到独立 key：即使 auth 缓存被清（如开发工具"清登录态"），
+  // 下次登录时 applyStoredDisplayName 还能找回上次改过的昵称
+  if (state.user?.displayName) {
+    try { uni.setStorageSync(DISPLAY_NAME_KEY, state.user.displayName) } catch { /* ignore */ }
+  }
 }
 
 /** 拉取「我的住所」列表（不覆盖 token，失败静默——离线时保留缓存） */
@@ -73,10 +80,12 @@ export function useAuth() {
       return !!state.token
     },
     /** 保存登录结果（微信登录 / 账号密码登录通用） */
-    save(raw: { token: string; user: AuthUser; householdId: string }) {
+    async save(raw: { token: string; user: AuthUser; householdId: string }) {
       state.token = raw.token
       state.user = raw.user
       state.householdId = raw.householdId || ''
+      // 合并本地缓存的 displayName：若用户曾改过名且服务端还是旧值，这里把本地值同步到服务端
+      await applyStoredDisplayName(state.user)
       persist()
     },
     /** 切换当前住所：服务端重签 token（householdId 在 JWT 里，多端统一） */
@@ -86,6 +95,34 @@ export function useAuth() {
       state.token = res.token
       persist()
     },
+    /** 本地切换住所（M1 离线模式）：只改 householdId（数据命名空间跟随），不动 token */
+    setHouseholdId(id: string) {
+      state.householdId = id
+      persist()
+    },
+    /**
+     * 修改昵称（displayName）：
+     *  - 有 token 时同步到后端 PUT /auth/profile（联网失败不阻塞，仍本地生效）
+     *  - 无 token（未登录本地模式）时仅本地覆盖持久化
+     *  - 无论登录态如何，都另存一份到 wugui:displayName，登出后仍能找回
+     */
+    async setDisplayName(name: string) {
+      const trimmed = (name ?? '').trim()
+      if (!trimmed) return false
+      if (state.user) state.user.displayName = trimmed
+      else state.user = { id: 'local', username: null, email: null, displayName: trimmed }
+      uni.setStorageSync(DISPLAY_NAME_KEY, trimmed)
+      persist()
+      if (state.token) {
+        try {
+          await api.put('/auth/profile', { displayName: trimmed })
+        } catch {
+          // 联网失败本地已生效；提示用户联网后会同步到服务端，避免"下次登录失效"的困惑
+          uni.showToast({ title: '昵称已保存（联网后同步到账号）', icon: 'none' })
+        }
+      }
+      return true
+    },
     fetchHouseholds,
     logout() {
       state.token = ''
@@ -93,8 +130,31 @@ export function useAuth() {
       state.householdId = ''
       state.households = []
       uni.removeStorageSync(KEY)
+      // 注意：不清 DISPLAY_NAME_KEY，用户重新登录时能保留上次修改的昵称
       uni.reLaunch({ url: '/pages/login/login' })
     },
+  }
+}
+
+/** 若本地保存过 displayName，就写回到刚登录的用户对象上，并同步到服务端（await 保证下次登出时已落到数据库） */
+async function applyStoredDisplayName(user: AuthUser | null): Promise<void> {
+  if (!user) return
+  let stored = ''
+  try {
+    stored = (uni.getStorageSync(DISPLAY_NAME_KEY) ?? '').trim()
+  } catch {
+    stored = ''
+  }
+  if (!stored) return
+  if (user.displayName && user.displayName === stored) return // 已一致，无需处理
+  user.displayName = stored
+  // 同步到服务端：确保用户下次登录（不经过本应用，或从其他设备）能拿到最新昵称
+  if (state.token) {
+    try {
+      await api.put('/auth/profile', { displayName: stored })
+    } catch {
+      // 静默：本地已生效，联网后再同步即可
+    }
   }
 }
 
@@ -105,7 +165,7 @@ export async function wechatLogin() {
     '/auth/wechat',
     { code },
   )
-  useAuth().save(res)
+  await useAuth().save(res)
   void fetchHouseholds()
   return res
 }
@@ -117,7 +177,7 @@ export async function bindExistingAccount(account: string, password: string) {
     '/auth/login',
     { account, password },
   )
-  useAuth().save(login)
+  await useAuth().save(login)
   void fetchHouseholds()
   const bind = await api.post<{ ok: boolean }>('/auth/wechat/bind', { code })
   return { ...login, bind }

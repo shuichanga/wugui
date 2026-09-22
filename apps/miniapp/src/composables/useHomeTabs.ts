@@ -9,8 +9,8 @@ export const TAB_ORDER: TabKey[] = ['home', 'items', 'locations', 'settings']
 // 模块级 ref：容器页、AppTabbar、各 tab 组件共享同一份状态
 const activeTab = ref(0)
 
-// 首页看板卡 → 空间 tab 的跳转高亮（消费后清空）
-const pendingHighlight = ref('')
+// 首页看板卡 → 物品 tab 的按空间过滤（消费后清空；物品列表含该空间全部下属层级）
+const pendingItemRoom = ref('')
 
 export function useHomeTabs() {
   /**
@@ -40,5 +40,5 @@ export function useHomeTabs() {
     }
   }
 
-  return { activeTab, pendingHighlight, switchTab }
+  return { activeTab, pendingItemRoom, switchTab }
 }

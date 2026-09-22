@@ -1,5 +1,7 @@
 <template>
-  <view class="page page-tabbar" :class="themeClass">
+  <!-- page-meta：状态栏/导航带高度写到 page 元素，标题与胶囊对齐 -->
+  <page-meta :page-style="pageStyle" />
+  <view class="page page-tabbar" :class="themeClass" :style="topVars">
     <!-- 顶栏 -->
     <view class="topbar">
       <view class="topbar-back" @tap="goBack"><LocationIcon slug="chevron-left" :size="32" /></view>
@@ -106,9 +108,11 @@ import {
 } from '../../composables/useLocalData'
 import { getCompartmentIcon, getFurnitureIcon, getRoomIcon } from '../../utils/room-style'
 import { useHomeTabs } from '../../composables/useHomeTabs'
+import { useSafeArea } from '../../composables/useSafeArea'
 import { tagStyle } from '../../utils/local-photo'
 
 const { themeClass } = useTheme()
+const { topVars, pageStyle } = useSafeArea()
 const { switchTab } = useHomeTabs()
 const auth = useAuth()
 const store = useStore()
@@ -360,12 +364,14 @@ onShow(() => {
 .row-title > text:first-child {
   font-size: 28rpx;
   font-weight: 600;
+  line-height: 1.25;
   color: #182720;
   flex: 1;
   min-width: 0;
 }
 .row-loc {
   font-size: 22rpx;
+  line-height: 1.4;
   color: #8a978f;
 }
 .row-qty {

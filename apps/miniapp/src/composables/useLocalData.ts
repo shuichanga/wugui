@@ -1,5 +1,9 @@
 // 本地数据仓库：物品 / 空间 / 最近查看，全部读写走本地（离线优先）
 // M2 接入同步时，写操作会同时追加进 Outbox 队列，接口保持不变
+//
+// 无住所（首次登录、未新建/加入）时，读写落到 "anon" 命名空间：
+//   用户可以先建房间/物品，后续在「我的」页新建/加入住所时，
+//   这些数据会通过 migrateAnonToHousehold 自动归入新住所，不会成为孤立数据。
 import { createKVLocalStore, newId, nowIso, type LocalRecord, type LocalStore } from '@wugui/core'
 import { kvDriver } from '../utils/kv'
 import { useAuth } from './useAuth'
@@ -44,20 +48,65 @@ export const RECENT = 'recent-views'
 export const MAX_RECENT = 20
 export const MAX_PHOTOS = 3
 
+/** 无住所时的暂存命名空间 */
+export const ANON_NAMESPACE = 'anon'
+
+/** 取当前 store：有住所走 household namespace，无住所回退到 anon namespace */
+function currentStore(): LocalStore {
+  const auth = useAuth()
+  const namespace = auth.state.householdId || ANON_NAMESPACE
+  return createKVLocalStore(kvDriver, namespace)
+}
+
 export function useStore(): {
   store: LocalStore
   items: () => LocalItem[]
   locations: () => LocalLocation[]
   recentViews: () => LocalRecentView[]
 } {
-  const auth = useAuth()
-  const store = createKVLocalStore(kvDriver, auth.state.householdId || 'anon')
   return {
-    store,
-    items: () => store.list<LocalItem>(ITEM).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
-    locations: () => store.list<LocalLocation>(LOCATION).sort((a, b) => a.name.localeCompare(b.name, 'zh')),
-    recentViews: () => store.list<LocalRecentView>(RECENT).sort((a, b) => b.viewedAt.localeCompare(a.viewedAt)),
+    // store 必须用 getter 惰性解析：首页容器里的 tab 组件常驻不销毁，
+    // 若在 setup 时一次性捕获 store，新建/切换住所后仍读旧命名空间，
+    // 表现为"数据没归入新住所"。getter 让每次访问都解析当前住所。
+    get store() { return currentStore() },
+    items: () => currentStore().list<LocalItem>(ITEM).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+    locations: () => currentStore().list<LocalLocation>(LOCATION).sort((a, b) => a.name.localeCompare(b.name, 'zh')),
+    recentViews: () => currentStore().list<LocalRecentView>(RECENT).sort((a, b) => b.viewedAt.localeCompare(a.viewedAt)),
   }
+}
+
+/**
+ * 把 "anon" 暂存命名空间下的房间 / 物品 / 最近查看，迁移到目标住所命名空间。
+ * 记录 id 保持不变，物品.locationId / 空间.parentId 内部引用天然生效。
+ *
+ * 用于：新建住所 / 加入住所 之后立即调用一次，避免"用户在无住所状态下
+ * 提前录入的临时数据变成孤立数据"。目标住所已存在同类 id 时按 id 覆盖（幂等）。
+ *
+ * @returns 迁移的记录条数（rooms + items）
+ */
+export function migrateAnonToHousehold(targetHouseholdId: string): number {
+  if (!targetHouseholdId) return 0
+  const anonStore = createKVLocalStore(kvDriver, ANON_NAMESPACE)
+  const targetStore = createKVLocalStore(kvDriver, targetHouseholdId)
+
+  // 目标 store 已有同 id 时按 id 覆盖（迁移幂等，不会重复）
+  let migrated = 0
+  const mergeAnon = <T extends LocalRecord>(collection: string) => {
+    const anonRows = anonStore.list<T>(collection)
+    if (!anonRows.length) return
+    const existing = targetStore.list<T>(collection)
+    const existingMap = new Map(existing.map(r => [r.id, r]))
+    for (const row of anonRows) existingMap.set(row.id, row)
+    targetStore.replaceAll(collection, [...existingMap.values()])
+    // 迁移完清理 anon 副本，避免下次新建住所又被合并一次
+    anonStore.replaceAll(collection, [])
+    migrated += anonRows.length
+  }
+
+  mergeAnon<LocalLocation>(LOCATION)
+  mergeAnon<LocalItem>(ITEM)
+  mergeAnon<LocalRecentView>(RECENT)
+  return migrated
 }
 
 export function createItem(input: {

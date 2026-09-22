@@ -56,12 +56,28 @@
 
     <!-- 物品网格：2 列卡 -->
     <view class="section">
+      <!-- 注意：不要在 section-title 上挂 @tap.self="exitSelectMode"。
+           uni-app 编译到微信小程序时 .self 修饰符失效成 bindtap，
+           导致点"多选"按钮时事件冒泡到 section-title 触发 exitSelectMode，
+           抵消了刚设置的 selectMode=true，看起来"点击无反应"。
+           多选模式只能通过"取消"按钮、底部 sel-bar 的"取消"按钮退出。 -->
       <view class="section-title">
         <view class="section-title-left">
           <text class="dot"></text>
           <text>全部物品</text>
         </view>
-        <text class="section-title-aux">按添加时间</text>
+        <!-- 多选模式：左边"取消"（退出模式），右边"全选/取消全选" -->
+        <template v-if="selectMode">
+          <view class="section-title-aux section-title-aux-cancel" @tap="exitSelectMode">
+            <text>取消</text>
+          </view>
+          <view class="section-title-aux section-title-aux-select" @tap="toggleSelectAll">
+            <text>{{ allSelected ? '取消全选' : '全选' }}</text>
+          </view>
+        </template>
+        <view v-else class="select-entry" @tap="enterSelectMode">
+          <text>多选</text>
+        </view>
       </view>
 
       <view v-if="!filtered.length" class="card empty-card">
@@ -71,23 +87,59 @@
         <text v-else class="empty-link" @tap="goAdd">去录入第一件</text>
       </view>
 
-      <view v-else class="grid-2">
-        <view v-for="it in filtered" :key="it.id" class="item-card" @tap="goDetail(it.id)">
-          <image v-if="it.photoPaths[0]" :src="it.photoPaths[0]" mode="aspectFill" class="item-photo" />
-          <view v-else class="item-photo item-photo-empty">
-            <LocationIcon slug="package" :size="44" class="item-ph-icon" />
+      <!-- 注意：不要在 grid-2 上挂 @tap.self="exitSelectMode"。
+           uni-app 编译到微信小程序时 .self 修饰符会失效成普通 bindtap，
+           点击 item-card 会冒泡到 grid-2 触发 exitSelectMode，导致"打勾同时退出多选"。
+           取消多选只能通过 section-title 的"取消"按钮、底部 sel-bar 的"取消"按钮。 -->
+      <view class="grid-2">
+        <view
+          v-for="it in filtered"
+          :key="it.id"
+          class="item-card"
+          :class="{ 'item-card-selected': selected.has(it.id) }"
+          @tap="onCardTap(it.id)"
+          @longpress="onCardLongPress(it.id)"
+        >
+          <view class="item-photo-wrap">
+            <image v-if="it.photoPaths[0]" :src="it.photoPaths[0]" mode="aspectFill" class="item-photo" />
+            <view v-else class="item-photo item-photo-empty">
+              <LocationIcon slug="package" :size="52" class="item-ph-icon" />
+            </view>
+            <!-- 多选模式下给图片区加深色蒙版，让白色圆圈在照片上也清晰可辨 -->
+            <view v-if="selectMode" class="sel-overlay"></view>
+            <!-- 勾选圆圈：位于图片右上角，仅多选模式显示 -->
+            <view v-if="selectMode" class="sel-check" :class="{ on: selected.has(it.id) }">
+              <LocationIcon v-if="selected.has(it.id)" slug="check" :size="24" state="white" />
+            </view>
           </view>
           <view class="item-body">
-            <text class="item-name">{{ it.name }}</text>
-            <text class="item-path">{{ shortPath(it) }}</text>
-            <view v-if="it.tags.length" class="item-tag" :style="tagStyle(it.tags[0])">
-              <text>{{ it.tags[0] }}</text>
-            </view>
+            <view class="item-name truncate">{{ it.name }}</view>
+            <view class="item-path truncate">{{ shortPath(it) }}</view>
+            <TagRow v-if="it.tags.length" :tags="it.tags" />
           </view>
         </view>
       </view>
 
       <text v-if="filtered.length" class="list-end">· 到底了 ·</text>
+    </view>
+
+    <!-- 多选操作条：进入多选模式后固定底部 -->
+    <view v-if="selectMode" class="sel-bar">
+      <view class="sel-bar-count">
+        <text>已选 {{ selected.size }} 件</text>
+      </view>
+      <view class="sel-bar-actions">
+        <view class="btn-secondary sel-bar-cancel" @tap="exitSelectMode">
+          <text>取消</text>
+        </view>
+        <view
+          class="btn-danger sel-bar-del"
+          :class="{ 'btn-disabled': selected.size === 0 }"
+          @tap="confirmDeleteSelected"
+        >
+          <text>删除</text>
+        </view>
+      </view>
     </view>
   </view>
 </template>
@@ -95,11 +147,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import LocationIcon from '../LocationIcon.vue'
+import TagRow from '../TagRow.vue'
 import {
-  buildLocationTree, getLocationPath, useStore,
+  buildLocationTree, deleteItem, getLocationPath, useStore,
   type LocalItem, type LocationTreeNode,
 } from '../../composables/useLocalData'
-import { tagStyle } from '../../utils/local-photo'
+import { useHouseholds } from '../../composables/useHouseholds'
+import { useHomeTabs } from '../../composables/useHomeTabs'
 
 const store = useStore()
 const items = ref<LocalItem[]>([])
@@ -115,6 +169,13 @@ const selCompartmentId = ref('')
 function refresh() {
   items.value = store.items()
   tree.value = buildLocationTree()
+  // 首页空间看板跳转过来：按该空间（含下属层级）过滤
+  if (pendingItemRoom.value) {
+    selRoomId.value = pendingItemRoom.value
+    selFurnitureId.value = ''
+    selCompartmentId.value = ''
+    pendingItemRoom.value = ''
+  }
   // 级联选中失效校验（空间可能被删除）
   if (selRoomId.value && !tree.value.some(r => r.id === selRoomId.value)) {
     selRoomId.value = ''
@@ -128,18 +189,9 @@ function refresh() {
   }
 }
 
-// ---- 住所名（本地模式，与"我的"页共用 storage） ----
-const householdName = computed(() => {
-  try {
-    const hs = JSON.parse(uni.getStorageSync('wugui:households') || '[]')
-    const cur = uni.getStorageSync('wugui:current-household')
-    return hs.find((h: { id: string; name: string }) => h.id === cur)?.name ?? hs[0]?.name ?? ''
-  } catch {
-    return ''
-  }
-})
-
 // ---- 空间级联筛选 ----
+const { pendingItemRoom } = useHomeTabs()
+const { householdName } = useHouseholds()
 const selRoom = computed(() => tree.value.find(r => r.id === selRoomId.value))
 const furnitureOptions = computed(() => selRoom.value?.children ?? [])
 const selFurniture = computed(() => furnitureOptions.value.find(f => f.id === selFurnitureId.value))
@@ -230,6 +282,64 @@ function clearFilters() {
   selCompartmentId.value = ''
 }
 
+// ---- 多选删除 ----
+const selectMode = ref(false)
+// 用 ref 包 Set 保证模板对 .size / .has 的响应式更新
+const selected = ref(new Set<string>())
+
+function enterSelectMode() {
+  selectMode.value = true
+  selected.value = new Set()
+}
+function exitSelectMode() {
+  selectMode.value = false
+  selected.value = new Set()
+}
+function toggleSelect(id: string) {
+  const next = new Set(selected.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  selected.value = next
+}
+function onCardTap(id: string) {
+  if (selectMode.value) toggleSelect(id)
+  else goDetail(id)
+}
+/** 长按进入多选模式并直接勾选该卡（对齐 Web 端长按/右键交互） */
+function onCardLongPress(id: string) {
+  if (!selectMode.value) {
+    selectMode.value = true
+    selected.value = new Set()
+  }
+  const next = new Set(selected.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  selected.value = next
+}
+const allSelected = computed(() => filtered.value.length > 0 && filtered.value.every(it => selected.value.has(it.id)))
+function toggleSelectAll() {
+  if (allSelected.value) selected.value = new Set()
+  else selected.value = new Set(filtered.value.map(it => it.id))
+}
+function confirmDeleteSelected() {
+  const ids = [...selected.value]
+  if (!ids.length) return
+  uni.showModal({
+    title: '批量删除',
+    content: `确定删除 ${ids.length} 件物品？删除后不可恢复。`,
+    confirmText: '删除',
+    confirmColor: '#dc2626',
+    success: (res) => {
+      if (!res.confirm) return
+      for (const id of ids) deleteItem(id)
+      selected.value = new Set()
+      selectMode.value = false
+      refresh()
+      uni.showToast({ title: `已删除 ${ids.length} 件`, icon: 'success' })
+    },
+  })
+}
+
 // 位置路径显示前两段（房间 · 格位），对齐 Web 端 ItemThumbCard
 function shortPath(it: LocalItem): string {
   if (!it.locationId) return '未放置'
@@ -251,21 +361,23 @@ defineExpose({ refresh })
 
 <style scoped>
 .tab-root {
-  padding-top: 8rpx;
+  padding-top: 0;
 }
 
-/* 页头 */
+/* 页头：占满导航带高度，与右上角胶囊垂直居中 */
 .head {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 6rpx;
-  padding: 20rpx 4rpx 20rpx;
+  min-height: var(--nav-bar-height, 88rpx);
+  padding: 8rpx 4rpx;
 }
 .head-title {
   font-family: var(--font-display);
   font-size: 40rpx;
   font-weight: 700;
-  color: #182720;
+  color: var(--color-text);
   letter-spacing: 2rpx;
 }
 .head-sub {
@@ -421,9 +533,15 @@ defineExpose({ refresh })
   display: flex;
   flex-direction: column;
 }
-.item-photo {
+.item-photo-wrap {
+  position: relative;
   width: 100%;
   height: 116rpx;
+  overflow: hidden;
+}
+.item-photo {
+  width: 100%;
+  height: 100%;
   background: #f0f2f0;
 }
 .item-photo-empty {
@@ -435,39 +553,139 @@ defineExpose({ refresh })
 .item-ph-icon {
   opacity: 0.6;
 }
+/* 多选模式下给图片区一层半透明黑罩，让白色勾选圈更醒目 */
+.sel-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(24, 39, 32, 0.18);
+  pointer-events: none;
+}
 .item-body {
-  padding: 16rpx 20rpx 20rpx;
+  padding: 16rpx 24rpx 20rpx;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 6rpx;
 }
 .item-name {
+  width: 100%;
+  box-sizing: border-box;
   font-size: 28rpx;
   font-weight: 600;
-  color: #182720;
+  line-height: 1.25;
+  color: var(--color-text);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .item-path {
+  width: 100%;
+  box-sizing: border-box;
   font-size: 22rpx;
+  line-height: 1.4;
   color: #8a978f;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-bottom: 4rpx;
 }
-.item-tag {
+
+/* 多选模式 */
+.item-card {
+  position: relative;
+}
+.item-card-selected {
+  border-color: #16a34a;
+  box-shadow: 0 2rpx 4rpx rgba(24, 39, 32, 0.04), 0 0 0 3rpx rgba(22, 163, 74, 0.18);
+}
+/* 勾选圆圈：右上角白圈，选中变绿。加大尺寸与对比度，确保在照片上也清晰可见 */
+.sel-check {
+  position: absolute;
+  top: 12rpx;
+  right: 12rpx;
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 999rpx;
+  border: 3rpx solid #ffffff;
+  background: rgba(255, 255, 255, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.35);
+}
+.sel-check.on {
+  background: #16a34a;
+  border-color: #16a34a;
+  box-shadow: 0 2rpx 8rpx rgba(22, 163, 74, 0.6);
+}
+.section-title-aux-select {
+  color: #16a34a;
+  font-weight: 600;
+  font-size: 24rpx;
   padding: 6rpx 16rpx;
   border-radius: 999rpx;
-  font-size: 20rpx;
-  line-height: 1.3;
+  background: #e7f4ec;
 }
-.item-tag > text {
-  font-size: 20rpx;
+.section-title-aux-cancel {
+  color: #51605a;
+  font-weight: 600;
+  font-size: 24rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 999rpx;
+  background: #f3f4f6;
+}
+/* 右上角"多选"入口：view 元素才能渲染背景/圆角/padding（text 在微信小程序里只渲染文字样式） */
+.select-entry {
+  display: inline-flex;
+  align-items: center;
+  padding: 10rpx 28rpx;
+  background: #16a34a;
+  color: #ffffff;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.select-entry:active {
+  background: #0f7a38;
+}
+.sel-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: #ffffff;
+  border-top: 1rpx solid #e4eae5;
+  box-shadow: 0 -4rpx 16rpx rgba(24, 39, 32, 0.06);
+  z-index: 50;
+}
+.sel-bar-count {
+  font-size: 26rpx;
+  color: #182720;
+}
+.sel-bar-actions {
+  display: flex;
+  gap: 16rpx;
+}
+.sel-bar-cancel,
+.sel-bar-del {
+  padding: 16rpx 36rpx;
+  font-size: 26rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999rpx;
+  line-height: 1.4;
+}
+.sel-bar-del.btn-disabled {
+  opacity: 0.4;
 }
 
 /* 页脚 */

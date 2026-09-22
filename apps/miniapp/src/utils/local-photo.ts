@@ -75,29 +75,42 @@ export function removeLocalPhotos(paths: string[]) {
   for (const p of paths) removeLocalPhoto(p)
 }
 
-/** 相对时间：今天显示 HH:MM，昨天显示"昨天"，其它显示"M月D日" */
+/** 相对时间（对齐 Web 端 useTimeAgo.timeAgo）：刚刚 / N分钟前 / N小时前 / 昨天 / N天前 / N周前 / YYYY-MM-DD */
 export function timeLabel(iso: string): string {
   if (!iso) return ''
+  const diff = Date.now() - new Date(iso).getTime()
+  const minutes = Math.floor(diff / 60000)
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes}分钟前`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}小时前`
+  const days = Math.floor(hours / 24)
+  if (days === 1) return '昨天'
+  if (days < 7) return `${days}天前`
+  if (days < 30) return `${Math.floor(days / 7)}周前`
   const d = new Date(iso)
-  const now = new Date()
-  const sameDay = d.toDateString() === now.toDateString()
-  if (sameDay) {
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-  }
-  const yesterday = new Date(now.getTime() - 86400000)
-  if (d.toDateString() === yesterday.toDateString()) return '昨天'
-  return `${d.getMonth() + 1}月${d.getDate()}日`
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-/** 绝对时间："M月D日 HH:MM"（详情页"添加于"用） */
+/** 绝对时间（对齐 Web 端 useTimeAgo.formatDateTime）：同年"月日 时分"，跨年"年月日" */
 export function formatDateTime(iso: string): string {
   if (!iso) return ''
   const d = new Date(iso)
   const pad = (n: number) => String(n).padStart(2, '0')
+  if (d.getFullYear() !== new Date().getFullYear()) {
+    return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
+  }
   return `${d.getMonth() + 1}月${d.getDate()}日 ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-/** 标签分色（对齐 Web 端 tagStyle 的浅色底 + 深色字） */
+/** 标签分色（对齐 Web 端 tagStyle 的浅色底 + 深色字）
+ *  键名必须用连字符（background-color）：uni 的 mp 运行时序列化 :style 不做驼峰转换，
+ *  camelCase 键（backgroundColor）写进 WXML style 会被微信忽略，标签就会丢背景色 */
+export interface TagStyle {
+  'background-color': string
+  color: string
+}
+
 const TAG_COLORS: Array<{ bg: string; color: string }> = [
   { bg: '#e7f4ec', color: '#0f7a38' },
   { bg: '#f0f2f0', color: '#51605a' },
@@ -107,8 +120,9 @@ const TAG_COLORS: Array<{ bg: string; color: string }> = [
   { bg: '#f3e8f5', color: '#8b5cf6' },
 ]
 
-export function tagStyle(tag: string): { backgroundColor: string; color: string } {
+export function tagStyle(tag: string): TagStyle {
   let h = 0
   for (let i = 0; i < tag.length; i++) h = (h * 31 + tag.charCodeAt(i)) >>> 0
-  return TAG_COLORS[h % TAG_COLORS.length]
+  const { bg, color } = TAG_COLORS[h % TAG_COLORS.length]
+  return { 'background-color': bg, color }
 }

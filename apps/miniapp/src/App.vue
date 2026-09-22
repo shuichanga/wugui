@@ -111,11 +111,11 @@ page {
 .text-warning { color: #b45309; }
 .text-white { color: #ffffff; }
 
-/* 卡片：白底 + 1px 边框 + 18px 圆角 + 软阴影（level-1） */
+/* 卡片：白底 + 1px 边框 + 16px 圆角（Web rounded-2xl）+ 软阴影（level-1） */
 .card {
   background: var(--color-surface);
   border: 1rpx solid var(--color-border);
-  border-radius: 36rpx;
+  border-radius: 32rpx;
   padding: 24rpx;
   box-shadow: 0 2rpx 4rpx rgba(24, 39, 32, 0.04), 0 16rpx 48rpx rgba(24, 39, 32, 0.05);
 }
@@ -330,12 +330,12 @@ page {
   font-size: 30rpx;
 }
 
-/* 内页顶栏（编辑/详情用） */
+/* 内页顶栏（编辑/详情用）：高度 = 胶囊导航带，标题与右上角胶囊垂直居中对齐 */
 .topbar {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 88rpx;
+  height: var(--nav-bar-height, 88rpx);
   padding: 0 32rpx;
   position: relative;
 }
@@ -359,10 +359,11 @@ page {
   color: var(--color-text);
 }
 
-/* 页面通用 padding（顶部让出状态栏高度，--status-bar-height 由 uni-app 注入） */
+/* 页面通用 padding（顶部让出真实状态栏高度：--status-bar-height 由 useSafeArea 在各页根节点覆盖，
+   内页标题带紧跟其后（.topbar 高度 = --nav-bar-height），与胶囊垂直居中对齐） */
 .page {
   min-height: 100vh;
-  padding: calc(var(--status-bar-height, 0px) + 16rpx) 32rpx 40rpx;
+  padding: var(--status-bar-height, 0px) 32rpx 40rpx;
   box-sizing: border-box;
   background: var(--color-bg);
   color: var(--color-text);

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Res } from '@nestjs/common'
+import { Body, Controller, Get, HttpCode, Param, Post, Put, Res } from '@nestjs/common'
 import type { FastifyReply } from 'fastify'
 import { AuthService } from './auth.service'
 import { SessionService } from './session.service'
@@ -66,6 +66,14 @@ export class AuthController {
   @Get('me')
   async me(@CurrentUser() user: SessionUser, @CurrentHouseholdId() householdId: string) {
     return this.authService.me(user.id, householdId)
+  }
+
+  /** 更新个人资料：目前支持修改 displayName（昵称），小程序微信用户默认"微信用户"可改 */
+  @HttpCode(200)
+  @Put('profile')
+  async updateProfile(@Body() body: Record<string, unknown>, @CurrentUser() user: SessionUser) {
+    if (body.displayName == null || body.displayName === '') return { displayName: null }
+    return this.authService.updateDisplayName(user.id, String(body.displayName))
   }
 
   /** 登出：清 cookie（多端 Bearer 模式由客户端自行删 token） */

@@ -1,10 +1,8 @@
 <template>
   <view class="page">
-    <!-- Hero -->
+    <!-- Hero：favicon 图标作为 LOGO -->
     <view class="hero">
-      <view class="logo-badge">
-        <text class="logo-text">物</text>
-      </view>
+      <image src="/static/favicon.png" mode="aspectFit" class="logo-img" />
       <view class="hero-title">物归</view>
       <view class="hero-sub">家庭收纳，物归其位</view>
     </view>
@@ -135,6 +133,7 @@ async function onBind() {
 <style scoped>
 .page {
   min-height: 100vh;
+  /* 原生导航栏页：固定 160rpx 顶部留白即可（无胶囊遮挡问题） */
   padding: 160rpx 40rpx 64rpx;
   display: flex;
   flex-direction: column;
@@ -149,22 +148,12 @@ async function onBind() {
   margin-bottom: 48rpx;
   width: 100%;
 }
-.logo-badge {
+.logo-img {
   width: 120rpx;
   height: 120rpx;
   border-radius: 32rpx;
-  background: #16a34a;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   margin-bottom: 28rpx;
   box-shadow: 0 20rpx 44rpx rgba(22, 163, 74, 0.3);
-}
-.logo-text {
-  color: #ffffff;
-  font-size: 56rpx;
-  font-weight: 700;
-  font-family: 'PingFang SC', serif;
 }
 .hero-title {
   font-size: 48rpx;

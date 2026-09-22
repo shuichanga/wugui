@@ -12,7 +12,7 @@
       <slot>
         <text class="rs-date">{{ date }}</text>
         <text class="rs-sep">·</text>
-        <text class="rs-name">{{ householdName }}</text>
+        <text class="rs-name">{{ householdName || '我的住所' }}</text>
       </slot>
       <view class="rs-chev" :class="{ on: open }">
         <LocationIcon slug="chevron-down" :size="22" state="muted" />
@@ -44,10 +44,10 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { ref } from 'vue'
 import LocationIcon from './LocationIcon.vue'
-import { useAuth, type Household } from '../composables/useAuth'
 import { useHomeTabs } from '../composables/useHomeTabs'
+import { useHouseholds, type Household } from '../composables/useHouseholds'
 
 const props = withDefaults(defineProps<{
   /** 日期副行，与住所名用「·」拼成一行（对应 Web 端 slot 内容） */
@@ -56,32 +56,20 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{ switched: [] }>()
 
-const auth = useAuth()
 const { switchTab } = useHomeTabs()
+const { households, currentHouseholdId, householdName, switchTo } = useHouseholds()
 const open = ref(false)
-const households = ref<Household[]>([])
-
-const currentHouseholdId = auth.state.householdId
-const householdName = auth.currentHousehold.value?.name ?? (households.value[0]?.name ?? '我的住所')
-
-function refresh() {
-  households.value = [...auth.state.households]
-}
 
 function toggle() {
   open.value = !open.value
 }
 
-async function pick(h: Household) {
-  if (h.id === auth.state.householdId) {
-    open.value = false
-    return
-  }
+function pick(h: Household) {
   open.value = false
-  try {
-    await auth.switchHousehold(h.id)
+  if (h.id === currentHouseholdId.value) return
+  if (switchTo(h.id)) {
     emit('switched')
-  } catch {
+  } else {
     uni.showToast({ title: '切换失败，请重试', icon: 'none' })
   }
 }
@@ -90,14 +78,6 @@ function goManage() {
   open.value = false
   switchTab('settings')
 }
-
-onMounted(() => {
-  refresh()
-  // 离线优先：有登录态就补拉一次，下拉列表保持最新
-  void auth.fetchHouseholds().then(refresh)
-})
-
-defineExpose({ refresh })
 </script>
 
 <style scoped>

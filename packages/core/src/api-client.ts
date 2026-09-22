@@ -23,7 +23,7 @@ export type ApiTransport = (
 ) => Promise<{ status: number; json: () => Promise<unknown> }>
 
 export interface ApiClientOptions {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   /** JSON body */
   body?: unknown
   /** 手动带 header */
@@ -100,6 +100,9 @@ export class ApiClient {
   }
   post<T>(path: string, body?: unknown) {
     return this.request<T>(path, { method: 'POST', body })
+  }
+  put<T>(path: string, body?: unknown) {
+    return this.request<T>(path, { method: 'PUT', body })
   }
   patch<T>(path: string, body?: unknown) {
     return this.request<T>(path, { method: 'PATCH', body })

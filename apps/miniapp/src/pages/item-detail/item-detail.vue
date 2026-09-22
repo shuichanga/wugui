@@ -1,5 +1,7 @@
 <template>
-  <view class="page page-tabbar-footer" :class="themeClass">
+  <!-- page-meta：状态栏/导航带高度写到 page 元素，标题与胶囊对齐 -->
+  <page-meta :page-style="pageStyle" />
+  <view class="page page-tabbar-footer" :class="themeClass" :style="topVars">
     <!-- 顶栏 -->
     <view class="topbar">
       <view class="topbar-back" @tap="goBack">
@@ -106,7 +108,9 @@ import { getCompartmentIcon, getFurnitureIcon, getRoomIcon } from '../../utils/r
 import AppTabbar from '../../components/AppTabbar.vue'
 import LocationIcon from '../../components/LocationIcon.vue'
 import { useTheme } from '../../composables/useTheme'
+import { useSafeArea } from '../../composables/useSafeArea'
 const { themeClass } = useTheme()
+const { topVars, pageStyle } = useSafeArea()
 
 const auth = useAuth()
 const itemId = ref('')

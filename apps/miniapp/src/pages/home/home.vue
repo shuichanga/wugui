@@ -1,5 +1,7 @@
 <template>
-  <view class="page home-page" :class="themeClass">
+  <!-- page-meta：状态栏/导航带高度写到 page 元素，标题与胶囊对齐 -->
+  <page-meta :page-style="pageStyle" />
+  <view class="page home-page" :class="themeClass" :style="topVars">
     <swiper
       class="home-swiper"
       :current="activeTab"
@@ -50,9 +52,11 @@ import TabSettings from '../../components/tabs/TabSettings.vue'
 import { useAuth } from '../../composables/useAuth'
 import { useTheme } from '../../composables/useTheme'
 import { useHomeTabs } from '../../composables/useHomeTabs'
+import { useSafeArea } from '../../composables/useSafeArea'
 
 const { themeClass } = useTheme()
 const { activeTab } = useHomeTabs()
+const { topVars, pageStyle } = useSafeArea()
 const auth = useAuth()
 
 // 懒挂载：首次切到某 tab 才挂载组件，之后常驻（滑动瞬时、滚动位置保留）
@@ -84,12 +88,12 @@ onShow(() => {
 </script>
 
 <style scoped>
-/* 容器：占满全屏，swiper 撑满剩余高度；状态栏高度由顶部 padding 让出 */
+/* 容器：占满全屏，swiper 撑满剩余高度；状态栏高度由顶部 padding 让出（真实值来自 useSafeArea） */
 .home-page {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  padding: calc(var(--status-bar-height, 0px) + 16rpx) 0 0;
+  padding: var(--status-bar-height, 0px) 0 0;
   overflow: hidden;
 }
 .home-swiper {

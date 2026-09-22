@@ -6,7 +6,7 @@
       <text class="head-link" @tap="goAbout">关于</text>
     </view>
 
-    <!-- 当前用户卡：头像可上传/移除（对齐 Web 端 settings 用户区） -->
+    <!-- 当前用户卡：头像可上传/移除（对齐 Web 端 settings 用户区）；昵称可点击改名 -->
     <view class="card user-card">
       <view class="avatar-wrap" @tap="onAvatarPick">
         <view class="avatar" :class="{ 'avatar-photo': avatarPath }">
@@ -18,7 +18,22 @@
         </view>
       </view>
       <view class="user-info">
-        <text class="user-name">{{ displayName }}</text>
+        <view class="name-row">
+          <text v-if="!editingName" class="user-name" @tap="startEditName">{{ displayName }}</text>
+          <input
+            v-else
+            v-model="nameDraft"
+            class="name-input"
+            :focus="editingName"
+            maxlength="20"
+            placeholder="请输入昵称"
+            @confirm="submitName"
+          />
+          <template v-if="editingName">
+            <text class="name-save" @tap="submitName">保存</text>
+            <text class="name-cancel" @tap="cancelEditName">取消</text>
+          </template>
+        </view>
         <text class="user-email">{{ accountLabel }}</text>
       </view>
       <view v-if="avatarPath" class="avatar-remove" @tap.stop="onAvatarRemove">
@@ -48,7 +63,7 @@
             <view
               v-if="h.id !== currentHouseholdId"
               class="switch-btn"
-              @tap="switchTo(h.id)"
+              @tap="onSwitch(h.id)"
             >
               <text>切换</text>
             </view>
@@ -68,7 +83,7 @@
               <text class="manage-sep">·</text>
               <text class="manage-link" @tap="startRename(h)">改名</text>
               <text class="manage-sep">·</text>
-              <text class="manage-link" @tap="resetInvite(h)">重置邀请码</text>
+              <text class="manage-link" @tap="onResetInvite(h)">重置邀请码</text>
             </template>
             <text v-else class="manage-link manage-link-danger" @tap="leaveHousehold(h)">退出该住所</text>
           </view>
@@ -230,16 +245,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import LocationIcon from '../LocationIcon.vue'
 import { useAuth } from '../../composables/useAuth'
 import {
   buildLocationTree, createItem, createLocation, getLocationPath, useStore,
+  migrateAnonToHousehold,
   type LocationTreeNode,
 } from '../../composables/useLocalData'
 import { useTheme, THEMES } from '../../composables/useTheme'
 import { useHomeTabs } from '../../composables/useHomeTabs'
 import { useAvatar } from '../../composables/useAvatar'
+import { useHouseholds, genInviteCode, type Household } from '../../composables/useHouseholds'
 import { pickLocalPhoto, removeLocalPhoto } from '../../utils/local-photo'
 
 const { theme, setTheme, boardStyle, setBoardStyle } = useTheme()
@@ -257,49 +274,48 @@ const accountLabel = computed(() => {
   return '微信登录'
 })
 
-// ---- 住所管理（本地模式：单住所模拟） ----
-// 小程序本地模式没有多住所概念，这里用本地存储模拟一个住所
-interface Household {
-  id: string
-  name: string
-  role: 'owner' | 'member'
-  inviteCode: string
+// ---- 修改昵称 ----
+const editingName = ref(false)
+const nameDraft = ref('')
+
+function startEditName() {
+  nameDraft.value = auth.state.user?.displayName ?? ''
+  editingName.value = true
 }
 
-const STORAGE_KEY_HOUSEHOLDS = 'wugui:households'
-const STORAGE_KEY_CURRENT = 'wugui:current-household'
+function cancelEditName() {
+  editingName.value = false
+  nameDraft.value = ''
+}
 
-const households = ref<Household[]>([])
-const currentHouseholdId = ref('')
-
-function loadHouseholds() {
-  try {
-    const raw = uni.getStorageSync(STORAGE_KEY_HOUSEHOLDS)
-    households.value = raw ? JSON.parse(raw) : []
-    currentHouseholdId.value = uni.getStorageSync(STORAGE_KEY_CURRENT) || (households.value[0]?.id ?? '')
-  } catch {
-    households.value = []
+async function submitName() {
+  const v = (nameDraft.value ?? '').trim()
+  if (!v) {
+    uni.showToast({ title: '昵称不能为空', icon: 'none' })
+    return
   }
-}
-
-function saveHouseholds() {
-  uni.setStorageSync(STORAGE_KEY_HOUSEHOLDS, JSON.stringify(households.value))
-  if (currentHouseholdId.value) {
-    uni.setStorageSync(STORAGE_KEY_CURRENT, currentHouseholdId.value)
+  editingName.value = false
+  nameDraft.value = ''
+  const ok = await auth.setDisplayName(v)
+  if (!ok) {
+    nameDraft.value = v
+    editingName.value = true
+    return
   }
+  uni.showToast({ title: '昵称已更新', icon: 'success' })
 }
 
-function genInviteCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  let s = ''
-  for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)]
-  return s
-}
+// ---- 住所管理（useHouseholds：与首页切换下拉共用同一份本地数据源） ----
+// 注意：genInviteCode 是从 useHouseholds.ts 的模块顶层 import 的，不是 useHouseholds() 返回的字段
+// 之前在解构里也写了一次 genInviteCode，会被 undefined 覆盖导致"无法创建住所"（undefined is not a function）
+const {
+  households, currentHouseholdId, currentHousehold, switchTo, upsert,
+  rename, resetInvite, remove, reload,
+} = useHouseholds()
 
-function switchTo(id: string) {
-  currentHouseholdId.value = id
-  saveHouseholds()
-  switchTab('home')
+/** 手动切换住所后回首页（数据上下文已随住所切换） */
+function onSwitch(id: string) {
+  if (switchTo(id)) switchTab('home')
 }
 
 // ---- 成员管理（本地模拟） ----
@@ -346,11 +362,7 @@ function leaveHousehold(h: Household) {
     confirmColor: '#dc2626',
     success: (res) => {
       if (!res.confirm) return
-      households.value = households.value.filter(x => x.id !== h.id)
-      if (currentHouseholdId.value === h.id) {
-        currentHouseholdId.value = households.value[0]?.id ?? ''
-      }
-      saveHouseholds()
+      remove(h.id)
       uni.showToast({ title: '已退出', icon: 'success' })
     },
   })
@@ -371,26 +383,18 @@ function submitRename(h: Household) {
     uni.showToast({ title: '请输入名称', icon: 'none' })
     return
   }
-  const idx = households.value.findIndex(x => x.id === h.id)
-  if (idx !== -1) {
-    households.value[idx].name = name.slice(0, 20)
-    saveHouseholds()
-  }
+  rename(h.id, name.slice(0, 20))
   renamingId.value = ''
   uni.showToast({ title: '已改名', icon: 'success' })
 }
 
-function resetInvite(h: Household) {
+function onResetInvite(h: Household) {
   uni.showModal({
     title: '重置邀请码',
     content: '重置后旧邀请码将失效',
     success: (res) => {
       if (!res.confirm) return
-      const idx = households.value.findIndex(x => x.id === h.id)
-      if (idx !== -1) {
-        households.value[idx].inviteCode = genInviteCode()
-        saveHouseholds()
-      }
+      resetInvite(h.id)
       uni.showToast({ title: '邀请码已重置', icon: 'success' })
     },
   })
@@ -408,19 +412,19 @@ function createHousehold() {
     uni.showToast({ title: '请输入住所名称', icon: 'none' })
     return
   }
-  const h: Household = {
-    id: 'local-' + Date.now(),
+  const newId = 'local-' + Date.now()
+  upsert({
+    id: newId,
     name: name.slice(0, 20),
     role: 'owner',
     inviteCode: genInviteCode(),
-  }
-  households.value.push(h)
-  currentHouseholdId.value = h.id
-  saveHouseholds()
+  })
+  // 迁移：把用户在此前（无住所态）提前录入的房间 / 物品 / 最近查看合并到新住所下，
+  // 避免"先建房间后建住所"造成的孤立数据。
+  const migrated = migrateAnonToHousehold(newId)
   showCreate.value = false
   createName.value = ''
-  uni.showToast({ title: '已创建', icon: 'success' })
-  switchTab('home')
+  uni.showToast({ title: migrated ? `已创建，归入 ${migrated} 条暂存数据` : '已创建', icon: 'none' })
 }
 
 function joinHousehold() {
@@ -430,25 +434,25 @@ function joinHousehold() {
     return
   }
   // 本地模式：模拟加入
-  const h: Household = {
-    id: 'joined-' + Date.now(),
+  const newId = 'joined-' + Date.now()
+  upsert({
+    id: newId,
     name: `邀请码 ${code}`,
     role: 'member',
     inviteCode: code,
-  }
-  households.value.push(h)
-  currentHouseholdId.value = h.id
-  saveHouseholds()
+  })
+  const migrated = migrateAnonToHousehold(newId)
   showJoin.value = false
   joinCode.value = ''
-  uni.showToast({ title: '已加入', icon: 'success' })
-  switchTab('home')
+  uni.showToast({ title: migrated ? `已加入，归入 ${migrated} 条暂存数据` : '已加入', icon: 'none' })
 }
 
 function copyCode(code: string) {
   uni.setClipboardData({
     data: code,
     success: () => uni.showToast({ title: '邀请码已复制', icon: 'success' }),
+    // 写剪贴板是隐私接口：被隐私授权拦截或系统拒绝时走 fail，必须给提示
+    fail: () => uni.showToast({ title: '复制失败，请重试', icon: 'none' }),
   })
 }
 
@@ -465,14 +469,8 @@ interface ExportItem {
 }
 
 function householdMeta(): { id: string; name: string } {
-  try {
-    const hs = JSON.parse(uni.getStorageSync('wugui:households') || '[]')
-    const cur = uni.getStorageSync('wugui:current-household')
-    const h = hs.find((x: { id: string; name: string }) => x.id === cur) ?? hs[0]
-    return { id: h?.id ?? 'local', name: h?.name ?? '我的住所' }
-  } catch {
-    return { id: 'local', name: '我的住所' }
-  }
+  const h = currentHousehold.value
+  return { id: h?.id ?? 'local', name: h?.name ?? '我的住所' }
 }
 
 function collectExportData() {
@@ -742,29 +740,28 @@ function onLogout() {
   })
 }
 
-onMounted(loadHouseholds)
-
-defineExpose({ refresh: loadHouseholds })
+defineExpose({ refresh: reload })
 </script>
 
 <style scoped>
 .tab-root {
-  padding-top: 8rpx;
+  padding-top: 0;
 }
 
-/* 页头：与其它页头一致的大标题居左（head 类名避开全局 .topbar 居中样式） */
+/* 页头：占满导航带高度，与右上角胶囊垂直居中（与"物品/空间"页头一致），关于为标题旁小链接 */
 .head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 20rpx;
-  padding: 20rpx 4rpx 8rpx;
+  min-height: var(--nav-bar-height, 88rpx);
+  padding: 8rpx 4rpx;
 }
 .head-title {
   font-family: var(--font-display);
   font-size: 40rpx;
   font-weight: 700;
   letter-spacing: 2rpx;
-  color: #182720;
+  color: var(--color-text);
 }
 .head-link {
   padding: 4rpx 16rpx;
@@ -839,6 +836,12 @@ defineExpose({ refresh: loadHouseholds })
   min-width: 0;
   flex: 1;
 }
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  min-width: 0;
+}
 .user-name {
   font-size: 34rpx;
   font-weight: 700;
@@ -846,6 +849,37 @@ defineExpose({ refresh: loadHouseholds })
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+.name-input {
+  flex: 1;
+  min-width: 0;
+  height: 56rpx;
+  padding: 0 20rpx;
+  background: #f3f6f2;
+  border: 1rpx solid #cdd6cf;
+  border-radius: 12rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #182720;
+  box-sizing: border-box;
+}
+.name-save,
+.name-cancel {
+  font-size: 24rpx;
+  font-weight: 600;
+  padding: 8rpx 20rpx;
+  border-radius: 999rpx;
+  flex-shrink: 0;
+}
+.name-save {
+  background: #16a34a;
+  color: #ffffff;
+}
+.name-cancel {
+  background: #f3f6f2;
+  color: #51605a;
 }
 .user-email {
   font-size: 24rpx;
