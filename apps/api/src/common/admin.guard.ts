@@ -13,7 +13,7 @@ export class AdminGuard implements CanActivate {
   canActivate(ctx: ExecutionContext): boolean {
     const req = ctx.switchToHttp().getRequest<FastifyRequest & Partial<AuthedRequest>>()
     const userId = req.user?.id ?? ''
-    const admins = this.config.get<AppConfig['adminUserIds']>('app') ?? []
+    const admins = this.config.get<AppConfig>('app')?.adminUserIds ?? []
     if (!userId || !admins.includes(userId)) {
       throw new ForbiddenException('无管理员权限')
     }

@@ -143,7 +143,7 @@ export class SubscriptionService {
    * offerId 未配置时返回 501，前端据此显示"暂未开放"。
    */
   async wechatPayStub(userId: string) {
-    const offerId = this.config.get<AppConfig['wechat']>('app')?.offerId
+    const offerId = this.config.get<AppConfig>('app')?.wechat?.offerId
     if (!offerId) {
       throw new NotImplementedException('虚拟支付暂未开放，请稍后再试')
     }

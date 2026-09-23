@@ -177,7 +177,7 @@ export class AuthService {
       })),
       currentHouseholdId: current,
       // 管理后台入口判定（服务端 AdminGuard 同源）
-      isAdmin: this.config.get<AppConfig['adminUserIds']>('app')?.includes(user.id) ?? false,
+      isAdmin: this.config.get<AppConfig>('app')?.adminUserIds?.includes(user.id) ?? false,
     }
   }
 
