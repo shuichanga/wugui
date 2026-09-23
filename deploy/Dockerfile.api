@@ -25,17 +25,11 @@ COPY . .
 RUN pnpm --filter @wugui/core build \
  && pnpm --filter @wugui/api build
 
-# 裁剪 devDependencies。锁文件冻结 + store 缓存挂载（与第 7 层共用），--prefer-offline 优先命中 store
-# 注意：GHA 上 BuildKit cache mount 不跨构建持久化，且第 7 层常因 lockfile 未变被层缓存跳过
-# （跳过 = store 没有回填），所以这里必须允许联网拉取：--offline 在 CI 空 store 上必然卡死/失败
-# 显式走 npmjs：GHA runner（美国）直连最快；npmmirror 跨境爬不完（ERR_PNPM_META_FETCH_FAIL 教训）
-# 必须带 --filter：不加会装全 workspace 的 prod 依赖（根包的 nuxt 全家桶）
-# 根包 Nuxt 依赖已全部移入 devDependencies（前端只产静态文件），--prod 时根包零安装
+# 直接使用上面全量 node_modules（不再做 prod 剪枝重装）：
+# GHA 上 `pnpm install --prod` 剪枝层两次卡死（--offline / --prefer-offline 均无输出挂起），
+# 而 --filter @wugui/api... 限定的 devDeps 只有 nest-cli/typescript/drizzle-kit 等少量包，
+# 根包 nuxt 不在内；多出的体积在 ACR VPC 内网拉取可忽略，可靠性优先。
 # （不能用 pnpm deploy：它内部强制按版本范围重新解析依赖元数据，服务器 3M 带宽下必然超时）
-RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
-    pnpm install --prod --frozen-lockfile --filter @wugui/api... --ignore-scripts \
-      --prefer-offline --registry=https://registry.npmjs.org \
-      --network-concurrency=8 --fetch-retries=5 --fetch-retry-maxtimeout=120000 --fetch-timeout=60000
 
 # workspace 符号链接（node_modules/@wugui/core → packages/core）替换为真实文件，
 # 运行镜像里不再有跨目录符号链接
