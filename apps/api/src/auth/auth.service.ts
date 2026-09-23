@@ -144,7 +144,9 @@ export class AuthService {
   async me(userId: string, currentHouseholdId: string) {
     const db = this.drizzle.db
     const found = await db.select().from(users).where(eq(users.id, userId))
-    if (!found.length) throw new NotFoundException('用户不存在')
+    // 401（而非 404）：JWT 有效但用户已不存在（如清库/注销）= 会话失效，
+    // Web 端 apiFetch 收到 401 会自动清会话跳登录，避免页面卡在"加载中"
+    if (!found.length) throw new UnauthorizedException('登录已失效，请重新登录')
     const user = found[0]
 
     const rows = await db
@@ -186,7 +188,8 @@ export class AuthService {
 
     const db = this.drizzle.db
     const found = await db.select({ id: users.id }).from(users).where(eq(users.id, userId))
-    if (!found.length) throw new NotFoundException('用户不存在')
+    // 同 me()：用户已不存在 = 会话失效，返回 401 触发前端重新登录
+    if (!found.length) throw new UnauthorizedException('登录已失效，请重新登录')
 
     await db.update(users).set({ displayName: name, updatedAt: new Date() }).where(eq(users.id, userId))
     return { displayName: name }
