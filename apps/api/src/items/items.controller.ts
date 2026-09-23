@@ -55,14 +55,19 @@ export class ItemsController {
   update(
     @Param('id') id: string,
     @Body() body: Record<string, unknown>,
+    @CurrentUser() user: SessionUser,
     @CurrentHouseholdId() householdId: string,
   ) {
-    return this.service.update(householdId, id, body)
+    return this.service.update(user, householdId, id, body)
   }
 
   /** DELETE /api/items/:id —— 删除 */
   @Delete(':id')
-  remove(@Param('id') id: string, @CurrentHouseholdId() householdId: string) {
-    return this.service.remove(householdId, id)
+  remove(
+    @Param('id') id: string,
+    @CurrentUser() user: SessionUser,
+    @CurrentHouseholdId() householdId: string,
+  ) {
+    return this.service.remove(user, householdId, id)
   }
 }

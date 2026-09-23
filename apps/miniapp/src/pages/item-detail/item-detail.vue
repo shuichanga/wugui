@@ -17,18 +17,18 @@
     </view>
 
     <template v-else>
-      <!-- 照片 hero：多张横向滑动 + 圆点指示 -->
+      <!-- 照片 hero：多张横向滑动 + 圆点指示（本地 photoPaths 优先，云端 photoRefs 紧随） -->
       <view class="hero">
         <swiper
-          v-if="item.photoPaths && item.photoPaths.length"
+          v-if="photos.length"
           class="hero-swiper"
           :circular="false"
-          :indicator-dots="item.photoPaths.length > 1"
+          :indicator-dots="photos.length > 1"
           indicator-active-color="#ffffff"
           indicator-color="rgba(255,255,255,0.4)"
         >
-          <swiper-item v-for="(p, i) in item.photoPaths" :key="i">
-            <image :src="p" mode="aspectFill" class="hero-img" @tap="previewPhoto(i)" />
+          <swiper-item v-for="(p, i) in photos" :key="p.key">
+            <image :src="p.src" mode="aspectFill" class="hero-img" @tap="previewPhoto(i)" />
           </swiper-item>
         </swiper>
         <view v-else class="hero-empty">
@@ -104,6 +104,7 @@ import {
   deleteItem, getItem, getLocation, getLocationPath, recordRecentView, type LocalItem,
 } from '../../composables/useLocalData'
 import { formatDateTime, removeLocalPhotos, tagStyle } from '../../utils/local-photo'
+import { resolvePhotoUrl } from '../../utils/photo-uploader'
 import { getCompartmentIcon, getFurnitureIcon, getRoomIcon } from '../../utils/room-style'
 import AppTabbar from '../../components/AppTabbar.vue'
 import LocationIcon from '../../components/LocationIcon.vue'
@@ -119,6 +120,8 @@ const locationName = ref('')
 const locPath = ref('')
 const locLevel = ref('room')
 const heroIndex = ref(0)
+/** 展示用照片列表：本地路径 + 云端 photoRefs（签名 URL 异步解析后追加） */
+const photos = ref<Array<{ key: string; src: string }>>([])
 
 const locIcon = computed(() => {
   if (locLevel.value === 'furniture') return getFurnitureIcon(locationName.value)
@@ -135,6 +138,27 @@ function refresh() {
     locLevel.value = loc?.level ?? 'room'
     locPath.value = getLocationPath(item.value.locationId)
   }
+  void rebuildPhotos()
+}
+
+/** 本地路径立即展示；云端引用逐个解析签名 URL 后追加（并发解析、先到先显示） */
+async function rebuildPhotos() {
+  const cur = item.value
+  if (!cur) {
+    photos.value = []
+    return
+  }
+  const locals = (cur.photoPaths ?? []).map(p => ({ key: p, src: p }))
+  photos.value = locals
+  const refs = cur.photoRefs ?? []
+  const resolved = await Promise.all(refs.map(async r => {
+    const src = await resolvePhotoUrl(r.photoId)
+    return src ? { key: r.photoId, src } : null
+  }))
+  // await 期间 item 可能已切换或刷新，校验后再合并
+  if (item.value && item.value.id === cur.id) {
+    photos.value = [...locals, ...resolved.filter((p): p is { key: string; src: string } => p !== null)]
+  }
 }
 
 function goBack() {
@@ -149,8 +173,8 @@ function goLocation() {
   uni.navigateTo({ url: `/pages/location-detail/location-detail?id=${item.value.locationId}` })
 }
 function previewPhoto(i: number) {
-  if (!item.value?.photoPaths?.length) return
-  uni.previewImage({ current: item.value.photoPaths[i], urls: item.value.photoPaths })
+  if (!photos.value.length) return
+  uni.previewImage({ current: photos.value[i]?.src, urls: photos.value.map(p => p.src) })
 }
 function onHeroChange(e: any) {
   heroIndex.value = e?.detail?.current ?? 0

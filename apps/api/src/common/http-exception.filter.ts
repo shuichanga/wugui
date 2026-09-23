@@ -13,6 +13,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     let statusCode = 500
     let statusMessage = '服务器内部错误'
+    let code: string | undefined
 
     if (exception instanceof HttpException) {
       statusCode = exception.getStatus()
@@ -22,6 +23,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
       } else if (body && typeof body === 'object') {
         const b = body as Record<string, unknown>
         statusMessage = (b.statusMessage as string) ?? (b.message as string) ?? statusMessage
+        // 业务错误码透传（如 SUBSCRIPTION_REQUIRED），客户端据此精确分支
+        code = typeof b.code === 'string' ? b.code : undefined
       }
     } else {
       // 未知异常：打完整堆栈（数据库错误、代码 bug 都在这暴露）
@@ -30,6 +33,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
       )
     }
 
-    reply.status(statusCode).send({ statusCode, statusMessage })
+    reply.status(statusCode).send({ statusCode, statusMessage, ...(code ? { code } : {}) })
   }
 }

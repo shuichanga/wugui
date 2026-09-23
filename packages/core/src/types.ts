@@ -119,19 +119,33 @@ export interface CreateItemInput {
   tags?: string[]
 }
 
+// ---- 云同步契约（M2 LWW）----
+
+/** 同步变更实体：与服务端 sync_changes.entity 枚举一致（复数表名） */
+export type SyncEntity = 'items' | 'locations' | 'item_photos'
+
 export interface SyncChange {
-  entity: 'item' | 'location' | 'household' | 'tag'
+  entity: SyncEntity
   entityId: string
   op: 'create' | 'update' | 'delete'
-  data: Record<string, unknown>
+  /** items: { name, locationId, quantity, notes, tags, createdAt }；locations: { name, parentId, level, icon, sortOrder }；item_photos 仅服务端 REST 写路径记录 */
+  data: Record<string, unknown> | null
+  /** 客户端设备时钟（ISO），LWW 比较基准 */
   clientTimestamp: string
 }
 
+/** POST /api/sync/push 响应：逐条结果（目标状态已达成也记 accepted，客户端据此移除 Outbox 条目） */
 export interface SyncPushResponse {
-  accepted: number
-  conflicts: Array<{
-    entity: string
-    entityId: string
-    serverVersion: Record<string, unknown>
-  }>
+  results: Array<{ entity: SyncEntity; entityId: string; op: string; status: 'accepted' | 'stale' }>
+  serverTime: string
+}
+
+/** GET /api/sync/pull 增量响应（since 缺省时返回 snapshot 快照） */
+export interface SyncPullResponse {
+  changes?: SyncChange[]
+  snapshot?: {
+    locations: Array<Record<string, unknown>>
+    items: Array<Record<string, unknown>>
+  }
+  serverTime: string
 }

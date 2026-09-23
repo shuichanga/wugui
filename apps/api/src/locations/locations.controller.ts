@@ -1,6 +1,7 @@
 // 空间路由：/api/locations
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post } from '@nestjs/common'
-import { CurrentHouseholdId } from '../auth/current-user.decorator'
+import { CurrentUser, CurrentHouseholdId } from '../auth/current-user.decorator'
+import type { SessionUser } from '../auth/session.types'
 import { LocationsService } from './locations.service'
 
 @Controller('locations')
@@ -18,9 +19,10 @@ export class LocationsController {
   @Post()
   create(
     @Body() body: Record<string, unknown>,
+    @CurrentUser() user: SessionUser,
     @CurrentHouseholdId() householdId: string,
   ) {
-    return this.service.create(householdId, {
+    return this.service.create(user, householdId, {
       name: String(body.name ?? ''),
       icon: body.icon ? String(body.icon) : null,
       parentId: body.parentId ? String(body.parentId) : null,
@@ -32,9 +34,10 @@ export class LocationsController {
   update(
     @Param('id') id: string,
     @Body() body: Record<string, unknown>,
+    @CurrentUser() user: SessionUser,
     @CurrentHouseholdId() householdId: string,
   ) {
-    return this.service.update(householdId, id, {
+    return this.service.update(user, householdId, id, {
       name: String(body.name ?? ''),
       icon: body.icon ? String(body.icon) : null,
     })
@@ -42,7 +45,11 @@ export class LocationsController {
 
   /** DELETE /api/locations/:id —— 删除空间（有子空间/直挂物品时 409） */
   @Delete(':id')
-  remove(@Param('id') id: string, @CurrentHouseholdId() householdId: string) {
-    return this.service.remove(householdId, id)
+  remove(
+    @Param('id') id: string,
+    @CurrentUser() user: SessionUser,
+    @CurrentHouseholdId() householdId: string,
+  ) {
+    return this.service.remove(user, householdId, id)
   }
 }

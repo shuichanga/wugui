@@ -1,12 +1,12 @@
-// 物品业务：列表检索 / 新增 / 详情 / 编辑 / 删除
+// 物品业务：列表检索 / 新增 / 详情 / 编辑 / 删除（M2：软删 + 同步日志，Web 写入对小程序可见）
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
-import { and, asc, desc, eq, inArray, like, or, sql, type SQL } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, isNull, like, or, sql, type SQL } from 'drizzle-orm'
 import { itemPhotos, itemTags, items, locations, recentViews } from '../db/schema'
 import { DrizzleService } from '../db/database.service'
 import { decorateItems } from '../common/item-summary'
 import { getLocationPathMap } from '../common/location-tree'
+import { SyncLogService } from '../common/sync-log.service'
 import { LocationsService } from '../locations/locations.service'
-import { OssService } from '../oss/oss.service'
 import type { SessionUser } from '../auth/session.types'
 
 const NAME_MAX = 100
@@ -25,7 +25,7 @@ export class ItemsService {
   constructor(
     private readonly drizzle: DrizzleService,
     private readonly locationsService: LocationsService,
-    private readonly oss: OssService,
+    private readonly syncLog: SyncLogService,
   ) {}
 
   /** GET /api/items —— keyword（名称/备注/标签模糊）、location_id（含所有后代）、tag 过滤 */
@@ -37,7 +37,7 @@ export class ItemsService {
     const offset = Math.max(0, Math.floor(Number(q.offset) || 0))
 
     const db = this.drizzle.db
-    const conditions: SQL[] = [eq(items.householdId, householdId)]
+    const conditions: SQL[] = [eq(items.householdId, householdId), isNull(items.deletedAt)]
 
     if (keyword) {
       conditions.push(or(
@@ -87,7 +87,7 @@ export class ItemsService {
     const loc = await db
       .select({ id: locations.id })
       .from(locations)
-      .where(and(eq(locations.id, input.locationId), eq(locations.householdId, householdId)))
+      .where(and(eq(locations.id, input.locationId), eq(locations.householdId, householdId), isNull(locations.deletedAt)))
     if (!loc.length) throw new NotFoundException('收纳空间不存在')
 
     const now = new Date()
@@ -107,6 +107,16 @@ export class ItemsService {
       await db.insert(itemTags).values(tags.map(tag => ({ itemId: id, tag })))
     }
 
+    // 同步日志：小程序 pull 增量获取 Web 端写入
+    await this.syncLog.appendChange({
+      householdId,
+      userId: user.id,
+      entity: 'items',
+      entityId: id,
+      op: 'create',
+      data: { name, locationId: input.locationId, quantity, notes, tags, createdAt: now.toISOString() },
+    })
+
     return { id, name, quantity, tags }
   }
 
@@ -116,7 +126,7 @@ export class ItemsService {
     const rows = await db
       .select()
       .from(items)
-      .where(and(eq(items.id, id), eq(items.householdId, householdId)))
+      .where(and(eq(items.id, id), eq(items.householdId, householdId), isNull(items.deletedAt)))
     if (!rows.length) throw new NotFoundException('物品不存在')
 
     const [pathMap, photoRows] = await Promise.all([
@@ -134,12 +144,12 @@ export class ItemsService {
   }
 
   /** PATCH /api/items/:id —— 名称/数量/备注/空间/标签（标签整体替换） */
-  async update(householdId: string, id: string, body: Record<string, unknown>) {
+  async update(user: SessionUser, householdId: string, id: string, body: Record<string, unknown>) {
     const db = this.drizzle.db
     const found = await db
       .select({ id: items.id })
       .from(items)
-      .where(and(eq(items.id, id), eq(items.householdId, householdId)))
+      .where(and(eq(items.id, id), eq(items.householdId, householdId), isNull(items.deletedAt)))
     if (!found.length) throw new NotFoundException('物品不存在')
 
     const updates: Record<string, unknown> = { updatedAt: new Date() }
@@ -161,7 +171,7 @@ export class ItemsService {
       const loc = await db
         .select({ id: locations.id })
         .from(locations)
-        .where(and(eq(locations.id, locationId), eq(locations.householdId, householdId)))
+        .where(and(eq(locations.id, locationId), eq(locations.householdId, householdId), isNull(locations.deletedAt)))
       if (!loc.length) throw new NotFoundException('收纳空间不存在')
       updates.locationId = locationId
     }
@@ -174,37 +184,58 @@ export class ItemsService {
     }
 
     await db.update(items).set(updates).where(eq(items.id, id))
+
+    // 同步日志：拉取最新全量状态（简化 push 契约，Web 端写入对小程序可见）
+    const [row] = await db.select().from(items).where(eq(items.id, id))
+    const tagRows = await db.select({ tag: itemTags.tag }).from(itemTags).where(eq(itemTags.itemId, id))
+    await this.syncLog.appendChange({
+      householdId,
+      userId: user.id,
+      entity: 'items',
+      entityId: id,
+      op: 'update',
+      data: {
+        name: row.name,
+        locationId: row.locationId,
+        quantity: row.quantity,
+        notes: row.notes,
+        tags: tagRows.map(t => t.tag),
+        createdAt: row.createdAt.toISOString(),
+      },
+    })
+
     return { ok: true, id }
   }
 
-  /** DELETE /api/items/:id —— 删除物品 + 级联清理（标签 / 浏览记录 / 照片 DB 记录 / OSS 对象） */
-  async remove(householdId: string, id: string) {
+  /**
+   * DELETE /api/items/:id —— M2 软删：置墓碑 + 清标签，照片 DB 记录保留、OSS 延迟清理
+   * （其他设备 pull 到 delete 前照片仍可读，避免 404；孤儿 OSS 对象由清理任务兜底）
+   */
+  async remove(user: SessionUser, householdId: string, id: string) {
     const db = this.drizzle.db
     const found = await db
       .select({ id: items.id })
       .from(items)
-      .where(and(eq(items.id, id), eq(items.householdId, householdId)))
+      .where(and(eq(items.id, id), eq(items.householdId, householdId), isNull(items.deletedAt)))
     if (!found.length) throw new NotFoundException('物品不存在')
 
-    // 照片记录先取出来，删完 DB 再逐个删 OSS 对象（失败只告警，孤儿对象由清理任务兜底）
-    const photoRows = await db
-      .select({ ossKey: itemPhotos.ossKey })
-      .from(itemPhotos)
-      .where(eq(itemPhotos.itemId, id))
-
-    await db.delete(itemPhotos).where(eq(itemPhotos.itemId, id))
-    await db.delete(itemTags).where(eq(itemTags.itemId, id))
-    await db.delete(items).where(eq(items.id, id))
+    const now = new Date()
+    await db.transaction(async tx => {
+      await tx.update(items).set({ deletedAt: now, updatedAt: now }).where(eq(items.id, id))
+      await tx.delete(itemTags).where(eq(itemTags.itemId, id))
+    })
+    // 浏览记录是纯 UX 数据，直接物理清（不同步）
     await db.delete(recentViews).where(eq(recentViews.itemId, id))
 
-    // OSS 删除放最后：网络失败不影响已完成的 DB 清理
-    for (const p of photoRows) {
-      try {
-        await this.oss.deleteObject(p.ossKey)
-      } catch (e) {
-        console.warn(`[items] OSS 照片删除失败 ${p.ossKey}:`, e)
-      }
-    }
+    await this.syncLog.appendChange({
+      householdId,
+      userId: user.id,
+      entity: 'items',
+      entityId: id,
+      op: 'delete',
+      data: null,
+    })
+
     return { ok: true }
   }
 
@@ -214,7 +245,7 @@ export class ItemsService {
       SELECT t.tag, count(*) as count
       FROM item_tags t
       JOIN items i ON t.item_id = i.id
-      WHERE i.household_id = ${householdId}
+      WHERE i.household_id = ${householdId} AND i.deleted_at IS NULL
       GROUP BY t.tag
       ORDER BY count(*) DESC
       LIMIT 20
@@ -238,7 +269,7 @@ export class ItemsService {
       })
       .from(recentViews)
       .innerJoin(items, eq(items.id, recentViews.itemId))
-      .where(and(eq(recentViews.userId, userId), eq(items.householdId, householdId)))
+      .where(and(eq(recentViews.userId, userId), eq(items.householdId, householdId), isNull(items.deletedAt)))
       .orderBy(desc(recentViews.viewedAt))
       .limit(l)
 
@@ -250,13 +281,13 @@ export class ItemsService {
   async recordView(userId: string, householdId: string, itemId: string) {
     if (!itemId) throw new BadRequestException('缺少 itemId')
     const db = this.drizzle.db
+    const now = new Date()
     const found = await db
       .select({ id: items.id })
       .from(items)
-      .where(and(eq(items.id, itemId), eq(items.householdId, householdId)))
+      .where(and(eq(items.id, itemId), eq(items.householdId, householdId), isNull(items.deletedAt)))
     if (!found.length) throw new NotFoundException('物品不存在')
 
-    const now = new Date()
     await db
       .insert(recentViews)
       .values({ userId, itemId, viewedAt: now })

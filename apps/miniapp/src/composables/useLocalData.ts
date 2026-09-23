@@ -1,10 +1,11 @@
 // 本地数据仓库：物品 / 空间 / 最近查看，全部读写走本地（离线优先）
-// M2 接入同步时，写操作会同时追加进 Outbox 队列，接口保持不变
+// M2：写操作同时追加进 Outbox 队列（订阅住所由 useSync 后台 push/pull），接口保持不变
+// 已同步数据的删除走软删（deletedAt 墓碑），匿名（anon）数据不入队、不同步
 //
 // 无住所（首次登录、未新建/加入）时，读写落到 "anon" 命名空间：
 //   用户可以先建房间/物品，后续在「我的」页新建/加入住所时，
 //   这些数据会通过 migrateAnonToHousehold 自动归入新住所，不会成为孤立数据。
-import { createKVLocalStore, newId, nowIso, type LocalRecord, type LocalStore } from '@wugui/core'
+import { createKVLocalStore, createOutbox, newId, nowIso, type LocalRecord, type LocalStore, type Outbox } from '@wugui/core'
 import { kvDriver } from '../utils/kv'
 import { useAuth } from './useAuth'
 
@@ -14,8 +15,10 @@ export interface LocalItem extends LocalRecord {
   notes: string | null
   locationId: string
   tags: string[]
-  /** 本地照片路径数组（M1 免费用户仅本地保存，不走 OSS） */
+  /** 本地照片路径数组（未上传 OSS 的本地暂存） */
   photoPaths: string[]
+  /** 云端照片引用（pull 回流 + 上传 confirm 后回填），展示优先级：photoPaths > photoRefs */
+  photoRefs?: Array<{ photoId: string; ossKey: string; sortOrder?: number }>
   /** 首次录入时间（区别于 updatedAt，用于详情页显示"添加于"） */
   createdAt: string
 }
@@ -28,6 +31,9 @@ export interface LocalLocation extends LocalRecord {
   parentId: string | null
   /** 层级：room（房间）→ furniture（家具）→ compartment（格位） */
   level: LocationLevel
+  /** 云端回流字段（小程序本地创建时为 null/0） */
+  icon?: string | null
+  sortOrder?: number
 }
 
 /** 空间树节点（附物品计数） */
@@ -58,6 +64,23 @@ function currentStore(): LocalStore {
   return createKVLocalStore(kvDriver, namespace)
 }
 
+/** 取当前住所的 Outbox；anon 命名空间返回 null（永不同步） */
+export function currentOutbox(): Outbox | null {
+  const auth = useAuth()
+  const hid = auth.state.householdId
+  if (!hid) return null
+  return createOutbox(kvDriver, hid)
+}
+
+// 本地写操作后的同步钩子（由 useSync 注册 scheduleSync，避免循环 import）
+let onLocalWrite: (() => void) | null = null
+export function setOnLocalWrite(fn: () => void): void {
+  onLocalWrite = fn
+}
+function notifyWrite(): void {
+  try { onLocalWrite?.() } catch { /* ignore */ }
+}
+
 export function useStore(): {
   store: LocalStore
   items: () => LocalItem[]
@@ -69,8 +92,9 @@ export function useStore(): {
     // 若在 setup 时一次性捕获 store，新建/切换住所后仍读旧命名空间，
     // 表现为"数据没归入新住所"。getter 让每次访问都解析当前住所。
     get store() { return currentStore() },
-    items: () => currentStore().list<LocalItem>(ITEM).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
-    locations: () => currentStore().list<LocalLocation>(LOCATION).sort((a, b) => a.name.localeCompare(b.name, 'zh')),
+    // 列表读取过滤软删墓碑（同步用户与免费用户统一行为）
+    items: () => currentStore().list<LocalItem>(ITEM).filter(r => !r.deletedAt).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+    locations: () => currentStore().list<LocalLocation>(LOCATION).filter(r => !r.deletedAt).sort((a, b) => a.name.localeCompare(b.name, 'zh')),
     recentViews: () => currentStore().list<LocalRecentView>(RECENT).sort((a, b) => b.viewedAt.localeCompare(a.viewedAt)),
   }
 }
@@ -120,13 +144,30 @@ export function createItem(input: {
   const { store } = useStore()
   const id = newId()
   const now = nowIso()
-  store.put<LocalItem>(ITEM, {
+  const record: LocalItem = {
     id,
     createdAt: now,
     updatedAt: now,
     deletedAt: null,
     ...input,
+  }
+  store.put<LocalItem>(ITEM, record)
+  // M2：入 Outbox（sync push 上行）；anon 命名空间自动跳过
+  currentOutbox()?.enqueue({
+    entity: 'items',
+    entityId: id,
+    op: 'create',
+    data: {
+      name: record.name,
+      locationId: record.locationId,
+      quantity: record.quantity,
+      notes: record.notes,
+      tags: record.tags,
+      createdAt: record.createdAt,
+    },
+    clientTimestamp: now,
   })
+  notifyWrite()
   return id
 }
 
@@ -137,21 +178,52 @@ export function updateItem(id: string, input: Partial<{
   locationId: string
   tags: string[]
   photoPaths: string[]
+  photoRefs: Array<{ photoId: string; ossKey: string; sortOrder?: number }>
 }>) {
   const { store } = useStore()
   const old = store.get<LocalItem>(ITEM, id)
   if (!old) return
-  store.put<LocalItem>(ITEM, { ...old, ...input, updatedAt: nowIso() })
+  const now = nowIso()
+  const merged = { ...old, ...input, updatedAt: now }
+  store.put<LocalItem>(ITEM, merged)
+  // 全量字段契约（服务端按 data 整体覆盖），photoPaths/photoRefs 是本地概念不入队
+  currentOutbox()?.enqueue({
+    entity: 'items',
+    entityId: id,
+    op: 'update',
+    data: {
+      name: merged.name,
+      locationId: merged.locationId,
+      quantity: merged.quantity,
+      notes: merged.notes,
+      tags: merged.tags,
+      createdAt: merged.createdAt,
+    },
+    clientTimestamp: now,
+  })
+  notifyWrite()
 }
 
 export function deleteItem(id: string) {
   const { store } = useStore()
-  store.remove(ITEM, id)
-  // 同步清除最近查看
+  const old = store.get<LocalItem>(ITEM, id)
+  if (!old) return
+  const now = nowIso()
+  // M2：软删墓碑（已同步数据硬删会让其他设备丢失删除意图）
+  store.put<LocalItem>(ITEM, { ...old, deletedAt: now, updatedAt: now })
+  currentOutbox()?.enqueue({
+    entity: 'items',
+    entityId: id,
+    op: 'delete',
+    data: null,
+    clientTimestamp: now,
+  })
+  // 同步清除最近查看（纯 UX 数据，物理清）
   const { recentViews } = useStore()
   for (const v of recentViews()) {
     if (v.itemId === id) store.remove<LocalRecentView>(RECENT, v.id)
   }
+  notifyWrite()
 }
 
 export function getItem(id: string): LocalItem | null {
@@ -160,7 +232,7 @@ export function getItem(id: string): LocalItem | null {
 }
 
 export function createLocation(name: string, parentId?: string | null): string {
-  const { store, locations } = useStore()
+  const { store } = useStore()
   const id = newId()
   const pid = parentId?.trim() || null
   // level 由父级推导：无父 → room；room 下 → furniture；furniture 下 → compartment
@@ -171,15 +243,25 @@ export function createLocation(name: string, parentId?: string | null): string {
     const pLevel = parent.level ?? 'room'
     level = pLevel === 'room' ? 'furniture' : 'compartment'
   }
-  store.put<LocalLocation>(LOCATION, {
+  const now = nowIso()
+  const record: LocalLocation = {
     id,
-    createdAt: nowIso(),
-    updatedAt: nowIso(),
+    createdAt: now,
+    updatedAt: now,
     deletedAt: null,
     name: name.slice(0, 30),
     parentId: pid,
     level,
+  }
+  store.put<LocalLocation>(LOCATION, record)
+  currentOutbox()?.enqueue({
+    entity: 'locations',
+    entityId: id,
+    op: 'create',
+    data: { name: record.name, parentId: record.parentId, level: record.level, icon: null, sortOrder: 0 },
+    clientTimestamp: now,
   })
+  notifyWrite()
   return id
 }
 
@@ -191,8 +273,57 @@ export function deleteLocation(id: string): { ok: boolean; reason?: string } {
   if (hasChildren) return { ok: false, reason: '请先删除子空间' }
   const hasItems = items().some(i => i.locationId === id)
   if (hasItems) return { ok: false, reason: '请先移出该空间下的物品' }
-  store.remove(LOCATION, id)
+  const now = nowIso()
+  // M2：软删墓碑
+  store.put<LocalLocation>(LOCATION, { ...target, deletedAt: now, updatedAt: now })
+  currentOutbox()?.enqueue({
+    entity: 'locations',
+    entityId: id,
+    op: 'delete',
+    data: null,
+    clientTimestamp: now,
+  })
+  notifyWrite()
   return { ok: true }
+}
+
+/**
+ * 把当前住所命名空间下全部存活 items / locations 入 Outbox（op=create，全量上行）。
+ * 用于 anon→登录迁移、新建/加入住所后首次 push：服务端此前不知道这些本地数据。
+ * 幂等：Outbox 合并策略保证重复 enqueue 不会产生重复条目。
+ */
+export function enqueueAllLocal(): void {
+  const outbox = currentOutbox()
+  if (!outbox) return
+  const { store } = useStore()
+  const now = nowIso()
+  for (const l of store.list<LocalLocation>(LOCATION)) {
+    if (l.deletedAt) continue
+    outbox.enqueue({
+      entity: 'locations',
+      entityId: l.id,
+      op: 'create',
+      data: { name: l.name, parentId: l.parentId, level: l.level, icon: l.icon ?? null, sortOrder: l.sortOrder ?? 0 },
+      clientTimestamp: l.updatedAt || now,
+    })
+  }
+  for (const it of store.list<LocalItem>(ITEM)) {
+    if (it.deletedAt) continue
+    outbox.enqueue({
+      entity: 'items',
+      entityId: it.id,
+      op: 'create',
+      data: {
+        name: it.name,
+        locationId: it.locationId,
+        quantity: it.quantity,
+        notes: it.notes,
+        tags: it.tags,
+        createdAt: it.createdAt,
+      },
+      clientTimestamp: it.updatedAt || now,
+    })
+  }
 }
 
 export function getLocation(id: string): LocalLocation | null {

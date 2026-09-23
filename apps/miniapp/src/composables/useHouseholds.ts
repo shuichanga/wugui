@@ -7,6 +7,7 @@
 // 物品/空间/最近查看随住所自动隔离。
 import { computed, ref } from 'vue'
 import { useAuth } from './useAuth'
+import { syncOnHouseholdSwitch } from './useSync'
 
 export interface Household {
   id: string
@@ -88,12 +89,13 @@ export function useHouseholds() {
   /** 无住所时返回空串（调用方自行决定兜底文案） */
   const householdName = computed(() => currentHousehold.value?.name ?? '')
 
-  /** 切换当前住所；id 不存在返回 false */
+  /** 切换当前住所；id 不存在返回 false（M2：切后重建同步引擎并立即同步） */
   function switchTo(id: string): boolean {
     if (!households.value.some(h => h.id === id)) return false
     currentHouseholdId.value = id
     persist()
     syncAuth()
+    void syncOnHouseholdSwitch()
     return true
   }
 
@@ -121,7 +123,7 @@ export function useHouseholds() {
     persist()
   }
 
-  /** 退出 / 删除；若删的是当前住所则回退到第一个 */
+  /** 退出 / 删除；若删的是当前住所则回退到第一个（M2：回退后同样重建同步引擎） */
   function remove(id: string) {
     households.value = households.value.filter(x => x.id !== id)
     if (currentHouseholdId.value === id) {
@@ -129,6 +131,7 @@ export function useHouseholds() {
     }
     persist()
     syncAuth()
+    void syncOnHouseholdSwitch()
   }
 
   /** 重新从本地存储读（其他视图可能改过） */

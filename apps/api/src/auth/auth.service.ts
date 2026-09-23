@@ -6,6 +6,7 @@ import { users, households, householdMembers } from '../db/schema'
 import { DrizzleService } from '../db/database.service'
 import { SessionService } from './session.service'
 import type { SessionPayload } from './session.types'
+import type { AppConfig } from '../config'
 
 const USERNAME_RE = /^[a-zA-Z0-9_]{2,20}$/
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -173,6 +174,8 @@ export class AuthService {
         inviteCode: r.role === 'owner' ? r.inviteCode : undefined,
       })),
       currentHouseholdId: current,
+      // 管理后台入口判定（服务端 AdminGuard 同源）
+      isAdmin: this.config.get<AppConfig['adminUserIds']>('app')?.includes(user.id) ?? false,
     }
   }
 

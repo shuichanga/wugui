@@ -1,4 +1,4 @@
-﻿// 物归 - MySQL schema（完整版）
+// 物归 - MySQL schema（完整版）
 // 改造要点：
 //   1. 开放注册：注册即自动创建自己的住所（owner），邀请码保留为"邀请家人加入已有住所"的二级功能
 //   2. username 登录：username 可选（微信登录用户可后补），登录支持 username 或 email
@@ -70,6 +70,8 @@ export const locations = mysqlTable(
     sortOrder: int('sort_order').notNull().default(0),
     createdAt: datetime('created_at').notNull(),
     updatedAt: datetime('updated_at').notNull(),
+    // M2 软删墓碑：null=存活；同步 delete 与 REST 删除都置此字段（OSS/照片延迟清理）
+    deletedAt: datetime('deleted_at'),
   },
   (t) => [
     index('idx_locations_household').on(t.householdId),
@@ -89,6 +91,8 @@ export const items = mysqlTable(
     ownerId: varchar('owner_id', { length: 36 }).notNull(),
     createdAt: datetime('created_at').notNull(),
     updatedAt: datetime('updated_at').notNull(),
+    // M2 软删墓碑：null=存活；LWW 比较基准即 updatedAt/deletedAt 列值
+    deletedAt: datetime('deleted_at'),
   },
   (t) => [
     index('idx_items_household').on(t.householdId),
@@ -162,7 +166,8 @@ export const syncChanges = mysqlTable(
   {
     id: varchar('id', { length: 36 }).primaryKey(),
     userId: varchar('user_id', { length: 36 }).notNull(),
-    // 'items' | 'locations' | 'households' | 'item_photos' | 'item_tags'
+    householdId: varchar('household_id', { length: 36 }).notNull(),
+    // 'items' | 'locations' | 'item_photos'
     entity: varchar('entity', { length: 32 }).notNull(),
     entityId: varchar('entity_id', { length: 36 }).notNull(),
     // 'create' | 'update' | 'delete'
@@ -172,5 +177,9 @@ export const syncChanges = mysqlTable(
     clientTimestamp: datetime('client_timestamp').notNull(),
     syncedAt: datetime('synced_at').notNull(),
   },
-  (t) => [index('idx_sync_user_time').on(t.userId, t.clientTimestamp)],
+  (t) => [
+    index('idx_sync_user_time').on(t.userId, t.clientTimestamp),
+    // pull 增量游标走 syncedAt（服务端单调时钟，不受客户端漂移影响）
+    index('idx_sync_household_time').on(t.householdId, t.syncedAt),
+  ],
 )

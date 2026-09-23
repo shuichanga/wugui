@@ -1,11 +1,19 @@
 <script setup lang="ts">
 // 全局生命周期：只放与页面无关的一次性初始化，登录跳转守卫仍在各页 onShow 里处理
-import { onLaunch } from '@dcloudio/uni-app'
+import { onLaunch, onShow } from '@dcloudio/uni-app'
 import { registerPrivacyListener } from './composables/usePrivacy'
+import { initSync, syncOnForeground } from './composables/useSync'
 
 onLaunch(() => {
   // 微信隐私授权监听是全局单例，必须在这里注册一次，各页 PrivacyPopup 才会被唤起
   registerPrivacyListener()
+  // M2 云同步：注册"写后防抖同步"钩子 + 网络恢复监听（幂等，仅执行一次）
+  initSync()
+})
+
+// 每次回前台：刷新会员态并尝试同步（push Outbox / pull 增量）
+onShow(() => {
+  void syncOnForeground()
 })
 </script>
 

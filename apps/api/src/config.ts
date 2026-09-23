@@ -6,6 +6,8 @@ export const appConfig = registerAs('app', () => ({
   databaseUrl: process.env.DATABASE_URL ?? 'mysql://wugui:wugui@localhost:3306/wugui',
   jwtSecret: process.env.JWT_SECRET ?? 'dev-insecure-secret-change-me',
   jwtExpires: process.env.JWT_EXPIRES ?? '7d',
+  // 管理员用户 id 列表（逗号分隔）：manual 订阅开通 + Web 管理后台
+  adminUserIds: (process.env.ADMIN_USER_IDS ?? '').split(',').map(s => s.trim()).filter(Boolean),
   // 头像落盘目录（相对 cwd；容器内由 volume 挂到 /app/data/avatars 持久化）
   avatarDir: process.env.AVATAR_DIR ?? 'data/avatars',
   wechat: {

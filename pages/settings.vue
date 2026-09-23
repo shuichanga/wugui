@@ -229,6 +229,13 @@
         </div>
       </section>
 
+      <!-- 管理后台（仅管理员可见） -->
+      <NuxtLink v-if="auth.isAdmin" to="/admin"
+                class="mt-6 flex items-center justify-between rounded-lg border border-border bg-neutral-surface p-3 shadow-level-1">
+        <span class="text-sm font-medium">管理后台</span>
+        <ChevronRight :size="16" class="shrink-0 text-text-disabled" aria-hidden="true" />
+      </NuxtLink>
+
       <!-- 退出登录 -->
       <div class="mt-8 mb-4">
         <button type="button"

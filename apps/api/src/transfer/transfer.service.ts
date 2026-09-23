@@ -1,8 +1,8 @@
 // 数据迁移业务：全量导出（JSON/CSV 共用数据）+ 合并导入
 // 从 Cloudflare D1 版本移植，契约保持不变（前端 settings.vue 已按此契约写好）
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
-import { eq, inArray } from 'drizzle-orm'
-import { households, itemTags, items, locations, users } from '../db/schema'
+import { and, eq, inArray, isNull } from 'drizzle-orm'
+import { households, itemTags, items, locations, syncChanges, users } from '../db/schema'
 import { DrizzleService } from '../db/database.service'
 import type { SessionUser } from '../auth/session.types'
 
@@ -40,14 +40,14 @@ export class TransferService {
       db
         .select({ id: locations.id, parentId: locations.parentId, level: locations.level, name: locations.name })
         .from(locations)
-        .where(eq(locations.householdId, householdId)),
+        .where(and(eq(locations.householdId, householdId), isNull(locations.deletedAt))),
       db
         .select({
           id: items.id, name: items.name, quantity: items.quantity, notes: items.notes,
           locationId: items.locationId, ownerId: items.ownerId, createdAt: items.createdAt, updatedAt: items.updatedAt,
         })
         .from(items)
-        .where(eq(items.householdId, householdId)),
+        .where(and(eq(items.householdId, householdId), isNull(items.deletedAt))),
     ])
 
     const [tagRows, ownerRows] = await Promise.all([
@@ -117,11 +117,11 @@ export class TransferService {
     const db = this.drizzle.db
     const now = new Date()
 
-    // ---- 空间：现有空间按完整路径建索引，逐级 find-or-create ----
+    // ---- 空间：现有空间按完整路径建索引，逐级 find-or-create（排除墓碑，同名空间将新建存活行） ----
     const existing = await db
       .select({ id: locations.id, parentId: locations.parentId, name: locations.name })
       .from(locations)
-      .where(eq(locations.householdId, householdId))
+      .where(and(eq(locations.householdId, householdId), isNull(locations.deletedAt)))
     const byId = new Map(existing.map(l => [l.id, l]))
     const pathOf = (l: { id: string }): string => {
       const parts: string[] = []
@@ -136,6 +136,7 @@ export class TransferService {
     for (const l of existing) pathIdMap.set(pathOf(l), l.id)
 
     let createdLocations = 0
+    const createdLocationLog: { id: string; name: string; parentId: string | null; level: string }[] = []
 
     const ensurePath = async (path: string): Promise<string | null> => {
       const known = pathIdMap.get(path)
@@ -164,6 +165,7 @@ export class TransferService {
         byId.set(id, rec)
         pathIdMap.set(cur, id)
         createdLocations++
+        createdLocationLog.push({ id, name: rec.name, parentId, level: LEVELS[i] })
         parentId = id
       }
       return parentId
@@ -176,11 +178,11 @@ export class TransferService {
     const sortedPaths = [...allPaths].sort((a, b) => a.split(' / ').length - b.split(' / ').length)
     for (const p of sortedPaths) await ensurePath(p)
 
-    // ---- 物品：按（空间 + 名称）去重后批量新增 ----
+    // ---- 物品：按（空间 + 名称）去重后批量新增（排除墓碑物品） ----
     const existingItems = await db
       .select({ name: items.name, locationId: items.locationId })
       .from(items)
-      .where(eq(items.householdId, householdId))
+      .where(and(eq(items.householdId, householdId), isNull(items.deletedAt)))
     const itemKey = (locationId: string, name: string) => `${locationId}::${name}`
     const itemSet = new Set(existingItems.map(i => itemKey(i.locationId, i.name)))
 
@@ -238,6 +240,38 @@ export class TransferService {
       for (let i = 0; i < tagRows.length; i += 100) {
         await db.insert(itemTags).values(tagRows.slice(i, i + 100))
       }
+    }
+
+    // ---- 同步日志：导入结果对小程序可见（批量写入，分片 100） ----
+    const tagsByItem = new Map<string, string[]>()
+    for (const k of tagsToCreate) {
+      const idx = k.indexOf('::')
+      const itemId = k.slice(0, idx)
+      const tag = k.slice(idx + 2)
+      tagsByItem.set(itemId, [...(tagsByItem.get(itemId) ?? []), tag])
+    }
+    const logRows: (typeof syncChanges.$inferInsert)[] = []
+    for (const l of createdLocationLog) {
+      logRows.push({
+        id: crypto.randomUUID(), userId: user.id, householdId,
+        entity: 'locations', entityId: l.id, op: 'create',
+        dataJson: JSON.stringify({ name: l.name, parentId: l.parentId, level: l.level, icon: null, sortOrder: 0 }),
+        clientTimestamp: now, syncedAt: now,
+      })
+    }
+    for (const it of toCreate) {
+      logRows.push({
+        id: crypto.randomUUID(), userId: user.id, householdId,
+        entity: 'items', entityId: it.id, op: 'create',
+        dataJson: JSON.stringify({
+          name: it.name, locationId: it.locationId, quantity: it.quantity, notes: it.notes,
+          tags: tagsByItem.get(it.id) ?? [], createdAt: it.createdAt.toISOString(),
+        }),
+        clientTimestamp: now, syncedAt: now,
+      })
+    }
+    for (let i = 0; i < logRows.length; i += 100) {
+      await db.insert(syncChanges).values(logRows.slice(i, i + 100))
     }
 
     return { createdLocations, createdItems: toCreate.length, skippedItems }

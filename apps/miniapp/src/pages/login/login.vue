@@ -78,6 +78,7 @@ import { ref } from 'vue'
 import { wechatLogin, bindExistingAccount } from '../../composables/useAuth'
 import { usePrivacy } from '../../composables/usePrivacy'
 import { errMsg } from '../../utils/api'
+import { syncAfterHouseholdChange } from '../../composables/useSync'
 
 // 底部指引链接：与 PrivacyPopup 共用同一份状态（名称取自微信后台配置）
 const { contractName, openContract } = usePrivacy()
@@ -103,6 +104,8 @@ async function onWechatLogin() {
   loading.value = true
   try {
     await wechatLogin()
+    // M2：登录即有住所（服务端自动建家）→ anon 暂存数据入队 + 首次同步
+    void syncAfterHouseholdChange()
     done()
   } catch (e) {
     error.value = errMsg(e) || '登录失败，请重试'
@@ -121,6 +124,7 @@ async function onBind() {
   binding.value = true
   try {
     await bindExistingAccount(account.value.trim(), password.value)
+    void syncAfterHouseholdChange()
     done()
   } catch (e) {
     error.value = errMsg(e) || '登录失败，请重试'

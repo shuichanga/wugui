@@ -13,6 +13,9 @@ import { ItemsModule } from './items/items.module'
 import { PhotosModule } from './photos/photos.module'
 import { AvatarsModule } from './avatars/avatars.module'
 import { TransferModule } from './transfer/transfer.module'
+import { SubscriptionModule } from './subscription/subscription.module'
+import { SyncModule } from './sync/sync.module'
+import { AdminModule } from './admin/admin.module'
 
 @Module({
   imports: [
@@ -30,6 +33,9 @@ import { TransferModule } from './transfer/transfer.module'
     PhotosModule,
     AvatarsModule,
     TransferModule,
+    SubscriptionModule,
+    SyncModule,
+    AdminModule,
   ],
   providers: [
     // 全局守卫：除 @Public() 外所有路由需登录

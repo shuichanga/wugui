@@ -1,5 +1,5 @@
 // 空间树 / 空间路径 公共工具（locations 与 items 模块共用）
-import { eq, sql } from 'drizzle-orm'
+import { and, eq, isNull, sql } from 'drizzle-orm'
 import type { FieldPacket } from 'mysql2'
 import { locations } from '../db/schema'
 import type { DB } from '../db/database.service'
@@ -30,15 +30,15 @@ export async function getLocationTree(db: DB, householdId: string): Promise<Loca
     WITH RECURSIVE loc AS (
       SELECT id, parent_id, level, name, icon
       FROM locations
-      WHERE household_id = ${householdId} AND parent_id IS NULL
+      WHERE household_id = ${householdId} AND parent_id IS NULL AND deleted_at IS NULL
       UNION ALL
       SELECT l.id, l.parent_id, l.level, l.name, l.icon
       FROM locations l
       JOIN loc ON l.parent_id = loc.id
-      WHERE l.household_id = ${householdId}
+      WHERE l.household_id = ${householdId} AND l.deleted_at IS NULL
     )
     SELECT loc.id, loc.parent_id, loc.level, loc.name, loc.icon,
-      (SELECT COUNT(*) FROM items i WHERE i.location_id = loc.id) AS own_count
+      (SELECT COUNT(*) FROM items i WHERE i.location_id = loc.id AND i.deleted_at IS NULL) AS own_count
     FROM loc
     ORDER BY loc.name
   `)) as unknown as [LocationRow[], FieldPacket[]]
@@ -91,12 +91,12 @@ export async function getLocationTree(db: DB, householdId: string): Promise<Loca
   return roots
 }
 
-// 全住所空间 id → 完整路径（"客厅 / 电视柜 / 第2抽屉"）
+// 全住所空间 id → 完整路径（"客厅 / 电视柜 / 第2抽屉"），仅存活空间
 export async function getLocationPathMap(db: DB, householdId: string): Promise<Map<string, string>> {
   const rows = await db
     .select({ id: locations.id, parentId: locations.parentId, name: locations.name })
     .from(locations)
-    .where(eq(locations.householdId, householdId))
+    .where(and(eq(locations.householdId, householdId), isNull(locations.deletedAt)))
   const byId = new Map(rows.map(r => [r.id, r]))
   const pathOf = (id: string): string => {
     const parts: string[] = []

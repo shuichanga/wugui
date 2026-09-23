@@ -41,6 +41,13 @@
         "navigationStyle": "custom",
         "navigationBarTitleText": "关于"
       }
+    },
+    {
+      "path": "pages/membership/membership",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "云同步与会员"
+      }
     }
   ],
   "globalStyle": {

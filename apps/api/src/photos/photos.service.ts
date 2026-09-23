@@ -1,10 +1,12 @@
-// 物品照片业务：直传凭证签发 / 上传确认 / 删除 / 读取授权
+// 物品照片业务：直传凭证签发 / 上传确认 / 删除 / 读取授权（M2：写路径记同步日志 + url JSON 接口）
 // 流程：sign（拿凭证）→ 客户端直传 OSS → confirm（落库）→ GET /api/photos/:id（302 签名 URL）
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import { and, eq } from 'drizzle-orm'
 import { itemPhotos, items } from '../db/schema'
 import { DrizzleService } from '../db/database.service'
+import { SyncLogService } from '../common/sync-log.service'
 import { OssService } from '../oss/oss.service'
+import type { SessionUser } from '../auth/session.types'
 
 const MAX_PHOTOS = 3
 const MAX_BYTES = 2 * 1024 * 1024
@@ -20,6 +22,7 @@ export class PhotosService {
   constructor(
     private readonly drizzle: DrizzleService,
     private readonly oss: OssService,
+    private readonly syncLog: SyncLogService,
   ) {}
 
   /** 签发单张直传凭证（key 精确绑定到该物品） */
@@ -32,7 +35,7 @@ export class PhotosService {
   }
 
   /** 上传成功后落库（校验 key 属于该物品） */
-  async confirm(householdId: string, itemId: string, key: string) {
+  async confirm(user: SessionUser, householdId: string, itemId: string, key: string) {
     if (!key) throw new BadRequestException('缺少 key')
     await this.requireItem(householdId, itemId)
 
@@ -47,18 +50,30 @@ export class PhotosService {
     }
 
     const photoId = crypto.randomUUID()
+    const sortOrder = existing.length
     await this.drizzle.db.insert(itemPhotos).values({
       id: photoId,
       itemId,
       ossKey: key,
-      sortOrder: existing.length,
+      sortOrder,
       createdAt: new Date(),
     })
-    return { ok: true, photoId, sortOrder: existing.length, url: `/api/photos/${photoId}` }
+
+    // 同步日志：其他设备经 pull 获取新照片（M2.5 客户端据此回填 photoRefs）
+    await this.syncLog.appendChange({
+      householdId,
+      userId: user.id,
+      entity: 'item_photos',
+      entityId: photoId,
+      op: 'create',
+      data: { itemId, ossKey: key, sortOrder },
+    })
+
+    return { ok: true, photoId, sortOrder, url: `/api/photos/${photoId}` }
   }
 
   /** 删除：先删 DB 记录，再删 OSS 对象（OSS 失败只告警，不留死记录） */
-  async remove(householdId: string, itemId: string, photoId: string) {
+  async remove(user: SessionUser, householdId: string, itemId: string, photoId: string) {
     const found = await this.drizzle.db
       .select({ id: itemPhotos.id, ossKey: itemPhotos.ossKey })
       .from(itemPhotos)
@@ -66,6 +81,16 @@ export class PhotosService {
     if (!found.length) throw new NotFoundException('照片不存在')
 
     await this.drizzle.db.delete(itemPhotos).where(eq(itemPhotos.id, photoId))
+
+    await this.syncLog.appendChange({
+      householdId,
+      userId: user.id,
+      entity: 'item_photos',
+      entityId: photoId,
+      op: 'delete',
+      data: { itemId },
+    })
+
     try {
       await this.oss.deleteObject(found[0].ossKey)
     } catch (e) {

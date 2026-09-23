@@ -12,6 +12,8 @@ export const useAuthStore = defineStore('auth', () => {
   const households = ref<Household[]>([])
   const currentHouseholdId = ref<string | null>(null)
   const loaded = ref(false)
+  /** 管理后台入口（服务端 ADMIN_USER_IDS 判定） */
+  const isAdmin = ref(false)
 
   const currentHousehold = computed(() =>
     households.value.find(h => h.id === currentHouseholdId.value) ?? null,
@@ -22,10 +24,12 @@ export const useAuthStore = defineStore('auth', () => {
       user: { id: string; email: string; displayName: string | null; avatarUrl: string | null }
       households: Household[]
       currentHouseholdId: string | null
+      isAdmin?: boolean
     }>('/api/auth/me')
     user.value = res.user
     households.value = res.households
     currentHouseholdId.value = res.currentHouseholdId
+    isAdmin.value = res.isAdmin ?? false
     loaded.value = true
   }
 
@@ -40,10 +44,11 @@ export const useAuthStore = defineStore('auth', () => {
     households.value = []
     currentHouseholdId.value = null
     loaded.value = false
+    isAdmin.value = false
     // 清理本账号的本地数据（最近空间等）
     useRecentLocations().clear()
     await navigateTo('/login')
   }
 
-  return { user, households, currentHouseholdId, currentHousehold, loaded, fetchMe, switchTo, logout }
+  return { user, households, currentHouseholdId, currentHousehold, loaded, isAdmin, fetchMe, switchTo, logout }
 })

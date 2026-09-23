@@ -182,12 +182,16 @@
         </view>
       </view>
     </view>
+
+    <!-- 广告位：会员不渲染（流量主开通后填 adUnitId） -->
+    <AdBanner />
   </view>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import LocationIcon from '../LocationIcon.vue'
+import AdBanner from '../AdBanner.vue'
 import TagRow from '../TagRow.vue'
 import ResidenceSwitcher from '../ResidenceSwitcher.vue'
 import { useAuth } from '../../composables/useAuth'

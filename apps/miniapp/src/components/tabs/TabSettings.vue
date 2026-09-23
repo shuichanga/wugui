@@ -199,6 +199,33 @@
       </view>
     </view>
 
+    <!-- 云同步与会员：状态展示 + 手动同步 + 会员页入口 -->
+    <view class="section">
+      <text class="sec-title">云同步与会员</text>
+      <view class="card list-card">
+        <view class="list-row" @tap="goMembership">
+          <view class="row-icon-tile row-icon-green">
+            <LocationIcon slug="star" :size="36" />
+          </view>
+          <view class="row-body">
+            <text class="row-title">{{ membership.canCloudSync ? '云同步已开启' : '云同步未开启' }}</text>
+            <text class="row-sub">{{ membership.canCloudSync ? (membership.state.value.cloudSyncSource === 'self' ? '会员生效中，数据多端同步' : '家庭共享生效中，数据多端同步') : '开通会员后多设备同步' }}</text>
+          </view>
+          <text class="row-arrow">›</text>
+        </view>
+        <view class="list-row list-row-border" @tap="manualSync">
+          <view class="row-icon-tile row-icon-blue">
+            <LocationIcon slug="refresh" :size="36" state="blue" />
+          </view>
+          <view class="row-body">
+            <text class="row-title">{{ syncState.status === 'syncing' ? '同步中…' : '立即同步' }}</text>
+            <text class="row-sub">{{ syncState.lastSyncAt ? `上次同步 ${formatSyncTime(syncState.lastSyncAt)}` : '尚未同步过' }}</text>
+          </view>
+          <text class="row-arrow">›</text>
+        </view>
+      </view>
+    </view>
+
     <!-- 数据备份 -->
     <view class="section">
       <text class="sec-title">数据备份</text>
@@ -257,6 +284,9 @@ import { useTheme, THEMES } from '../../composables/useTheme'
 import { useHomeTabs } from '../../composables/useHomeTabs'
 import { useAvatar } from '../../composables/useAvatar'
 import { useHouseholds, genInviteCode, type Household } from '../../composables/useHouseholds'
+import { api, errMsg } from '../../utils/api'
+import { syncAfterHouseholdChange, syncNow, syncState } from '../../composables/useSync'
+import { useMembership } from '../../composables/useMembership'
 import { pickLocalPhoto, removeLocalPhoto } from '../../utils/local-photo'
 
 const { theme, setTheme, boardStyle, setBoardStyle } = useTheme()
@@ -264,7 +294,26 @@ const { switchTab } = useHomeTabs()
 const { avatarPath, setAvatar, clearAvatar } = useAvatar()
 const auth = useAuth()
 const store = useStore()
+const membership = useMembership()
 const version = '1.0.0'
+
+// ---- 云同步与会员 ----
+function goMembership() {
+  uni.navigateTo({ url: '/pages/membership/membership' })
+}
+
+async function manualSync() {
+  if (syncState.value.status === 'syncing') return
+  const ok = await syncNow()
+  uni.showToast({ title: ok ? '同步完成' : (membership.canCloudSync ? '同步失败，请检查网络' : '开通会员后可用云同步'), icon: 'none' })
+}
+
+function formatSyncTime(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
 
 const initial = computed(() => (auth.state.user?.displayName ?? '物').slice(0, 1))
 const displayName = computed(() => auth.state.user?.displayName ?? '微信用户')
@@ -405,6 +454,7 @@ const showCreate = ref(false)
 const createName = ref('')
 const showJoin = ref(false)
 const joinCode = ref('')
+const creating = ref(false)
 
 function createHousehold() {
   const name = (createName.value || '').trim()
@@ -412,6 +462,28 @@ function createHousehold() {
     uni.showToast({ title: '请输入住所名称', icon: 'none' })
     return
   }
+  // M2：登录用户走服务端建住所（拿到服务端 id + 重签 token，可云同步）；未登录保持本地模式
+  if (auth.isLogged) {
+    creating.value = true
+    api.post<{ id: string; name: string; role: string; token: string }>('/households', { name })
+      .then(async res => {
+        auth.state.token = res.token
+        upsert({ id: res.id, name: res.name, role: 'owner', inviteCode: genInviteCode() })
+        const migrated = migrateAnonToHousehold(res.id)
+        showCreate.value = false
+        createName.value = ''
+        uni.showToast({ title: migrated ? `已创建，归入 ${migrated} 条暂存数据` : '已创建', icon: 'none' })
+        await syncAfterHouseholdChange()
+      })
+      .catch(e => {
+        uni.showToast({ title: errMsg(e) || '创建失败，请重试', icon: 'none' })
+      })
+      .finally(() => {
+        creating.value = false
+      })
+    return
+  }
+
   const newId = 'local-' + Date.now()
   upsert({
     id: newId,
@@ -433,6 +505,28 @@ function joinHousehold() {
     uni.showToast({ title: '请输入 6 位邀请码', icon: 'none' })
     return
   }
+  // M2：登录用户走服务端加入（服务端 id + 重签 token）；未登录保持本地模拟
+  if (auth.isLogged) {
+    creating.value = true
+    api.post<{ ok: boolean; householdId: string; name: string; token: string }>('/households/join', { inviteCode: code })
+      .then(async res => {
+        auth.state.token = res.token
+        upsert({ id: res.householdId, name: res.name, role: 'member', inviteCode: code })
+        const migrated = migrateAnonToHousehold(res.householdId)
+        showJoin.value = false
+        joinCode.value = ''
+        uni.showToast({ title: migrated ? `已加入，归入 ${migrated} 条暂存数据` : '已加入', icon: 'none' })
+        await syncAfterHouseholdChange()
+      })
+      .catch(e => {
+        uni.showToast({ title: errMsg(e) || '加入失败，请检查邀请码', icon: 'none' })
+      })
+      .finally(() => {
+        creating.value = false
+      })
+    return
+  }
+
   // 本地模式：模拟加入
   const newId = 'joined-' + Date.now()
   upsert({

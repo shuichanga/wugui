@@ -1,7 +1,8 @@
-// 照片路由：直传凭证 / 上传确认 / 删除（items 前缀）+ 读取 302（photos 前缀）
+// 照片路由：直传凭证 / 上传确认 / 删除（items 前缀）+ 读取 302 与 url JSON（photos 前缀）
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Res } from '@nestjs/common'
 import type { FastifyReply } from 'fastify'
-import { CurrentHouseholdId } from '../auth/current-user.decorator'
+import { CurrentUser, CurrentHouseholdId } from '../auth/current-user.decorator'
+import type { SessionUser } from '../auth/session.types'
 import { PhotosService } from './photos.service'
 
 @Controller('items')
@@ -25,9 +26,10 @@ export class ItemPhotosController {
   confirm(
     @Param('id') id: string,
     @Body() body: Record<string, unknown>,
+    @CurrentUser() user: SessionUser,
     @CurrentHouseholdId() householdId: string,
   ) {
-    return this.service.confirm(householdId, id, String(body?.key ?? ''))
+    return this.service.confirm(user, householdId, id, String(body?.key ?? ''))
   }
 
   /** DELETE /api/items/:id/photos/:photoId —— 删除照片（DB + OSS） */
@@ -35,9 +37,10 @@ export class ItemPhotosController {
   remove(
     @Param('id') id: string,
     @Param('photoId') photoId: string,
+    @CurrentUser() user: SessionUser,
     @CurrentHouseholdId() householdId: string,
   ) {
-    return this.service.remove(householdId, id, photoId)
+    return this.service.remove(user, householdId, id, photoId)
   }
 }
 
@@ -47,9 +50,7 @@ export class PhotosProxyController {
 
   /**
    * GET /api/photos/:photoId —— 校验归属后 302 到 OSS 签名 URL。
-   * 保持旧契约：前端 <img src="/api/photos/:id"> 无需改动。
-   * 注意：这里用 @Res() 手动模式（reply.redirect 自行发送响应），
-   * 与 @Res({ passthrough: true }) + return 的错误用法不同，不会挂起连接。
+   * 保持旧契约：Web 前端 <img src="/api/photos/:id"> 走 cookie 自动携带，无需改动。
    */
   @Get(':photoId')
   async get(
@@ -59,5 +60,16 @@ export class PhotosProxyController {
   ) {
     const url = await this.service.signedUrlFor(householdId, photoId)
     return reply.redirect(url, 302)
+  }
+
+  /**
+   * GET /api/photos/:photoId/url —— 返回 { url } JSON。
+   * 小程序 image 组件无法携带 Authorization 头，302 接口对小程序不可用；
+   * 小程序先调本接口拿签名 URL 再渲染。
+   */
+  @Get(':photoId/url')
+  async getUrl(@Param('photoId') photoId: string, @CurrentHouseholdId() householdId: string) {
+    const url = await this.service.signedUrlFor(householdId, photoId)
+    return { url }
   }
 }
