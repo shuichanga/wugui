@@ -15,15 +15,22 @@ export interface MembershipState {
   cloudSyncSource: 'self' | 'member'
 }
 
-function load(): MembershipState {
+function load(): { state: MembershipState; loaded: boolean } {
   try {
     const raw = uni.getStorageSync(KEY)
-    if (raw) return JSON.parse(raw) as MembershipState
+    if (raw) {
+      const state = JSON.parse(raw) as MembershipState
+      // 有缓存 = 曾经过服务端校验：先用缓存（无感），loaded 视为 true，
+      // onShow 的 refresh() 仍会以服务端为准修正
+      return { state, loaded: true }
+    }
   } catch { /* ignore */ }
-  return { isPro: false, planType: 'free', expiresAt: null, canCloudSync: false, cloudSyncSource: 'self' }
+  return { state: { isPro: false, planType: 'free', expiresAt: null, canCloudSync: false, cloudSyncSource: 'self' }, loaded: false }
 }
 
-const state = ref<MembershipState>(load())
+const state = ref<MembershipState>(load().state)
+/** 是否完成过服务端校验：未完成前 AdBanner 不渲染（防会员首屏闪广告） */
+const loaded = ref(load().loaded)
 
 function persist() {
   try { uni.setStorageSync(KEY, JSON.stringify(state.value)) } catch { /* ignore */ }
@@ -31,12 +38,14 @@ function persist() {
 
 function reset() {
   state.value = { isPro: false, planType: 'free', expiresAt: null, canCloudSync: false, cloudSyncSource: 'self' }
+  loaded.value = false
   persist()
 }
 
 export function useMembership() {
   return {
     state,
+    loaded,
     get isPro() { return state.value.isPro },
     get canCloudSync() { return state.value.canCloudSync },
     /** 拉取订阅状态（登录后 / onShow / 订阅变更后调用），未登录直接清空 */
@@ -48,9 +57,10 @@ export function useMembership() {
       }
       try {
         state.value = await api.get<MembershipState>('/subscription/status')
+        loaded.value = true
         persist()
       } catch {
-        // 静默：保留缓存（离线时同步判定用缓存值）
+        // 静默：保留缓存（离线时同步判定用缓存值）；首次校验失败保持未 loaded
       }
     },
     reset,
