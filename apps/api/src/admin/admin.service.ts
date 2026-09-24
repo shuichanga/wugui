@@ -1,10 +1,30 @@
-// 管理后台业务：数据看板统计 / 用户管理 / 订阅开通
+// 管理后台业务：数据看板统计 / 用户管理（增删改查）/ 订阅开通
 // 所有路由经 AdminGuard（JWT sub ∈ ADMIN_USER_IDS），详见 admin.controller.ts
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { and, eq, inArray, isNull, like, ne, or, sql } from 'drizzle-orm'
-import { households, householdMembers, itemPhotos, items, locations, subscriptions, users } from '../db/schema'
+import { rm } from 'node:fs/promises'
+import { join } from 'node:path'
+import { ConfigService } from '@nestjs/config'
+import {
+  households,
+  householdMembers,
+  itemPhotos,
+  itemTags,
+  items,
+  locations,
+  recentViews,
+  subscriptions,
+  syncChanges,
+  users,
+} from '../db/schema'
 import { DrizzleService } from '../db/database.service'
+import { OssService } from '../oss/oss.service'
+import { SessionService } from '../auth/session.service'
 import { SubscriptionService } from '../subscription/subscription.service'
+import type { AppConfig } from '../config'
+
+// 与 auth.service 注册校验保持一致（auth.service 未导出，此处对齐复制）
+const USERNAME_RE = /^[a-zA-Z0-9_]{2,20}$/
 
 /** GET /api/admin/stats 总览 */
 export interface AdminStats {
@@ -44,6 +64,9 @@ export class AdminService {
   constructor(
     private readonly drizzle: DrizzleService,
     private readonly subscription: SubscriptionService,
+    private readonly session: SessionService,
+    private readonly oss: OssService,
+    private readonly config: ConfigService,
   ) {}
 
   async stats(): Promise<AdminStats> {
@@ -228,5 +251,171 @@ export class AdminService {
     if (!targetUserId) throw new BadRequestException('缺少 targetUserId')
     void adminUserId
     return this.subscription.manualActivate(targetUserId, planType)
+  }
+
+  /** POST /api/admin/users —— 管理员创建用户（对齐注册行为：建号即建"我的住所"） */
+  async createUser(input: { username: string; password: string; displayName?: string | null }) {
+    const username = (input.username ?? '').trim()
+    if (!USERNAME_RE.test(username)) {
+      throw new BadRequestException('用户名需 2-20 位字母、数字或下划线')
+    }
+    const password = input.password ?? ''
+    if (password.length < 8) throw new BadRequestException('密码至少 8 位')
+
+    const db = this.drizzle.db
+    const dup = await db.select({ id: users.id }).from(users).where(eq(users.username, username))
+    if (dup.length) throw new BadRequestException('用户名已被占用')
+
+    const now = new Date()
+    const id = crypto.randomUUID()
+    const householdId = crypto.randomUUID()
+
+    await db.transaction(async (tx) => {
+      await tx.insert(users).values({
+        id,
+        username,
+        passwordHash: this.session.hashPassword(password),
+        provider: 'email',
+        displayName: input.displayName?.trim().slice(0, 64) || username,
+        createdAt: now,
+        updatedAt: now,
+      })
+      await tx.insert(households).values({
+        id: householdId,
+        name: '我的住所',
+        inviteCode: this.session.genInviteCode(),
+        createdBy: id,
+        createdAt: now,
+        updatedAt: now,
+      })
+      await tx.insert(householdMembers).values({
+        householdId,
+        userId: id,
+        role: 'owner',
+        joinedAt: now,
+      })
+    })
+
+    return { ok: true, userId: id, username }
+  }
+
+  /** PATCH /api/admin/users/:id —— 编辑昵称 / 用户名 / 重置密码（字段可选，至少传一个） */
+  async updateUser(targetUserId: string, body: { displayName?: string | null; username?: string | null; password?: string | null }) {
+    const db = this.drizzle.db
+    const found = await db.select({ id: users.id, username: users.username }).from(users).where(eq(users.id, targetUserId))
+    if (!found.length) throw new NotFoundException('用户不存在')
+
+    const updates: Record<string, unknown> = { updatedAt: new Date() }
+
+    if (body.username !== undefined) {
+      const username = (body.username ?? '').trim()
+      if (!USERNAME_RE.test(username)) throw new BadRequestException('用户名需 2-20 位字母、数字或下划线')
+      if (username !== found[0].username) {
+        const dup = await db.select({ id: users.id }).from(users).where(eq(users.username, username))
+        if (dup.length) throw new BadRequestException('用户名已被占用')
+        updates.username = username
+      }
+    }
+    if (body.displayName !== undefined) {
+      updates.displayName = body.displayName?.trim().slice(0, 64) || null
+    }
+    if (body.password !== undefined && body.password !== null && body.password !== '') {
+      if (body.password.length < 8) throw new BadRequestException('密码至少 8 位')
+      updates.passwordHash = this.session.hashPassword(body.password)
+    }
+    if (Object.keys(updates).length === 1) {
+      throw new BadRequestException('没有需要更新的字段')
+    }
+
+    await db.update(users).set(updates).where(eq(users.id, targetUserId))
+    return { ok: true, userId: targetUserId }
+  }
+
+  /**
+   * DELETE /api/admin/users/:id —— 删除用户（管理员不可删自己）。
+   * 级联：其创建的住所整体删除（物品/标签/照片记录/空间/浏览记录/同步日志 + OSS 照片对象），
+   * 在他人住所的成员身份与个人物品一并清理；订阅、头像文件、用户行最后删。
+   */
+  async removeUser(adminUserId: string, targetUserId: string) {
+    if (!targetUserId) throw new BadRequestException('缺少 targetUserId')
+    if (adminUserId === targetUserId) throw new BadRequestException('不能删除当前登录的管理员账号')
+
+    const db = this.drizzle.db
+    const found = await db.select({ id: users.id }).from(users).where(eq(users.id, targetUserId))
+    if (!found.length) throw new NotFoundException('用户不存在')
+
+    // ① 其为 owner 的住所：整体清（其他成员的 membership 也在其中）
+    const ownedRows = await db
+      .select({ householdId: households.id })
+      .from(households)
+      .where(eq(households.createdBy, targetUserId))
+    for (const { householdId } of ownedRows) {
+      await this.removeHouseholdData(householdId)
+    }
+
+    // ② 其在他人住所的物品（ownerId=target，住所还活着）：删记录 + OSS
+    const itemRows = await db
+      .select({ id: items.id, ossKey: itemPhotos.ossKey })
+      .from(items)
+      .leftJoin(itemPhotos, eq(itemPhotos.itemId, items.id))
+      .where(and(eq(items.ownerId, targetUserId), isNull(items.deletedAt)))
+    const ownItemIds = [...new Set(itemRows.map((r) => r.id))]
+    if (ownItemIds.length) {
+      await db.delete(itemTags).where(inArray(itemTags.itemId, ownItemIds))
+      await db.delete(itemPhotos).where(inArray(itemPhotos.itemId, ownItemIds))
+      await db.delete(items).where(inArray(items.id, ownItemIds))
+      await this.deleteOssObjects(itemRows.map((r) => r.ossKey).filter((k): k is string => !!k))
+    }
+
+    // ③ 剩余成员身份（他人住所）、个人浏览/订阅/同步日志、用户行
+    await db.delete(householdMembers).where(eq(householdMembers.userId, targetUserId))
+    await db.delete(recentViews).where(eq(recentViews.userId, targetUserId))
+    await db.delete(subscriptions).where(eq(subscriptions.userId, targetUserId))
+    await db.delete(syncChanges).where(eq(syncChanges.userId, targetUserId))
+    await db.delete(users).where(eq(users.id, targetUserId))
+
+    // ④ 头像目录（best-effort，磁盘文件）
+    const avatarDir = this.config.get<AppConfig>('app')?.avatarDir ?? 'data/avatars'
+    try {
+      await rm(join(avatarDir, targetUserId), { recursive: true, force: true })
+    } catch (e) {
+      console.warn(`[admin] 头像目录删除失败 ${targetUserId}:`, e)
+    }
+
+    return { ok: true, userId: targetUserId }
+  }
+
+  /** 删除整个住所的数据（owner 删除用户 / 未来"解散住所"共用）：顺序为子表 → 主表 → OSS */
+  private async removeHouseholdData(householdId: string) {
+    const db = this.drizzle.db
+    const itemRows = await db
+      .select({ id: items.id, ossKey: itemPhotos.ossKey })
+      .from(items)
+      .leftJoin(itemPhotos, eq(itemPhotos.itemId, items.id))
+      .where(eq(items.householdId, householdId))
+    const itemIds = itemRows.map((r) => r.id)
+
+    if (itemIds.length) {
+      await db.delete(itemTags).where(inArray(itemTags.itemId, itemIds))
+      await db.delete(itemPhotos).where(inArray(itemPhotos.itemId, itemIds))
+      await db.delete(recentViews).where(inArray(recentViews.itemId, itemIds))
+    }
+    await db.delete(syncChanges).where(eq(syncChanges.householdId, householdId))
+    await db.delete(items).where(eq(items.householdId, householdId))
+    await db.delete(locations).where(eq(locations.householdId, householdId))
+    await db.delete(householdMembers).where(eq(householdMembers.householdId, householdId))
+    await db.delete(households).where(eq(households.id, householdId))
+    await this.deleteOssObjects(itemRows.map((r) => r.ossKey).filter((k): k is string => !!k))
+  }
+
+  /** OSS 对象批量尽力删（失败只告警，孤儿对象由清理任务兜底） */
+  private async deleteOssObjects(ossKeys: string[]) {
+    for (const key of ossKeys) {
+      try {
+        await this.oss.deleteObject(key)
+      } catch (e) {
+        console.warn(`[admin] OSS 删除失败 ${key}:`, e)
+      }
+    }
   }
 }

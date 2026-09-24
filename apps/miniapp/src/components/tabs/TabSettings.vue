@@ -287,11 +287,11 @@ import { useHouseholds, genInviteCode, type Household } from '../../composables/
 import { api, errMsg } from '../../utils/api'
 import { syncAfterHouseholdChange, syncNow, syncState } from '../../composables/useSync'
 import { useMembership } from '../../composables/useMembership'
-import { pickLocalPhoto, removeLocalPhoto } from '../../utils/local-photo'
+import { pickLocalPhoto } from '../../utils/local-photo'
 
 const { theme, setTheme, boardStyle, setBoardStyle } = useTheme()
 const { switchTab } = useHomeTabs()
-const { avatarPath, setAvatar, clearAvatar } = useAvatar()
+const { avatarPath, uploadAvatar, removeAvatar } = useAvatar()
 const auth = useAuth()
 const store = useStore()
 const membership = useMembership()
@@ -792,15 +792,16 @@ function goAbout() {
   uni.navigateTo({ url: '/pages/about/about' })
 }
 
-// ---- 头像上传（本地模式：选图 → 压缩 → 持久化到本地目录） ----
+// ---- 头像（登录用户双端一致：选图 → 上传服务端；未登录仅本地） ----
 async function onAvatarPick() {
   try {
-    const old = avatarPath.value
+    uni.showLoading({ title: '处理中…' })
     const path = await pickLocalPhoto(1)
-    setAvatar(path)
-    if (old && old !== path) removeLocalPhoto(old)
+    await uploadAvatar(path)
+    uni.hideLoading()
     uni.showToast({ title: '头像已更新', icon: 'success' })
   } catch (e) {
+    uni.hideLoading()
     const msg = e instanceof Error ? e.message : ''
     if (msg && msg !== '已达上限') {
       uni.showToast({ title: msg || '更换头像失败', icon: 'none' })
@@ -814,10 +815,9 @@ function onAvatarRemove() {
     content: '确定移除当前头像？',
     success: (res) => {
       if (!res.confirm) return
-      const old = avatarPath.value
-      clearAvatar()
-      if (old) removeLocalPhoto(old)
-      uni.showToast({ title: '已移除', icon: 'success' })
+      void removeAvatar()
+        .then(() => uni.showToast({ title: '已移除', icon: 'success' }))
+        .catch(() => uni.showToast({ title: '移除失败', icon: 'none' }))
     },
   })
 }

@@ -3,6 +3,7 @@
 import { onLaunch, onShow } from '@dcloudio/uni-app'
 import { registerPrivacyListener } from './composables/usePrivacy'
 import { initSync, syncOnForeground } from './composables/useSync'
+import { syncAvatarFromServer } from './composables/useAvatar'
 
 onLaunch(() => {
   // 微信隐私授权监听是全局单例，必须在这里注册一次，各页 PrivacyPopup 才会被唤起
@@ -11,9 +12,10 @@ onLaunch(() => {
   initSync()
 })
 
-// 每次回前台：刷新会员态并尝试同步（push Outbox / pull 增量）
+// 每次回前台：刷新会员态并尝试同步（push Outbox / pull 增量）+ 头像版本化缓存同步
 onShow(() => {
   void syncOnForeground()
+  void syncAvatarFromServer()
 })
 </script>
 
