@@ -100,10 +100,10 @@ onShow(() => {
   flex: 1;
   min-height: 0;
 }
-/* 每个 tab 的滚动区：左右留白 + 底部让出 tabbar */
+/* 每个 tab 的滚动区：左右留白 + 顶部让出胶囊导航带（标题在胶囊下方，不再贴顶）+ 底部让出 tabbar */
 .tab-scroll {
   height: 100%;
   box-sizing: border-box;
-  padding: 0 32rpx calc(var(--tabbar-height) + 48rpx + env(safe-area-inset-bottom));
+  padding: var(--nav-bar-height, 44px) 32rpx calc(var(--tabbar-height) + 48rpx + env(safe-area-inset-bottom));
 }
 </style>

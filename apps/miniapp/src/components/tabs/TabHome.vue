@@ -74,12 +74,11 @@
           :class="{ 'room-card-colorful': boardStyle === 'colorful', 'room-card-dragging': dragIndex === index }"
           :style="boardStyle === 'colorful' ? { background: getRoomColors(loc.name).accent } : undefined"
           @tap="goRoom(loc.id)"
-          @longpress="onGridLongPress(index)"
+          @longpress="onGridLongPress(index, $event)"
           @touchmove="onGridTouchMove"
           @touchend="onGridTouchEnd"
           @touchcancel="onGridTouchEnd"
         >
-          <view class="room-edit" @tap.stop="onRenameRoom(loc)"><text class="room-edit-icon">✎</text></view>
           <template v-if="boardStyle === 'clean'">
             <view class="room-top">
               <view class="icon-tile" :class="{ 'icon-tile-muted': loc.itemCount === 0 }">
@@ -202,7 +201,7 @@ import ResidenceSwitcher from '../ResidenceSwitcher.vue'
 import { useAuth } from '../../composables/useAuth'
 import {
   buildLocationTree, createItem, createLocation, getLocationPath, useStore,
-  reorderLocations, renameLocation,
+  reorderLocations,
   type LocalItem, type LocationTreeNode,
 } from '../../composables/useLocalData'
 import { timeLabel } from '../../utils/local-photo'
@@ -262,56 +261,53 @@ function refresh() {
   recentViewIds.value = store.recentViews().map(v => v.itemId)
 }
 
-// ---- 看板卡长按拖拽排序（2 列 grid）+ 重命名 ----
+// ---- 看板卡长按拖拽排序（2 列 grid）：相对位移换算（行差×2 + 列差），与页面滚动解耦 ----
 const gridInstance = getCurrentInstance()
 const dragIndex = ref(-1)
-let dragRects: Array<{ left: number; right: number; top: number; bottom: number }> = []
-let dragLockedScrollTop = 0
+let dragStartY = 0
+let dragStartX = 0
+let dragStartIndex = 0
+let dragRowH = 0
+let dragColW = 0
 
-function onGridLongPress(index: number) {
+function onGridLongPress(index: number, e: { changedTouches?: Array<{ clientX: number; clientY: number }> }) {
   if (dragIndex.value >= 0) return
   dragIndex.value = index
+  dragStartIndex = index
+  dragStartY = e?.changedTouches?.[0]?.clientY ?? 0
+  dragStartX = e?.changedTouches?.[0]?.clientX ?? 0
   uni.vibrateShort({})
 
   uni.createSelectorQuery()
     .in(gridInstance)
     .selectAll('.room-card')
     .boundingClientRect((nodes) => {
-      dragRects = (nodes as Array<{ left: number; right: number; top: number; height: number }>).map((r) => ({
-        left: r.left,
-        right: r.right,
-        top: r.top,
-        bottom: r.top + r.height,
-      }))
-    })
-    .exec()
-  uni.createSelectorQuery()
-    .selectViewport()
-    .scrollOffset((res) => {
-      dragLockedScrollTop = res.scrollTop ?? 0
+      const list = nodes as Array<{ left: number; top: number; height: number }>
+      // 列宽 = 第二列 left - 第一列 left；行高 = 第三张卡 top - 第一张 top（grid 2 列）
+      dragColW = list.length >= 2 ? Math.abs(list[1].left - list[0].left) : 0
+      dragRowH = list.length >= 3 ? Math.abs(list[2].top - list[0].top) : (list[0]?.height ?? 0)
+      if (!dragRowH || !dragColW) {
+        dragIndex.value = -1
+        return
+      }
     })
     .exec()
 }
 
 function onGridTouchMove(e: { touches: Array<{ clientX: number; clientY: number }> }) {
-  if (dragIndex.value < 0 || !dragRects.length) return
+  if (dragIndex.value < 0 || !dragRowH || !dragColW) return
   const t = e.touches?.[0]
   if (!t) return
-  // 拖拽期间把页面滚动钉在激活时刻的位置（手指移动不滚页，只换位）
-  uni.pageScrollTo({ scrollTop: dragLockedScrollTop, duration: 0 })
 
-  const target = dragRects.findIndex(
-    (r) => t.clientX >= r.left && t.clientX <= r.right && t.clientY >= r.top && t.clientY <= r.bottom,
-  )
+  const dRows = Math.round((t.clientY - dragStartY) / dragRowH)
+  const dCols = Math.round((t.clientX - dragStartX) / dragColW)
+  const target = Math.max(0, Math.min(rooms.value.length - 1, dragStartIndex + dRows * 2 + dCols))
   const from = dragIndex.value
-  if (target < 0 || target === from) return
+  if (target === from) return
 
   const list = rooms.value
   const [moved] = list.splice(from, 1)
   list.splice(target, 0, moved)
-  const tmp = dragRects[from]
-  dragRects[from] = dragRects[target]
-  dragRects[target] = tmp
   dragIndex.value = target
   uni.vibrateShort({})
 }
@@ -321,25 +317,6 @@ function onGridTouchEnd() {
   dragIndex.value = -1
   reorderLocations(rooms.value.map((n) => n.id))
   refresh()
-}
-
-function onRenameRoom(loc: LocationTreeNode) {
-  uni.showModal({
-    title: '重命名空间',
-    editable: true,
-    content: loc.name,
-    placeholderText: '输入新名称（最多 30 字）',
-    success: (res) => {
-      if (!res.confirm) return
-      const r = renameLocation(loc.id, res.content ?? '')
-      if (!r.ok) {
-        uni.showToast({ title: r.reason || '重命名失败', icon: 'none' })
-        return
-      }
-      refresh()
-      uni.showToast({ title: '已重命名', icon: 'success' })
-    },
-  })
 }
 
 // 进度条：该房间物品数（含下属层级）占整个住所物品总数的比例
@@ -504,22 +481,6 @@ defineExpose({ refresh })
   flex-direction: column;
   gap: 12rpx;
   position: relative;
-}
-/* 卡片右上角改名铅笔（clean 模式灰、colorful 模式白） */
-.room-edit {
-  position: absolute;
-  right: 8rpx;
-  top: 4rpx;
-  padding: 8rpx;
-  color: #aebbb2;
-  z-index: 2;
-}
-.room-edit-icon {
-  font-size: 28rpx;
-  line-height: 1;
-}
-.room-card-colorful .room-edit {
-  color: rgba(255, 255, 255, 0.85);
 }
 /* 拖拽中：卡片抬起 */
 .room-card-dragging {

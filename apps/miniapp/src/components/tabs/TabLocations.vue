@@ -82,7 +82,7 @@
           :key="room.id"
           class="room-card"
           :class="{ 'room-card-colorful': isColorful, 'room-card-dragging': dragIndex === index }"
-          @longpress="onCardLongPress(index)"
+          @longpress="onCardLongPress(index, $event)"
           @touchmove="onCardTouchMove"
           @touchend="onCardTouchEnd"
           @touchcancel="onCardTouchEnd"
@@ -363,53 +363,51 @@ function onRename(room: LocationTreeNode) {
   })
 }
 
-// ---- 长按拖拽排序（顶层房间）：长按激活 → 手指移动实时换位 → 松手持久化 ----
+// ---- 长按拖拽排序（顶层房间）：相对位移换算，避免 pageScrollTo 与页面滚动打架造成抖动 ----
+// 关键：激活时收起展开区（等高卡片），行高 = 相邻卡片 top 差；换算与页面滚动完全解耦
 const instance = getCurrentInstance()
 const dragIndex = ref(-1)
-let dragRects: Array<{ top: number; bottom: number }> = []
-let dragLockedScrollTop = 0
+let dragStartY = 0
+let dragStartIndex = 0
+let dragRowH = 0
 
-function onCardLongPress(index: number) {
+function onCardLongPress(index: number, e: { changedTouches?: Array<{ clientY: number }> }) {
   if (dragIndex.value >= 0) return
+  expandedId.value = '' // 收起展开区：拖拽期间卡片等高，换算才准
   dragIndex.value = index
+  dragStartIndex = index
+  // 基准 = 手指按下位置（longpress 事件的 touch），而非卡片 top
+  dragStartY = e?.changedTouches?.[0]?.clientY ?? 0
   uni.vibrateShort({})
 
   uni.createSelectorQuery()
     .in(instance)
     .selectAll('.room-card')
     .boundingClientRect((nodes) => {
-      dragRects = (nodes as Array<{ top: number; height: number }>).map((r) => ({
-        top: r.top,
-        bottom: r.top + r.height,
-      }))
-    })
-    .exec()
-  uni.createSelectorQuery()
-    .selectViewport()
-    .scrollOffset((res) => {
-      dragLockedScrollTop = res.scrollTop ?? 0
+      const list = nodes as Array<{ top: number; height: number }>
+      // 行高 = 相邻卡片 top 差（含间距）；只有一张卡时不启用拖拽
+      dragRowH = list.length >= 2 ? Math.abs(list[1].top - list[0].top) : 0
+      if (!dragRowH) {
+        dragIndex.value = -1
+        return
+      }
     })
     .exec()
 }
 
 function onCardTouchMove(e: { touches: Array<{ clientY: number }> }) {
-  if (dragIndex.value < 0 || !dragRects.length) return
+  if (dragIndex.value < 0 || !dragRowH) return
   const y = e.touches?.[0]?.clientY
   if (y == null) return
-  // 拖拽期间把页面滚动钉在激活时刻的位置（手指移动不滚页，只换位）
-  uni.pageScrollTo({ scrollTop: dragLockedScrollTop, duration: 0 })
 
-  const target = dragRects.findIndex((r) => y >= r.top && y <= r.bottom)
+  const offset = Math.round((y - dragStartY) / dragRowH)
+  const target = Math.max(0, Math.min(rooms.value.length - 1, dragStartIndex + offset))
   const from = dragIndex.value
-  if (target < 0 || target === from) return
+  if (target === from) return
 
-  // 列表重排 + 对应命中区间对调（避免重查 rect）
   const list = tree.value
   const [moved] = list.splice(from, 1)
   list.splice(target, 0, moved)
-  const tmp = dragRects[from]
-  dragRects[from] = dragRects[target]
-  dragRects[target] = tmp
   dragIndex.value = target
   uni.vibrateShort({})
 }
@@ -578,7 +576,7 @@ defineExpose({ refresh })
   background: #ffffff;
   border: 1rpx solid #e4eae5;
   border-radius: 36rpx;
-  box-shadow: 0 2rpx 4rpx rgba(24, 39, 32, 0.04), 0 16rpx 48rpx rgba(24, 39, 32, 0.05);
+  box-shadow: 0 2rpx 6rpx rgba(24, 39, 32, 0.05), 0 8rpx 20rpx rgba(24, 39, 32, 0.04);
   overflow: hidden;
 }
 .room-row {

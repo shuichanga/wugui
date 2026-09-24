@@ -127,13 +127,13 @@ page {
 .text-warning { color: #b45309; }
 .text-white { color: #ffffff; }
 
-/* 卡片：白底 + 1px 边框 + 16px 圆角（Web rounded-2xl）+ 软阴影（level-1） */
+/* 卡片：白底 + 1px 边框 + 16px 圆角（Web rounded-2xl）+ 短阴影（level-1，扩散小不连片） */
 .card {
   background: var(--color-surface);
   border: 1rpx solid var(--color-border);
   border-radius: 32rpx;
   padding: 24rpx;
-  box-shadow: 0 2rpx 4rpx rgba(24, 39, 32, 0.04), 0 16rpx 48rpx rgba(24, 39, 32, 0.05);
+  box-shadow: 0 2rpx 6rpx rgba(24, 39, 32, 0.05), 0 8rpx 20rpx rgba(24, 39, 32, 0.04);
 }
 
 /* 输入框：1.5px 边框 + 24rpx 圆角 + 16rpx 24rpx 内边距 + 32rpx 字号（对齐 Web 端 .input-base） */

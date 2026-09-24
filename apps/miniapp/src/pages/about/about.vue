@@ -95,7 +95,7 @@ import { useSafeArea } from '../../composables/useSafeArea'
 const { themeClass } = useTheme()
 const { switchTab } = useHomeTabs()
 const { topVars, pageStyle } = useSafeArea()
-const version = '1.0.0'
+const version = __APP_VERSION__
 const year = new Date().getFullYear()
 
 function goBack() {

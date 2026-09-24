@@ -295,7 +295,8 @@ const { avatarPath, uploadAvatar, removeAvatar } = useAvatar()
 const auth = useAuth()
 const store = useStore()
 const membership = useMembership()
-const version = '1.0.0'
+// 版本号：构建时从 apps/miniapp/package.json 的 version 注入（vite define），发布只改那一处
+const version = __APP_VERSION__
 
 // ---- 云同步与会员 ----
 function goMembership() {
