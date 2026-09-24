@@ -13,6 +13,8 @@ export interface MembershipState {
   canCloudSync: boolean
   /** 解锁来源：self=自己订阅；member=家庭成员订阅（家庭共享） */
   cloudSyncSource: 'self' | 'member'
+  /** 虚拟支付已开通（offerId 已配置）：未开通时隐藏购买入口（审核要求） */
+  payEnabled?: boolean
 }
 
 function load(): { state: MembershipState; loaded: boolean } {

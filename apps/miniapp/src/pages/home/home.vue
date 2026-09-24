@@ -37,6 +37,8 @@
     <AppTabbar />
     <!-- 隐私授权弹窗：本页含选照片/导入备份/复制邀请码等隐私接口 -->
     <PrivacyPopup />
+    <!-- 首次使用引导：介绍主要功能，登录不强制 -->
+    <OnboardGuide />
   </view>
 </template>
 
@@ -45,6 +47,7 @@ import { nextTick, reactive, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import AppTabbar from '../../components/AppTabbar.vue'
 import PrivacyPopup from '../../components/PrivacyPopup.vue'
+import OnboardGuide from '../../components/OnboardGuide.vue'
 import TabHome from '../../components/tabs/TabHome.vue'
 import TabItems from '../../components/tabs/TabItems.vue'
 import TabLocations from '../../components/tabs/TabLocations.vue'
@@ -76,10 +79,7 @@ function onSwiperChange(e: any) {
 }
 
 onShow(() => {
-  if (!auth.isLogged) {
-    uni.reLaunch({ url: '/pages/login/login' })
-    return
-  }
+  // 未登录 = 本地模式（数据仅存本机，审核要求：先体验后登录），不强制跳登录页
   // 从编辑/详情页返回：刷新当前 tab 数据
   const i = activeTab.value
   mounted[i] = true

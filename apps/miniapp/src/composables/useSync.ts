@@ -9,7 +9,7 @@ import { uploadPendingPhotos } from '../utils/photo-uploader'
 import { useAuth } from './useAuth'
 import { useMembership } from './useMembership'
 import {
-  ITEM, LOCATION, currentOutbox, enqueueAllLocal, setOnLocalWrite,
+  ITEM, LOCATION, currentOutbox, enqueueAllLocal, migrateAnonToHousehold, setOnLocalWrite,
   type LocalItem, type LocalLocation,
 } from './useLocalData'
 
@@ -102,8 +102,16 @@ export async function syncOnForeground(): Promise<void> {
   await syncNow()
 }
 
-/** anon→登录迁移、新建/加入住所后调用：全量入队 + 立即同步 */
+/** 登录成功 / 新建或加入住所后调用：anon 试用数据并入账号 + 全量上行 + 立即同步 */
 export async function syncAfterHouseholdChange(): Promise<void> {
+  const auth = useAuth()
+  // 登录后当前住所已有服务端 id：把未登录期间本地试用的数据（anon 命名空间）并入，数据跟着账号走
+  if (auth.isLogged && auth.state.householdId) {
+    const migrated = migrateAnonToHousehold(auth.state.householdId)
+    if (migrated > 0) {
+      uni.showToast({ title: `已并入 ${migrated} 条本地数据`, icon: 'none' })
+    }
+  }
   enqueueAllLocal()
   bundle = null // 强制重建 engine（hid 可能已变）
   await useMembership().refresh()

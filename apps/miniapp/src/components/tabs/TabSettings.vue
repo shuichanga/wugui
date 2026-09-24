@@ -6,8 +6,17 @@
       <text class="head-link" @tap="goAbout">关于</text>
     </view>
 
+    <!-- 未登录：登录入口卡（本地模式仍可用，登录开启云同步） -->
+    <view v-if="!auth.isLogged" class="card login-card" @tap="goLogin">
+      <view class="login-card-left">
+        <text class="login-card-title">登录 / 注册账号</text>
+        <text class="login-card-sub">数据自动并入账号，开启多端云同步</text>
+      </view>
+      <text class="login-card-arrow">›</text>
+    </view>
+
     <!-- 当前用户卡：头像可上传/移除（对齐 Web 端 settings 用户区）；昵称可点击改名 -->
-    <view class="card user-card">
+    <view v-if="auth.isLogged" class="card user-card">
       <view class="avatar-wrap" @tap="onAvatarPick">
         <view class="avatar" :class="{ 'avatar-photo': avatarPath }">
           <image v-if="avatarPath" :src="avatarPath" mode="aspectFill" class="avatar-img" />
@@ -199,8 +208,8 @@
       </view>
     </view>
 
-    <!-- 云同步与会员：状态展示 + 手动同步 + 会员页入口 -->
-    <view class="section">
+    <!-- 云同步与会员：状态展示 + 手动同步 + 会员页入口（仅登录态；未登录显示登录引导） -->
+    <view v-if="auth.isLogged" class="section">
       <text class="sec-title">云同步与会员</text>
       <view class="card list-card">
         <view class="list-row" @tap="goMembership">
@@ -263,8 +272,8 @@
       </view>
     </view>
 
-    <!-- 退出登录 -->
-    <button class="btn-danger logout-btn" @tap="onLogout">退出登录</button>
+    <!-- 退出登录（仅登录态） -->
+    <button v-if="auth.isLogged" class="btn-danger logout-btn" @tap="onLogout">退出登录</button>
 
     <!-- 底部版本号 -->
     <text class="version-text">物归 v{{ version }} · 开源项目</text>
@@ -793,6 +802,10 @@ function goAbout() {
   uni.navigateTo({ url: '/pages/about/about' })
 }
 
+function goLogin() {
+  uni.navigateTo({ url: '/pages/login/login' })
+}
+
 // ---- 头像（登录用户双端一致：选图 → 上传服务端；未登录仅本地） ----
 async function onAvatarPick() {
   try {
@@ -866,6 +879,35 @@ defineExpose({ refresh: reload })
 }
 
 /* 用户卡 */
+/* 未登录登录入口卡 */
+.login-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 28rpx 24rpx;
+}
+.login-card-left {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+  min-width: 0;
+}
+.login-card-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--color-primary, #16a34a);
+}
+.login-card-sub {
+  font-size: 24rpx;
+  color: var(--color-text-tertiary, #8a978f);
+}
+.login-card-arrow {
+  font-size: 40rpx;
+  line-height: 1;
+  color: var(--color-text-disabled, #aebbb2);
+}
+
 .user-card {
   display: flex;
   align-items: center;

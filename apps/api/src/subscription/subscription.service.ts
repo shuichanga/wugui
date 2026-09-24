@@ -20,6 +20,8 @@ export interface SubscriptionStatus {
   canCloudSync: boolean
   /** 解锁来源：self=自己订阅；member=家庭成员订阅（家庭共享） */
   cloudSyncSource: 'self' | 'member'
+  /** 虚拟支付是否已开通（WECHAT_OFFER_ID 已配置）：未开通时客户端隐藏购买入口（审核要求） */
+  payEnabled: boolean
 }
 
 @Injectable()
@@ -92,6 +94,7 @@ export class SubscriptionService {
       expiresAt: current?.expiresAt ?? null,
       canCloudSync,
       cloudSyncSource,
+      payEnabled: !!this.config.get<AppConfig>('app')?.wechat?.offerId,
     }
   }
 

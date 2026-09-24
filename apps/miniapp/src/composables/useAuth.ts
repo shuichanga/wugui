@@ -131,7 +131,8 @@ export function useAuth() {
       state.households = []
       uni.removeStorageSync(KEY)
       // 注意：不清 DISPLAY_NAME_KEY，用户重新登录时能保留上次修改的昵称
-      uni.reLaunch({ url: '/pages/login/login' })
+      // 退出后回首页（未登录 = 本地模式仍可使用）
+      uni.reLaunch({ url: '/pages/home/home' })
     },
   }
 }

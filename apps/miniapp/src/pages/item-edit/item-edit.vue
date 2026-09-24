@@ -443,10 +443,7 @@ function goBack() {
 }
 
 onLoad((query) => {
-  if (!auth.isLogged) {
-    uni.reLaunch({ url: '/pages/login/login' })
-    return
-  }
+  // 未登录 = 本地模式（数据存 anon 命名空间），允许直接使用
   loadRecent()
   refreshLocations()
   const editId = String(query?.id ?? '')

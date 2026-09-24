@@ -12,6 +12,12 @@
       </view>
     </view>
 
+    <!-- 未登录提示：本地模式可用，登录后多端同步（非阻断，tap 去我的页） -->
+    <view v-if="!auth.isLogged" class="card local-hint" @tap="switchTab('settings')">
+      <text class="local-hint-text">数据保存在本机 · 登录账号可多端同步</text>
+      <text class="local-hint-link">去登录 ›</text>
+    </view>
+
     <!-- 新手引导：三步（空间 / 家具(可选) / 物品） -->
     <view v-if="showOnboard" class="card onboard">
       <view class="section-title">
@@ -472,6 +478,28 @@ defineExpose({ refresh })
   grid-template-columns: 1fr 1fr;
   gap: 20rpx;
   margin-top: 20rpx;
+}
+
+/* 未登录提示条 */
+.local-hint {
+  margin-top: 20rpx;
+  padding: 20rpx 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+.local-hint-text {
+  font-size: 24rpx;
+  color: var(--color-text-secondary, #51605a);
+  flex: 1;
+  min-width: 0;
+}
+.local-hint-link {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: var(--color-primary, #16a34a);
+  flex-shrink: 0;
 }
 
 /* 空间卡：对齐 Web 端 RoomCard（px-3 pt-2 pb-2） */

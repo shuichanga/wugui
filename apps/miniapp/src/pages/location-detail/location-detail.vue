@@ -167,10 +167,7 @@ function goAdd() {
 }
 
 onLoad((query) => {
-  if (!auth.isLogged) {
-    uni.reLaunch({ url: '/pages/login/login' })
-    return
-  }
+  // 未登录 = 本地模式，允许直接浏览
   locationId.value = String(query?.id ?? '')
   refresh()
 })

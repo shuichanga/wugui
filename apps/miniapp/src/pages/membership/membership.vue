@@ -30,8 +30,8 @@
       </view>
     </view>
 
-    <!-- 开通卡 -->
-    <view class="card buy-card">
+    <!-- 开通卡：仅虚拟支付已开通（服务端 offerId 已配置）时显示，避免无支付能力的版本被判定为虚拟商品售卖 -->
+    <view v-if="membership.state.value.payEnabled" class="card buy-card">
       <text class="buy-title">开通云同步会员</text>
       <view class="feat-list">
         <view class="feat-row"><view class="feat-dot"></view><text class="feat-text">物品 / 空间多设备实时同步</text></view>
@@ -43,6 +43,9 @@
         <text>{{ paying ? '处理中…' : '立即开通' }}</text>
       </button>
       <text class="buy-note">开通后当前账号的全部住所均可用云同步</text>
+    </view>
+    <view v-else class="card pay-off-card">
+      <text class="pay-off-text">云同步会员购买通道即将开放，开通后可多端同步</text>
     </view>
 
     <!-- 家庭共享说明 -->
@@ -276,6 +279,14 @@ async function onBuy() {
 }
 
 /* 家庭共享说明 */
+.pay-off-card {
+  margin-top: 24rpx;
+}
+.pay-off-text {
+  font-size: 26rpx;
+  color: var(--color-text-secondary, #51605a);
+  line-height: 1.6;
+}
 .share-card {
   margin-top: 24rpx;
   display: flex;
