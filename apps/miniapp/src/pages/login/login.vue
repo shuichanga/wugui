@@ -65,10 +65,15 @@
       <text class="error-text">{{ error }}</text>
     </view>
 
-    <!-- 底部信息：指引全文由微信托管，点击直接打开后台配置的《用户隐私保护指引》 -->
-    <view class="foot">
-      <text class="foot-text">登录即代表同意</text>
-      <text class="foot-link" @tap="openContract">{{ contractName }}</text>
+    <!-- 底部信息：隐私协议需用户主动勾选（微信审核要求：不得默认同意） -->
+    <view class="agree-row" @tap="agreed = !agreed">
+      <view class="agree-box" :class="{ checked: agreed }">
+        <text v-if="agreed" class="agree-check">✓</text>
+      </view>
+      <view class="agree-text-wrap">
+        <text class="agree-text">已阅读并同意</text>
+        <text class="agree-link" @tap.stop="openContract">{{ contractName }}</text>
+      </view>
     </view>
   </view>
 </template>
@@ -82,6 +87,17 @@ import { syncAfterHouseholdChange } from '../../composables/useSync'
 
 // 底部指引链接：与 PrivacyPopup 共用同一份状态（名称取自微信后台配置）
 const { contractName, openContract } = usePrivacy()
+
+// 隐私协议：默认不勾选，用户主动勾选后才能登录（微信审核要求）
+const agreed = ref(false)
+
+function ensureAgreed(): boolean {
+  if (!agreed.value) {
+    uni.showToast({ title: '请先阅读并勾选同意隐私政策', icon: 'none' })
+    return false
+  }
+  return true
+}
 
 const account = ref('')
 const password = ref('')
@@ -100,6 +116,7 @@ function done() {
 }
 
 async function onWechatLogin() {
+  if (!ensureAgreed()) return
   error.value = ''
   loading.value = true
   try {
@@ -115,6 +132,7 @@ async function onWechatLogin() {
 }
 
 async function onBind() {
+  if (!ensureAgreed()) return
   error.value = ''
   if (!account.value.trim() || !password.value) {
     error.value = '请输入账号和密码'
@@ -275,20 +293,47 @@ async function onBind() {
   line-height: 1.5;
 }
 
-.foot {
+/* 隐私协议勾选行：默认不勾选，用户主动勾选后才能登录（微信审核要求） */
+.agree-row {
   margin-top: 48rpx;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  padding: 8rpx 0;
 }
-.foot-text {
+.agree-box {
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: 8rpx;
+  border: 2rpx solid #aebbb2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.agree-box.checked {
+  background: var(--color-primary, #16a34a);
+  border-color: var(--color-primary, #16a34a);
+}
+.agree-check {
+  color: #ffffff;
+  font-size: 22rpx;
+  line-height: 1;
+}
+.agree-text-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+}
+.agree-text {
   font-size: 22rpx;
   color: #8a978f;
-  line-height: 1.6;
 }
 /* 可点击的隐私指引：用主题主色，随配色方案切换 */
-.foot-link {
+.agree-link {
   font-size: 22rpx;
   color: var(--color-primary);
-  line-height: 1.6;
   text-decoration: underline;
 }
 </style>
