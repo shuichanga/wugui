@@ -68,13 +68,18 @@
       </view>
       <view v-if="rooms.length" class="grid-2">
         <view
-          v-for="loc in rooms"
+          v-for="(loc, index) in rooms"
           :key="loc.id"
           class="card room-card"
-          :class="{ 'room-card-colorful': boardStyle === 'colorful' }"
+          :class="{ 'room-card-colorful': boardStyle === 'colorful', 'room-card-dragging': dragIndex === index }"
           :style="boardStyle === 'colorful' ? { background: getRoomColors(loc.name).accent } : undefined"
           @tap="goRoom(loc.id)"
+          @longpress="onGridLongPress(index)"
+          @touchmove="onGridTouchMove"
+          @touchend="onGridTouchEnd"
+          @touchcancel="onGridTouchEnd"
         >
+          <view class="room-edit" @tap.stop="onRenameRoom(loc)"><text class="room-edit-icon">✎</text></view>
           <template v-if="boardStyle === 'clean'">
             <view class="room-top">
               <view class="icon-tile" :class="{ 'icon-tile-muted': loc.itemCount === 0 }">
@@ -189,14 +194,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, getCurrentInstance, onMounted, ref } from 'vue'
 import LocationIcon from '../LocationIcon.vue'
 import AdBanner from '../AdBanner.vue'
 import TagRow from '../TagRow.vue'
 import ResidenceSwitcher from '../ResidenceSwitcher.vue'
 import { useAuth } from '../../composables/useAuth'
 import {
-  buildLocationTree, getLocationPath, useStore, type LocalItem, type LocationTreeNode,
+  buildLocationTree, createItem, createLocation, getLocationPath, useStore,
+  reorderLocations, renameLocation,
+  type LocalItem, type LocationTreeNode,
 } from '../../composables/useLocalData'
 import { timeLabel } from '../../utils/local-photo'
 import { useTheme } from '../../composables/useTheme'
@@ -253,6 +260,86 @@ function refresh() {
   items.value = store.items()
   rooms.value = buildLocationTree()
   recentViewIds.value = store.recentViews().map(v => v.itemId)
+}
+
+// ---- 看板卡长按拖拽排序（2 列 grid）+ 重命名 ----
+const gridInstance = getCurrentInstance()
+const dragIndex = ref(-1)
+let dragRects: Array<{ left: number; right: number; top: number; bottom: number }> = []
+let dragLockedScrollTop = 0
+
+function onGridLongPress(index: number) {
+  if (dragIndex.value >= 0) return
+  dragIndex.value = index
+  uni.vibrateShort({})
+
+  uni.createSelectorQuery()
+    .in(gridInstance)
+    .selectAll('.room-card')
+    .boundingClientRect((nodes) => {
+      dragRects = (nodes as Array<{ left: number; right: number; top: number; height: number }>).map((r) => ({
+        left: r.left,
+        right: r.right,
+        top: r.top,
+        bottom: r.top + r.height,
+      }))
+    })
+    .exec()
+  uni.createSelectorQuery()
+    .selectViewport()
+    .scrollOffset((res) => {
+      dragLockedScrollTop = res.scrollTop ?? 0
+    })
+    .exec()
+}
+
+function onGridTouchMove(e: { touches: Array<{ clientX: number; clientY: number }> }) {
+  if (dragIndex.value < 0 || !dragRects.length) return
+  const t = e.touches?.[0]
+  if (!t) return
+  // 拖拽期间把页面滚动钉在激活时刻的位置（手指移动不滚页，只换位）
+  uni.pageScrollTo({ scrollTop: dragLockedScrollTop, duration: 0 })
+
+  const target = dragRects.findIndex(
+    (r) => t.clientX >= r.left && t.clientX <= r.right && t.clientY >= r.top && t.clientY <= r.bottom,
+  )
+  const from = dragIndex.value
+  if (target < 0 || target === from) return
+
+  const list = rooms.value
+  const [moved] = list.splice(from, 1)
+  list.splice(target, 0, moved)
+  const tmp = dragRects[from]
+  dragRects[from] = dragRects[target]
+  dragRects[target] = tmp
+  dragIndex.value = target
+  uni.vibrateShort({})
+}
+
+function onGridTouchEnd() {
+  if (dragIndex.value < 0) return
+  dragIndex.value = -1
+  reorderLocations(rooms.value.map((n) => n.id))
+  refresh()
+}
+
+function onRenameRoom(loc: LocationTreeNode) {
+  uni.showModal({
+    title: '重命名空间',
+    editable: true,
+    content: loc.name,
+    placeholderText: '输入新名称（最多 30 字）',
+    success: (res) => {
+      if (!res.confirm) return
+      const r = renameLocation(loc.id, res.content ?? '')
+      if (!r.ok) {
+        uni.showToast({ title: r.reason || '重命名失败', icon: 'none' })
+        return
+      }
+      refresh()
+      uni.showToast({ title: '已重命名', icon: 'success' })
+    },
+  })
 }
 
 // 进度条：该房间物品数（含下属层级）占整个住所物品总数的比例
@@ -416,6 +503,29 @@ defineExpose({ refresh })
   display: flex;
   flex-direction: column;
   gap: 12rpx;
+  position: relative;
+}
+/* 卡片右上角改名铅笔（clean 模式灰、colorful 模式白） */
+.room-edit {
+  position: absolute;
+  right: 8rpx;
+  top: 4rpx;
+  padding: 8rpx;
+  color: #aebbb2;
+  z-index: 2;
+}
+.room-edit-icon {
+  font-size: 28rpx;
+  line-height: 1;
+}
+.room-card-colorful .room-edit {
+  color: rgba(255, 255, 255, 0.85);
+}
+/* 拖拽中：卡片抬起 */
+.room-card-dragging {
+  transform: scale(1.03);
+  box-shadow: 0 8rpx 16rpx rgba(24, 39, 32, 0.12), 0 24rpx 64rpx rgba(24, 39, 32, 0.12);
+  opacity: 0.92;
 }
 .room-top {
   display: flex;

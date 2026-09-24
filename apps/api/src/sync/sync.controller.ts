@@ -20,6 +20,12 @@ export class SyncController {
     return this.service.push(user, householdId, (body?.changes ?? []) as SyncChange[])
   }
 
+  /** GET /api/sync/status —— 当前住所最近一次云同步活动时间 */
+  @Get('status')
+  status(@CurrentHouseholdId() householdId: string) {
+    return this.service.status(householdId)
+  }
+
   /** GET /api/sync/pull?since= —— 增量拉取（since 缺省返回全量快照） */
   @Get('pull')
   pull(@Query('since') since: string, @CurrentHouseholdId() householdId: string) {

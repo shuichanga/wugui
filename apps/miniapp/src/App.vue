@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // 全局生命周期：只放与页面无关的一次性初始化，登录跳转守卫仍在各页 onShow 里处理
-import { onLaunch, onShow } from '@dcloudio/uni-app'
+import { onLaunch, onShow, onHide } from '@dcloudio/uni-app'
 import { registerPrivacyListener } from './composables/usePrivacy'
-import { initSync, syncOnForeground } from './composables/useSync'
+import { initSync, syncOnForeground, startForegroundPolling, stopForegroundPolling } from './composables/useSync'
 import { syncAvatarFromServer } from './composables/useAvatar'
 
 onLaunch(() => {
@@ -16,6 +16,12 @@ onLaunch(() => {
 onShow(() => {
   void syncOnForeground()
   void syncAvatarFromServer()
+  // 实时同步阶段一：前台期间每 30s 自动 pull，他端变更无需手动刷新
+  startForegroundPolling()
+})
+
+onHide(() => {
+  stopForegroundPolling()
 })
 </script>
 

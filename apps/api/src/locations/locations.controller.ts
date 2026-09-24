@@ -1,5 +1,5 @@
 // 空间路由：/api/locations
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post } from '@nestjs/common'
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put } from '@nestjs/common'
 import { CurrentUser, CurrentHouseholdId } from '../auth/current-user.decorator'
 import type { SessionUser } from '../auth/session.types'
 import { LocationsService } from './locations.service'
@@ -41,6 +41,23 @@ export class LocationsController {
       name: String(body.name ?? ''),
       icon: body.icon ? String(body.icon) : null,
     })
+  }
+
+  /** PUT /api/locations/reorder —— 拖拽排序批量落库 */
+  @HttpCode(200)
+  @Put('reorder')
+  reorder(
+    @Body() body: Record<string, unknown>,
+    @CurrentUser() user: SessionUser,
+    @CurrentHouseholdId() householdId: string,
+  ) {
+    const orders = Array.isArray(body?.orders)
+      ? (body.orders as Array<Record<string, unknown>>).map((o) => ({
+          id: String(o?.id ?? ''),
+          sortOrder: Math.max(0, Math.floor(Number(o?.sortOrder) || 0)),
+        }))
+      : []
+    return this.service.reorder(user, householdId, orders)
   }
 
   /** DELETE /api/locations/:id —— 删除空间（有子空间/直挂物品时 409） */

@@ -94,7 +94,7 @@ export function useStore(): {
     get store() { return currentStore() },
     // 列表读取过滤软删墓碑（同步用户与免费用户统一行为）
     items: () => currentStore().list<LocalItem>(ITEM).filter(r => !r.deletedAt).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
-    locations: () => currentStore().list<LocalLocation>(LOCATION).filter(r => !r.deletedAt).sort((a, b) => a.name.localeCompare(b.name, 'zh')),
+    locations: () => currentStore().list<LocalLocation>(LOCATION).filter(r => !r.deletedAt).sort(compareLocations),
     recentViews: () => currentStore().list<LocalRecentView>(RECENT).sort((a, b) => b.viewedAt.localeCompare(a.viewedAt)),
   }
 }
@@ -326,6 +326,73 @@ export function enqueueAllLocal(): void {
   }
 }
 
+/** 重命名空间（同步：update 变更入 Outbox，服务端 LWW 收敛到其他端） */
+export function renameLocation(id: string, rawName: string): { ok: boolean; reason?: string } {
+  const { store } = useStore()
+  const target = store.get<LocalLocation>(LOCATION, id)
+  if (!target) return { ok: false, reason: '空间不存在' }
+  const name = rawName.trim().slice(0, 30)
+  if (!name) return { ok: false, reason: '名称不能为空' }
+
+  const now = nowIso()
+  const updated: LocalLocation = { ...target, name, updatedAt: now }
+  store.put<LocalLocation>(LOCATION, updated)
+  currentOutbox()?.enqueue({
+    entity: 'locations',
+    entityId: id,
+    op: 'update',
+    data: {
+      name,
+      parentId: updated.parentId,
+      level: updated.level,
+      icon: updated.icon ?? null,
+      sortOrder: updated.sortOrder ?? 0,
+    },
+    clientTimestamp: now,
+  })
+  notifyWrite()
+  return { ok: true }
+}
+
+/**
+ * 拖拽排序：按传入的 id 顺序重排 sortOrder（仅顶层列表内相对顺序，10 起步留插入余量），
+ * 变动的空间逐个入 Outbox（update 契约含 sortOrder，其他端 pull 收敛）。
+ */
+export function reorderLocations(orderedIds: string[]): void {
+  const { store } = useStore()
+  const now = nowIso()
+  orderedIds.forEach((id, index) => {
+    const row = store.get<LocalLocation>(LOCATION, id)
+    if (!row) return
+    const sortOrder = (index + 1) * 10
+    if ((row.sortOrder ?? 0) === sortOrder) return
+    const updated: LocalLocation = { ...row, sortOrder, updatedAt: now }
+    store.put<LocalLocation>(LOCATION, updated)
+    currentOutbox()?.enqueue({
+      entity: 'locations',
+      entityId: id,
+      op: 'update',
+      data: {
+        name: updated.name,
+        parentId: updated.parentId,
+        level: updated.level,
+        icon: updated.icon ?? null,
+        sortOrder,
+      },
+      clientTimestamp: now,
+    })
+  })
+  notifyWrite()
+}
+
+/** 统一的空间排序：sortOrder 优先（拖拽排序），无 sortOrder 的老数据按名称兜底 */
+export function compareLocations(a: LocalLocation, b: LocalLocation): number {
+  const sa = a.sortOrder ?? Number.MAX_SAFE_INTEGER
+  const sb = b.sortOrder ?? Number.MAX_SAFE_INTEGER
+  if (sa !== sb) return sa - sb
+  return a.name.localeCompare(b.name, 'zh')
+}
+
 export function getLocation(id: string): LocalLocation | null {
   const { store } = useStore()
   return store.get<LocalLocation>(LOCATION, id)
@@ -368,10 +435,10 @@ export function buildLocationTree(): LocationTreeNode[] {
     return total
   }
   roots.forEach(aggregate)
-  // 每层按名称 zh 排序，与 useStore().locations() 一致
+  // 每层按 sortOrder 优先排序（拖拽排序），无排序值时名称兜底，与 useStore().locations() 一致
   const sortTree = (nodes: LocationTreeNode[]) => {
-    nodes.sort((a, b) => a.name.localeCompare(b.name, 'zh'))
-    nodes.forEach(n => sortTree(n.children))
+    nodes.sort(compareLocations)
+    nodes.forEach((n) => sortTree(n.children))
   }
   sortTree(roots)
   return roots

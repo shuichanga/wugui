@@ -32,6 +32,25 @@
         </button>
       </section>
 
+      <!-- 云同步状态卡：最近同步活动 + 手动刷新 -->
+      <section class="mt-4 flex items-center justify-between rounded-2xl border border-border bg-neutral-surface p-3.5 shadow-level-1" aria-label="云同步状态">
+        <div class="min-w-0">
+          <p class="flex items-center gap-2 text-sm font-semibold">
+            <RefreshCw :size="14" class="shrink-0 text-primary" aria-hidden="true" />
+            云同步
+          </p>
+          <p class="mt-0.5 truncate text-xs text-text-tertiary">
+            {{ syncStatusPending ? '查询中…' : (syncLastAt ? `最近同步 ${syncLastAt}` : '暂无同步记录') }}
+          </p>
+        </div>
+        <button type="button"
+                class="shrink-0 rounded-full bg-tint px-3 py-1.5 text-xs font-semibold text-primary-dark hover:brightness-95"
+                :disabled="syncStatusPending"
+                @click="manualRefresh">
+          刷新数据
+        </button>
+      </section>
+
       <!-- 我的住所 -->
       <section class="mt-6" aria-label="我的住所">
         <SectionTitle title="我的住所">
@@ -250,7 +269,7 @@
 </template>
 
 <script setup lang="ts">
-import { Camera, Check, ChevronRight, Code2, Copy, Table, Upload } from 'lucide-vue-next'
+import { Camera, Check, ChevronRight, Code2, Copy, RefreshCw, Table, Upload } from 'lucide-vue-next'
 import { compressImage } from '~/composables/useImageCompress'
 import type { ThemeId } from '~/composables/usePreferences'
 
@@ -258,6 +277,34 @@ const auth = useAuthStore()
 const { confirmDialog, alertDialog } = useDialog()
 const { toast } = useToast()
 const { theme, setTheme, boardStyle, setBoardStyle } = usePreferences()
+
+// ---- 云同步状态卡：GET /api/sync/status + 手动全量刷新 ----
+const syncLastAt = ref('')
+const syncStatusPending = ref(false)
+
+async function loadSyncStatus() {
+  syncStatusPending.value = true
+  try {
+    const res = await apiFetch<{ lastSyncAt: string | null }>('/api/sync/status')
+    syncLastAt.value = res.lastSyncAt
+      ? new Date(res.lastSyncAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+      : ''
+  } catch {
+    syncLastAt.value = ''
+  } finally {
+    syncStatusPending.value = false
+  }
+}
+
+async function manualRefresh() {
+  await refreshNuxtData()
+  await loadSyncStatus()
+  toast('已刷新到最新数据')
+}
+
+onMounted(() => {
+  void loadSyncStatus()
+})
 
 // 主题色板卡：展示各主题真实配色（色值为示意数据，非组件样式 token；字体随卡所属主题）
 const THEMES: { id: ThemeId; label: string; bg: string; primary: string; tint: string; signal: string; font: string }[] = [

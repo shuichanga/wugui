@@ -153,4 +153,40 @@ export class LocationsService {
     `)
     return rows.map(r => r.id)
   }
+
+  /**
+   * PUT /api/locations/reorder —— 拖拽排序批量落库（body: { orders: [{id, sortOrder}] }）。
+   * 每个变动的空间记一条同步日志（全量字段契约），其他设备经 pull 收敛。
+   */
+  async reorder(user: SessionUser, householdId: string, orders: Array<{ id: string; sortOrder: number }>) {
+    if (!Array.isArray(orders) || !orders.length) throw new BadRequestException('orders 不能为空')
+    if (orders.length > 200) throw new BadRequestException('单次最多 200 条')
+
+    const db = this.drizzle.db
+    const now = new Date()
+    let changed = 0
+
+    for (const { id, sortOrder } of orders) {
+      const found = await db
+        .select()
+        .from(locations)
+        .where(and(eq(locations.id, id), eq(locations.householdId, householdId), isNull(locations.deletedAt)))
+      if (!found.length) continue
+      const row = found[0]
+      if (row.sortOrder === sortOrder) continue
+
+      await db.update(locations).set({ sortOrder, updatedAt: now }).where(eq(locations.id, id))
+      await this.syncLog.appendChange({
+        householdId,
+        userId: user.id,
+        entity: 'locations',
+        entityId: id,
+        op: 'update',
+        data: { name: row.name, parentId: row.parentId, level: row.level, icon: row.icon, sortOrder },
+      })
+      changed++
+    }
+
+    return { ok: true, changed }
+  }
 }

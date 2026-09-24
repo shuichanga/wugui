@@ -1,4 +1,4 @@
-﻿// 云同步宿主：把 @wugui/core 的 SyncEngine 接到小程序（uni storage / api 单例 / 会员判定）
+// 云同步宿主：把 @wugui/core 的 SyncEngine 接到小程序（uni storage / api 单例 / 会员判定）
 // 触发时机：App onShow、网络恢复、写操作后防抖 3s、设置页手动
 // 执行条件：已登录 && 有住所 && 住所云同步已解锁（canCloudSync，家庭共享也算）
 import { createOutbox, createKVLocalStore, createSyncEngine, ApiClientError, type Outbox, type SyncEngine, type SyncState } from '@wugui/core'
@@ -124,6 +124,9 @@ export function resetSync(): void {
 }
 
 let initialized = false
+/** 前台定时 pull（实时同步阶段一）：App onShow 启动 / onHide 停止 */
+let pollTimer: ReturnType<typeof setInterval> | null = null
+const POLL_INTERVAL = 30_000
 
 /** App onLaunch 调用一次：注册写后钩子 + 网络恢复监听 */
 export function initSync(): void {
@@ -135,6 +138,22 @@ export function initSync(): void {
   uni.onNetworkStatusChange(res => {
     if (res.isConnected) void syncNow()
   })
+}
+
+/** App onShow：启动前台定时 pull（他端变更最迟 30s 可见） */
+export function startForegroundPolling(): void {
+  if (pollTimer) return
+  pollTimer = setInterval(() => {
+    void syncNow()
+  }, POLL_INTERVAL)
+}
+
+/** App onHide：停掉定时 pull（后台不耗流量） */
+export function stopForegroundPolling(): void {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
 }
 
 // ---- 快照 / 增量记录映射（core 通用引擎 ↔ 小程序 LocalItem/LocalLocation） ----

@@ -60,10 +60,16 @@
         还没有空间，点右上角"＋"创建第一个房间
       </p>
       <ul v-else class="mt-3 flex flex-col gap-2">
-        <li v-for="room in tree" :key="room.id">
-          <RoomRowCard :room="room" :variant="boardStyle" @delete="removeLocation" />
+        <li v-for="(room, index) in tree" :key="room.id" draggable="true"
+            class="cursor-grab active:cursor-grabbing"
+            :class="{ 'opacity-50': dragFrom === index }"
+            @dragstart="onDragStart(index)" @dragover.prevent @drop="onDrop(index)" @dragend="dragFrom = -1">
+          <RoomRowCard :room="room" :variant="boardStyle" @delete="removeLocation" @rename="renameRoom(room.id, $event)" />
         </li>
       </ul>
+      <p v-if="tree?.length" class="mt-1.5 text-2xs text-text-tertiary">
+        拖动卡片调整房间顺序 · 铅笔图标重命名
+      </p>
 
       <!-- 添加房间：虚线按钮（与右上角＋同效） -->
       <button v-if="tree?.length" type="button"
@@ -217,6 +223,42 @@ async function removeLocation(id: string) {
     await refresh()
   } catch (e: unknown) {
     await alertDialog('删除失败', errMsg(e))
+  }
+}
+
+// ---- 重命名：RoomRowCard 行内编辑 → PATCH → 刷新树（服务端记同步日志，小程序自动收敛） ----
+async function renameRoom(id: string, name: string) {
+  try {
+    await apiFetch(`/api/locations/${id}`, { method: 'PATCH', body: { name } })
+    await refresh()
+  } catch (e: unknown) {
+    await alertDialog('重命名失败', errMsg(e))
+  }
+}
+
+// ---- 拖拽排序：HTML5 DnD 本地重排 → PUT /reorder（sortOrder 持久化 + 同步日志） ----
+const dragFrom = ref(-1)
+
+function onDragStart(index: number) {
+  dragFrom.value = index
+}
+
+async function onDrop(index: number) {
+  const from = dragFrom.value
+  dragFrom.value = -1
+  if (from < 0 || from === index) return
+  const list = [...(tree.value ?? [])]
+  const [moved] = list.splice(from, 1)
+  list.splice(index, 0, moved)
+  tree.value = list
+  try {
+    await apiFetch('/api/locations/reorder', {
+      method: 'PUT',
+      body: { orders: list.map((r, i) => ({ id: r.id, sortOrder: (i + 1) * 10 })) },
+    })
+  } catch (e: unknown) {
+    await alertDialog('保存排序失败', errMsg(e))
+    await refresh()
   }
 }
 </script>

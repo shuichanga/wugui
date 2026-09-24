@@ -77,7 +77,16 @@
       </view>
 
       <view v-else class="room-list">
-        <view v-for="room in rooms" :key="room.id" class="room-card" :class="{ 'room-card-colorful': isColorful }">
+        <view
+          v-for="(room, index) in rooms"
+          :key="room.id"
+          class="room-card"
+          :class="{ 'room-card-colorful': isColorful, 'room-card-dragging': dragIndex === index }"
+          @longpress="onCardLongPress(index)"
+          @touchmove="onCardTouchMove"
+          @touchend="onCardTouchEnd"
+          @touchcancel="onCardTouchEnd"
+        >
           <!-- 房间行：彩色模式下背景与首页空间看板卡一致（展开后横线以下保持原样） -->
           <view
             class="room-row"
@@ -101,6 +110,9 @@
                 <text class="room-count-num">{{ room.itemCount }}</text>件
               </text>
               <text v-else class="room-count-empty">空</text>
+            </view>
+            <view class="room-edit" @tap.stop="onRename(room)">
+              <text class="room-edit-icon">✎</text>
             </view>
             <view class="room-arrow" @tap.stop="goDetail(room.id)">
               <text class="room-arrow-icon">›</text>
@@ -151,12 +163,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, getCurrentInstance, onMounted, reactive, ref } from 'vue'
 import LocationIcon from '../LocationIcon.vue'
 import {
   buildLocationTree,
   createLocation,
   deleteLocation,
+  reorderLocations,
+  renameLocation,
   type LocationTreeNode,
 } from '../../composables/useLocalData'
 import { getCompartmentIcon, getFurnitureIcon, getRoomColors, getRoomIcon } from '../../utils/room-style'
@@ -327,6 +341,85 @@ function onRemove(id: string, locName: string) {
 
 function refresh() {
   tree.value = buildLocationTree()
+}
+
+// ---- 重命名（长按给拖拽，改名走铅笔图标，避免手势冲突） ----
+function onRename(room: LocationTreeNode) {
+  uni.showModal({
+    title: '重命名空间',
+    editable: true,
+    content: room.name,
+    placeholderText: '输入新名称（最多 30 字）',
+    success: (res) => {
+      if (!res.confirm) return
+      const r = renameLocation(room.id, res.content ?? '')
+      if (!r.ok) {
+        uni.showToast({ title: r.reason || '重命名失败', icon: 'none' })
+        return
+      }
+      refresh()
+      uni.showToast({ title: '已重命名', icon: 'success' })
+    },
+  })
+}
+
+// ---- 长按拖拽排序（顶层房间）：长按激活 → 手指移动实时换位 → 松手持久化 ----
+const instance = getCurrentInstance()
+const dragIndex = ref(-1)
+let dragRects: Array<{ top: number; bottom: number }> = []
+let dragLockedScrollTop = 0
+
+function onCardLongPress(index: number) {
+  if (dragIndex.value >= 0) return
+  dragIndex.value = index
+  uni.vibrateShort({})
+
+  uni.createSelectorQuery()
+    .in(instance)
+    .selectAll('.room-card')
+    .boundingClientRect((nodes) => {
+      dragRects = (nodes as Array<{ top: number; height: number }>).map((r) => ({
+        top: r.top,
+        bottom: r.top + r.height,
+      }))
+    })
+    .exec()
+  uni.createSelectorQuery()
+    .selectViewport()
+    .scrollOffset((res) => {
+      dragLockedScrollTop = res.scrollTop ?? 0
+    })
+    .exec()
+}
+
+function onCardTouchMove(e: { touches: Array<{ clientY: number }> }) {
+  if (dragIndex.value < 0 || !dragRects.length) return
+  const y = e.touches?.[0]?.clientY
+  if (y == null) return
+  // 拖拽期间把页面滚动钉在激活时刻的位置（手指移动不滚页，只换位）
+  uni.pageScrollTo({ scrollTop: dragLockedScrollTop, duration: 0 })
+
+  const target = dragRects.findIndex((r) => y >= r.top && y <= r.bottom)
+  const from = dragIndex.value
+  if (target < 0 || target === from) return
+
+  // 列表重排 + 对应命中区间对调（避免重查 rect）
+  const list = tree.value
+  const [moved] = list.splice(from, 1)
+  list.splice(target, 0, moved)
+  const tmp = dragRects[from]
+  dragRects[from] = dragRects[target]
+  dragRects[target] = tmp
+  dragIndex.value = target
+  uni.vibrateShort({})
+}
+
+function onCardTouchEnd() {
+  if (dragIndex.value < 0) return
+  dragIndex.value = -1
+  const ids = tree.value.map((n) => n.id)
+  reorderLocations(ids)
+  refresh()
 }
 
 onMounted(refresh)
@@ -539,6 +632,18 @@ defineExpose({ refresh })
   color: #aebbb2;
   flex-shrink: 0;
 }
+.room-edit {
+  padding: 8rpx;
+  color: #aebbb2;
+  flex-shrink: 0;
+}
+.room-edit-icon {
+  font-size: 30rpx;
+  line-height: 1;
+}
+.room-row-colorful .room-edit {
+  color: rgba(255, 255, 255, 0.85);
+}
 .room-arrow {
   padding: 8rpx;
   color: #aebbb2;
@@ -547,6 +652,13 @@ defineExpose({ refresh })
 .room-arrow-icon {
   font-size: 40rpx;
   line-height: 1;
+}
+
+/* 拖拽中：卡片抬起 */
+.room-card-dragging {
+  transform: scale(1.02);
+  box-shadow: 0 8rpx 16rpx rgba(24, 39, 32, 0.12), 0 24rpx 64rpx rgba(24, 39, 32, 0.12);
+  opacity: 0.92;
 }
 
 /* 彩色模式：房间行背景与首页空间看板卡一致（展开后横线以下不变） */

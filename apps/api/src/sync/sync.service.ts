@@ -4,7 +4,7 @@
 // 客户端时间更新才落库，否则记 stale（目标状态未被超越）。
 // 目标状态已达成（如删除不存在的行）记 accepted，客户端据此移除 Outbox 条目。
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common'
-import { and, asc, eq, gt, inArray, isNull } from 'drizzle-orm'
+import { and, asc, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
 import type { SyncChange, SyncEntity, SyncPullResponse, SyncPushResponse } from './sync.types'
 import { itemPhotos, itemTags, items, locations, syncChanges } from '../db/schema'
 import { DrizzleService } from '../db/database.service'
@@ -46,6 +46,17 @@ export class SyncService {
     }
 
     return { results, serverTime: new Date().toISOString() }
+  }
+
+  /** GET /api/sync/status —— 当前住所最近一次云同步活动时间（Web 端同步状态卡展示用） */
+  async status(householdId: string): Promise<{ lastSyncAt: string | null }> {
+    const rows = await this.drizzle.db
+      .select({ syncedAt: syncChanges.syncedAt })
+      .from(syncChanges)
+      .where(eq(syncChanges.householdId, householdId))
+      .orderBy(sql`synced_at DESC`)
+      .limit(1)
+    return { lastSyncAt: rows[0]?.syncedAt.toISOString() ?? null }
   }
 
   /** GET /api/sync/pull —— since 缺省返回全量快照；否则按 syncedAt 增量 */

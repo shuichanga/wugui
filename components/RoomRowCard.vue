@@ -1,6 +1,6 @@
 <template>
-  <!-- 空间行卡：点击行展开家具/格位，右侧箭头进入详情；展开区内含删除入口（防误触） -->
-  <div class="overflow-hidden rounded-2xl border bg-neutral-surface shadow-level-1"
+  <!-- 空间行卡：点击行展开家具/格位，右侧箭头进入详情；铅笔改名（行内编辑）；展开区内含删除入口（防误触） -->
+  <div class="group overflow-hidden rounded-2xl border bg-neutral-surface shadow-level-1"
        :class="colorful ? 'border-transparent' : 'border-border'">
     <!-- 房间行：彩色模式下背景与首页空间看板卡一致（展开后横线以下保持原样） -->
     <div class="relative flex items-center gap-3 overflow-hidden px-3.5 py-2.5"
@@ -10,7 +10,7 @@
         <circle cx="165" cy="15" r="42" fill="white" opacity="0.08" />
         <circle cx="185" cy="95" r="28" fill="white" opacity="0.06" />
       </svg>
-      <button type="button" class="relative flex min-w-0 flex-1 items-center gap-3 text-left" :aria-expanded="expanded"
+      <button v-if="!editing" type="button" class="relative flex min-w-0 flex-1 items-center gap-3 text-left" :aria-expanded="expanded"
               @click="expanded = !expanded">
         <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px]"
               :class="colorful ? 'bg-white/20' : (room.itemCount > 0 ? 'bg-tint text-primary' : 'bg-neutral-sunken text-text-disabled')">
@@ -22,6 +22,17 @@
           <template v-if="room.itemCount > 0"><b class="text-sm font-bold" :class="colorful ? 'text-white' : 'text-primary'">{{ room.itemCount }}</b>件</template>
           <template v-else>空</template>
         </span>
+      </button>
+      <!-- 行内改名 -->
+      <form v-else class="relative flex min-w-0 flex-1 items-center gap-2" @submit.prevent="saveRename">
+        <input ref="renameInput" v-model="renameDraft" type="text" maxlength="30"
+               class="h-8 min-w-0 flex-1 rounded-md border border-primary bg-white px-2 text-sm outline-none"
+               @keydown.esc="editing = false" @blur="saveRename" />
+      </form>
+      <button v-if="!editing" type="button" class="relative shrink-0 p-1 opacity-60 transition-opacity hover:opacity-100 md:opacity-0 md:group-hover:opacity-60 md:hover:opacity-100"
+              :class="colorful ? 'text-white' : 'text-text-tertiary hover:text-primary'"
+              aria-label="重命名空间" @click.stop="startRename">
+        <Pencil :size="14" aria-hidden="true" />
       </button>
       <NuxtLink :to="`/locations/${room.id}`" class="relative shrink-0 p-1"
                 :class="colorful ? 'text-white/80 hover:text-white' : 'text-text-disabled hover:text-primary'"
@@ -75,18 +86,40 @@
 </template>
 
 <script setup lang="ts">
-import { ChevronRight, Trash2 } from 'lucide-vue-next'
+import { ChevronRight, Pencil, Trash2 } from 'lucide-vue-next'
 import type { LocationTreeNode } from '~/types/api'
 
 const props = withDefaults(defineProps<{
   room: LocationTreeNode
   variant?: 'clean' | 'colorful'
 }>(), { variant: 'clean' })
-defineEmits<{ delete: [id: string] }>()
+const emit = defineEmits<{ delete: [id: string]; rename: [name: string] }>()
 
 const expanded = ref(false)
 const { getRoomIcon, getFurnitureIcon, getCompartmentIcon, getRoomColors } = useRoomStyle()
 const iconSlug = getRoomIcon(props.room.name)
 const colors = getRoomColors(props.room.name)
 const colorful = computed(() => props.variant === 'colorful')
+
+// ---- 行内改名：铅笔 → input 回车/失焦保存 ----
+const editing = ref(false)
+const renameInput = ref<HTMLInputElement | null>(null)
+const renameDraft = ref('')
+
+function startRename() {
+  renameDraft.value = props.room.name
+  editing.value = true
+  nextTick(() => {
+    renameInput.value?.focus()
+    renameInput.value?.select()
+  })
+}
+
+async function saveRename() {
+  if (!editing.value) return
+  const name = renameDraft.value.trim()
+  editing.value = false
+  if (!name || name === props.room.name) return
+  emit('rename', name)
+}
 </script>
