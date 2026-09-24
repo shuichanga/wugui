@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
-# ---- 构建阶段 ----
+# ---- 构建阶段：全量依赖（dev+prod）+ TS 编译 ----
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# pnpm 10 + corepack（corepack 走国内源下载 pnpm；版本对齐根 package.json 的 packageManager，避免运行时再下载一次）
+# pnpm 10 + corepack（corepack 走国内源下载 pnpm；版本对齐根 package.json 的 packageManager）
 ENV COREPACK_NPM_REGISTRY=https://registry.npmmirror.com
 RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
 
@@ -12,38 +12,46 @@ COPY pnpm-workspace.yaml pnpm-lock.yaml package.json .npmrc ./
 COPY apps/api/package.json apps/api/
 COPY packages/core/package.json packages/core/
 # --ignore-scripts 跳过根包 postinstall 的 nuxt prepare（Docker 里用不到）
-# pnpm store 用 BuildKit cache mount 持久化：锁文件变更或下载中断后重试，只补差量不全量重下
 # 3M 带宽下调低并发、加大重试，避免偶发 fetch 超时（ERR_PNPM_META_FETCH_FAIL）
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --filter @wugui/api... --ignore-scripts \
       --network-concurrency=8 --fetch-retries=5 --fetch-retry-maxtimeout=120000 --fetch-timeout=60000
 
-# 复制源码
+# 复制源码 + 编译 workspace 两个包
 COPY . .
-
-# 编译 workspace 两个包
 RUN pnpm --filter @wugui/core build \
  && pnpm --filter @wugui/api build
 
-# 直接使用上面全量 node_modules（不再做 prod 剪枝重装）：
-# GHA 上 `pnpm install --prod` 剪枝层两次卡死（--offline / --prefer-offline 均无输出挂起），
-# 而 --filter @wugui/api... 限定的 devDeps 只有 nest-cli/typescript/drizzle-kit 等少量包，
-# 根包 nuxt 不在内；多出的体积在 ACR VPC 内网拉取可忽略，可靠性优先。
-# （不能用 pnpm deploy：它内部强制按版本范围重新解析依赖元数据，服务器 3M 带宽下必然超时）
+# ---- 依赖阶段：干净环境只装 prod ----
+# 历史：builder 内"对已有 node_modules 做 prod 剪枝重装"在 GHA 上两次无输出卡死（--offline/--prefer-offline 均）；
+# 全量 node_modules 入镜像又因体积过大导致 ACR 跨境推送挂起（两次 10-35min 卡死在 pushing layers）。
+# 独立 deps 阶段 = 标准干净安装（无剪枝语义），且最终镜像不含 devDeps（nest-cli/typescript/drizzle-kit 等），
+# 体积与推送时间回到剪枝前的水平。
+FROM node:20-alpine AS deps
+WORKDIR /app
+ENV COREPACK_NPM_REGISTRY=https://registry.npmmirror.com
+RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
 
-# workspace 符号链接（node_modules/@wugui/core → packages/core）替换为真实文件，
-# 运行镜像里不再有跨目录符号链接
-RUN rm -rf node_modules/@wugui \
- && mkdir -p node_modules/@wugui/core \
- && cp -r packages/core/dist node_modules/@wugui/core/dist \
- && cp packages/core/package.json node_modules/@wugui/core/package.json
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json .npmrc ./
+COPY apps/api/package.json apps/api/
+COPY packages/core/package.json packages/core/
+# 显式走 npmjs：GHA runner（美国）直连最快；npmmirror 跨境爬不完
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+    pnpm install --prod --frozen-lockfile --filter @wugui/api... --ignore-scripts \
+      --prefer-offline --registry=https://registry.npmjs.org \
+      --network-concurrency=8 --fetch-retries=5 --fetch-retry-maxtimeout=120000 --fetch-timeout=60000 \
+ && rm -rf node_modules/@wugui && mkdir -p node_modules/@wugui/core
+
+# core 构建产物实体化（替换 workspace 符号链接，运行镜像内无跨目录链接）
+COPY --from=builder /app/packages/core/dist /app/node_modules/@wugui/core/dist
+COPY --from=builder /app/packages/core/package.json /app/node_modules/@wugui/core/package.json
 
 # ---- 运行阶段 ----
 FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 
-COPY --from=builder /app/node_modules ./node_modules
+COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/apps/api/dist ./dist
 COPY --from=builder /app/apps/api/package.json ./package.json
 # 数据库迁移 SQL（手动执行 mysql 建表用）
