@@ -81,7 +81,7 @@
           v-for="(room, index) in rooms"
           :key="room.id"
           class="room-card"
-          :class="{ 'room-card-colorful': isColorful, 'room-card-dragging': dragIndex === index }"
+          :class="{ 'room-card-colorful': isColorful, 'room-card-placeholder': dragActive && dragIndex === index }"
           @longpress="onCardLongPress(index, $event)"
           @touchmove="onCardTouchMove"
           @touchend="onCardTouchEnd"
@@ -157,6 +157,41 @@
       <view v-if="rooms.length" class="dash-add" @tap="formOpen = !formOpen">
         <text class="dash-add-icon">{{ formOpen ? '−' : '＋' }}</text>
         <text>{{ formOpen ? '收起表单' : '添加房间' }}</text>
+      </view>
+    </view>
+
+    <!-- 拖拽悬浮卡：复制被拖卡内容，fixed 跟手；原行位由半透明占位卡保留 -->
+    <view
+      v-if="dragActive && dragRoom"
+      class="room-card room-card-ghost"
+      :class="{ 'room-card-colorful': isColorful }"
+      :style="ghostStyle"
+    >
+      <view
+        class="room-row"
+        :class="{ 'room-row-colorful': isColorful }"
+        :style="isColorful ? { background: getRoomColors(dragRoom.name).accent } : undefined"
+      >
+        <template v-if="isColorful">
+          <view class="row-deco row-deco-1"></view>
+          <view class="row-deco row-deco-2"></view>
+        </template>
+        <view class="room-main">
+          <view class="icon-tile" :class="{ 'icon-tile-muted': !isColorful && dragRoom.itemCount === 0 }">
+            <LocationIcon :slug="getRoomIcon(dragRoom.name)" :size="36" :state="iconState(dragRoom.itemCount)" />
+          </view>
+          <text class="room-name">{{ dragRoom.name }}</text>
+          <text v-if="dragRoom.itemCount > 0" class="room-count">
+            <text class="room-count-num">{{ dragRoom.itemCount }}</text>件
+          </text>
+          <text v-else class="room-count-empty">空</text>
+        </view>
+        <view class="room-edit">
+          <text class="room-edit-icon">✎</text>
+        </view>
+        <view class="room-arrow">
+          <text class="room-arrow-icon">›</text>
+        </view>
       </view>
     </view>
   </view>
@@ -363,18 +398,24 @@ function onRename(room: LocationTreeNode) {
   })
 }
 
-// ---- 长按拖拽排序（顶层房间）：相对位移换算，避免 pageScrollTo 与页面滚动打架造成抖动 ----
-// 关键：激活时收起展开区（等高卡片），行高 = 相邻卡片 top 差；换算与页面滚动完全解耦
+// ---- 长按拖拽排序（顶层房间）：克隆卡 fixed 悬浮跟手，原卡半透明占位随列表换位让位，松手回落入行 ----
+// 关键：激活时收起展开区（等高卡片），行高 = 相邻卡片 top 差
 const instance = getCurrentInstance()
-const dragIndex = ref(-1)
+const dragIndex = ref(-1)        // 被拖卡当前所在行位
+const dragActive = ref(false)    // 长按测量成功后进入拖拽态
+const dragSnap = ref(false)      // 松手后的回落动画阶段
+const dragDy = ref(0)
 let dragStartY = 0
 let dragStartIndex = 0
 let dragRowH = 0
+let listTop = 0
+let dragRect = { left: 0, top: 0, width: 0, height: 0 }
+let dragPending = false        // 长按已触发、测量回调未返回
 
 function onCardLongPress(index: number, e: { changedTouches?: Array<{ clientY: number }> }) {
-  if (dragIndex.value >= 0) return
+  if (dragActive.value) return
   expandedId.value = '' // 收起展开区：拖拽期间卡片等高，换算才准
-  dragIndex.value = index
+  dragPending = true
   dragStartIndex = index
   // 基准 = 手指按下位置（longpress 事件的 touch），而非卡片 top
   dragStartY = e?.changedTouches?.[0]?.clientY ?? 0
@@ -384,24 +425,34 @@ function onCardLongPress(index: number, e: { changedTouches?: Array<{ clientY: n
     .in(instance)
     .selectAll('.room-card')
     .boundingClientRect((nodes) => {
-      const list = nodes as Array<{ top: number; height: number }>
+      const list = nodes as Array<{ left: number; top: number; width: number; height: number }>
       // 行高 = 相邻卡片 top 差（含间距）；只有一张卡时不启用拖拽
       dragRowH = list.length >= 2 ? Math.abs(list[1].top - list[0].top) : 0
-      if (!dragRowH) {
-        dragIndex.value = -1
+      const rect = list[index]
+      // 测量失败或手指已松开则不激活
+      if (!dragPending || !dragRowH || !rect) {
+        dragPending = false
         return
       }
+      dragPending = false
+      listTop = list[0].top
+      dragRect = rect
+      dragDy.value = 0
+      dragIndex.value = index
+      dragActive.value = true
     })
     .exec()
 }
 
 function onCardTouchMove(e: { touches: Array<{ clientY: number }> }) {
-  if (dragIndex.value < 0 || !dragRowH) return
+  if (!dragActive.value || dragSnap.value) return
   const y = e.touches?.[0]?.clientY
   if (y == null) return
 
-  const offset = Math.round((y - dragStartY) / dragRowH)
-  const target = Math.max(0, Math.min(rooms.value.length - 1, dragStartIndex + offset))
+  // 悬浮卡 1:1 跟手
+  dragDy.value = y - dragStartY
+
+  const target = Math.max(0, Math.min(rooms.value.length - 1, dragStartIndex + Math.round(dragDy.value / dragRowH)))
   const from = dragIndex.value
   if (target === from) return
 
@@ -413,12 +464,36 @@ function onCardTouchMove(e: { touches: Array<{ clientY: number }> }) {
 }
 
 function onCardTouchEnd() {
-  if (dragIndex.value < 0) return
-  dragIndex.value = -1
-  const ids = tree.value.map((n) => n.id)
-  reorderLocations(ids)
-  refresh()
+  dragPending = false
+  if (!dragActive.value) return
+  // 回落动画：悬浮卡平移到目标行，再回归文档流
+  dragDy.value = listTop + dragIndex.value * dragRowH - dragRect.top
+  dragSnap.value = true
+  reorderLocations(tree.value.map((n) => n.id))
+  setTimeout(() => {
+    dragActive.value = false
+    dragSnap.value = false
+    dragIndex.value = -1
+    refresh()
+  }, 200)
 }
+
+// 被拖卡数据与悬浮样式：原卡留流内作半透明占位，克隆卡 fixed 跟手（回落阶段带过渡）
+const dragRoom = computed(() => (dragIndex.value >= 0 ? tree.value[dragIndex.value] : null))
+
+const ghostStyle = computed((): Record<string, string> => {
+  if (!dragActive.value) return {}
+  return {
+    position: 'fixed',
+    left: `${dragRect.left}px`,
+    top: `${dragRect.top}px`,
+    width: `${dragRect.width}px`,
+    height: `${dragRect.height}px`,
+    zIndex: '200',
+    transform: `translateY(${dragDy.value}px) scale(${dragSnap.value ? 1 : 1.03})`,
+    transition: dragSnap.value ? 'transform 0.2s ease-out' : 'none',
+  }
+})
 
 onMounted(refresh)
 
@@ -652,11 +727,13 @@ defineExpose({ refresh })
   line-height: 1;
 }
 
-/* 拖拽中：卡片抬起 */
-.room-card-dragging {
-  transform: scale(1.02);
-  box-shadow: 0 8rpx 16rpx rgba(24, 39, 32, 0.12), 0 24rpx 64rpx rgba(24, 39, 32, 0.12);
-  opacity: 0.92;
+/* 拖拽占位：原行位半透明保留；悬浮卡投影 + 跟手（位移/缩放由内联 transform 控制） */
+.room-card-placeholder {
+  opacity: 0.35;
+}
+.room-card-ghost {
+  margin: 0;
+  box-shadow: 0 8rpx 16rpx rgba(24, 39, 32, 0.16), 0 24rpx 64rpx rgba(24, 39, 32, 0.2);
 }
 
 /* 彩色模式：房间行背景与首页空间看板卡一致（展开后横线以下不变） */

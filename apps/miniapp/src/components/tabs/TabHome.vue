@@ -77,7 +77,7 @@
           v-for="(loc, index) in rooms"
           :key="loc.id"
           class="card room-card"
-          :class="{ 'room-card-colorful': boardStyle === 'colorful', 'room-card-dragging': dragIndex === index }"
+          :class="{ 'room-card-colorful': boardStyle === 'colorful', 'room-card-placeholder': dragActive && dragIndex === index }"
           :style="boardStyle === 'colorful' ? { background: getRoomColors(loc.name).accent } : undefined"
           @tap="goRoom(loc.id)"
           @longpress="onGridLongPress(index, $event)"
@@ -94,6 +94,7 @@
                   :state="loc.itemCount === 0 ? 'muted' : 'default'"
                 />
               </view>
+              <text class="room-name">{{ loc.name }}</text>
               <text class="room-count" :class="{ muted: loc.itemCount === 0 }">
                 <template v-if="loc.itemCount > 0">
                   <text class="room-count-num">{{ loc.itemCount }}</text> 件
@@ -101,7 +102,6 @@
                 <template v-else>还没有物品</template>
               </text>
             </view>
-            <view class="room-name">{{ loc.name }}</view>
             <view class="track">
               <view class="track-fill" :style="{ width: progressWidth(loc) }"></view>
               <view class="track-dot" :style="{ left: progressWidth(loc) }"></view>
@@ -111,9 +111,7 @@
             <view class="room-deco room-deco-1"></view>
             <view class="room-deco room-deco-2"></view>
             <view class="room-colorful-row">
-              <view class="room-colorful-icon" :class="{ 'room-colorful-icon-empty': loc.itemCount === 0 }">
-                <LocationIcon :slug="getRoomIcon(loc.name)" :size="32" state="white" />
-              </view>
+              <LocationIcon :slug="getRoomIcon(loc.name)" :size="36" state="white" />
               <text class="room-colorful-name">{{ loc.name }}</text>
               <text class="room-colorful-count" :class="{ 'room-colorful-count-empty': loc.itemCount === 0 }">{{ loc.itemCount }} 件</text>
             </view>
@@ -195,6 +193,49 @@
 
     <!-- 广告位：会员不渲染（流量主开通后填 adUnitId） -->
     <AdBanner />
+
+    <!-- 拖拽悬浮卡：复制被拖卡内容，fixed 跟手；原格位由半透明占位卡保留 -->
+    <view
+      v-if="dragActive && dragRoom"
+      class="card room-card room-card-ghost"
+      :class="{ 'room-card-colorful': boardStyle === 'colorful' }"
+      :style="ghostStyle"
+    >
+      <template v-if="boardStyle === 'clean'">
+        <view class="room-top">
+          <view class="icon-tile" :class="{ 'icon-tile-muted': dragRoom.itemCount === 0 }">
+            <LocationIcon
+              :slug="getRoomIcon(dragRoom.name)"
+              :size="36"
+              :state="dragRoom.itemCount === 0 ? 'muted' : 'default'"
+            />
+          </view>
+          <text class="room-name">{{ dragRoom.name }}</text>
+          <text class="room-count" :class="{ muted: dragRoom.itemCount === 0 }">
+            <template v-if="dragRoom.itemCount > 0">
+              <text class="room-count-num">{{ dragRoom.itemCount }}</text> 件
+            </template>
+            <template v-else>还没有物品</template>
+          </text>
+        </view>
+        <view class="track">
+          <view class="track-fill" :style="{ width: progressWidth(dragRoom) }"></view>
+          <view class="track-dot" :style="{ left: progressWidth(dragRoom) }"></view>
+        </view>
+      </template>
+      <template v-else>
+        <view class="room-deco room-deco-1"></view>
+        <view class="room-deco room-deco-2"></view>
+        <view class="room-colorful-row">
+          <LocationIcon :slug="getRoomIcon(dragRoom.name)" :size="36" state="white" />
+          <text class="room-colorful-name">{{ dragRoom.name }}</text>
+          <text class="room-colorful-count" :class="{ 'room-colorful-count-empty': dragRoom.itemCount === 0 }">{{ dragRoom.itemCount }} 件</text>
+        </view>
+        <view class="room-colorful-track">
+          <view class="room-colorful-fill" :style="{ width: progressWidth(dragRoom) }"></view>
+        </view>
+      </template>
+    </view>
   </view>
 </template>
 
@@ -267,18 +308,26 @@ function refresh() {
   recentViewIds.value = store.recentViews().map(v => v.itemId)
 }
 
-// ---- 看板卡长按拖拽排序（2 列 grid）：相对位移换算（行差×2 + 列差），与页面滚动解耦 ----
+// ---- 看板卡长按拖拽排序（2 列 grid）：克隆卡 fixed 悬浮跟手，原卡半透明占位随列表换位让位，松手回落入格 ----
 const gridInstance = getCurrentInstance()
-const dragIndex = ref(-1)
+const dragIndex = ref(-1)        // 被拖卡当前所在格位
+const dragActive = ref(false)    // 长按测量成功后进入拖拽态
+const dragSnap = ref(false)      // 松手后的回落动画阶段
+const dragDx = ref(0)
+const dragDy = ref(0)
 let dragStartY = 0
 let dragStartX = 0
 let dragStartIndex = 0
 let dragRowH = 0
 let dragColW = 0
+let gridLeft = 0
+let gridTop = 0
+let dragRect = { left: 0, top: 0, width: 0, height: 0 }
+let dragPending = false        // 长按已触发、测量回调未返回
 
 function onGridLongPress(index: number, e: { changedTouches?: Array<{ clientX: number; clientY: number }> }) {
-  if (dragIndex.value >= 0) return
-  dragIndex.value = index
+  if (dragActive.value) return
+  dragPending = true
   dragStartIndex = index
   dragStartY = e?.changedTouches?.[0]?.clientY ?? 0
   dragStartX = e?.changedTouches?.[0]?.clientX ?? 0
@@ -288,25 +337,40 @@ function onGridLongPress(index: number, e: { changedTouches?: Array<{ clientX: n
     .in(gridInstance)
     .selectAll('.room-card')
     .boundingClientRect((nodes) => {
-      const list = nodes as Array<{ left: number; top: number; height: number }>
+      const list = nodes as Array<{ left: number; top: number; width: number; height: number }>
       // 列宽 = 第二列 left - 第一列 left；行高 = 第三张卡 top - 第一张 top（grid 2 列）
       dragColW = list.length >= 2 ? Math.abs(list[1].left - list[0].left) : 0
       dragRowH = list.length >= 3 ? Math.abs(list[2].top - list[0].top) : (list[0]?.height ?? 0)
-      if (!dragRowH || !dragColW) {
-        dragIndex.value = -1
+      const rect = list[index]
+      // 测量失败或手指已松开则不激活
+      if (!dragPending || !dragRowH || !dragColW || !rect) {
+        dragPending = false
         return
       }
+      dragPending = false
+      gridLeft = list[0].left
+      gridTop = list[0].top
+      dragRect = rect
+      dragDx.value = 0
+      dragDy.value = 0
+      dragIndex.value = index
+      dragActive.value = true
     })
     .exec()
 }
 
 function onGridTouchMove(e: { touches: Array<{ clientX: number; clientY: number }> }) {
-  if (dragIndex.value < 0 || !dragRowH || !dragColW) return
+  if (!dragActive.value || dragSnap.value) return
   const t = e.touches?.[0]
   if (!t) return
 
-  const dRows = Math.round((t.clientY - dragStartY) / dragRowH)
-  const dCols = Math.round((t.clientX - dragStartX) / dragColW)
+  // 悬浮卡 1:1 跟手
+  dragDx.value = t.clientX - dragStartX
+  dragDy.value = t.clientY - dragStartY
+
+  // 相对起始格位的行/列差换算目标格（行差×2 + 列差）
+  const dRows = Math.round(dragDy.value / dragRowH)
+  const dCols = Math.round(dragDx.value / dragColW)
   const target = Math.max(0, Math.min(rooms.value.length - 1, dragStartIndex + dRows * 2 + dCols))
   const from = dragIndex.value
   if (target === from) return
@@ -319,11 +383,40 @@ function onGridTouchMove(e: { touches: Array<{ clientX: number; clientY: number 
 }
 
 function onGridTouchEnd() {
-  if (dragIndex.value < 0) return
-  dragIndex.value = -1
+  dragPending = false
+  if (!dragActive.value) return
+  // 回落动画：悬浮卡平移到目标格子，再回归文档流
+  dragDx.value = gridLeft + (dragIndex.value % 2) * dragColW - dragRect.left
+  dragDy.value = gridTop + Math.floor(dragIndex.value / 2) * dragRowH - dragRect.top
+  dragSnap.value = true
   reorderLocations(rooms.value.map((n) => n.id))
-  refresh()
+  setTimeout(() => {
+    dragActive.value = false
+    dragSnap.value = false
+    dragIndex.value = -1
+    refresh()
+  }, 200)
 }
+
+// 被拖卡数据与悬浮样式：原卡留流内作半透明占位，克隆卡 fixed 跟手（回落阶段带过渡）
+const dragRoom = computed(() => (dragIndex.value >= 0 ? rooms.value[dragIndex.value] : null))
+
+const ghostStyle = computed((): Record<string, string> => {
+  const room = dragRoom.value
+  if (!dragActive.value || !room) return {}
+  const style: Record<string, string> = {
+    position: 'fixed',
+    left: `${dragRect.left}px`,
+    top: `${dragRect.top}px`,
+    width: `${dragRect.width}px`,
+    height: `${dragRect.height}px`,
+    zIndex: '200',
+    transform: `translate(${dragDx.value}px, ${dragDy.value}px) scale(${dragSnap.value ? 1 : 1.04})`,
+    transition: dragSnap.value ? 'transform 0.2s ease-out' : 'none',
+  }
+  if (boardStyle.value === 'colorful') style.background = getRoomColors(room.name).accent
+  return style
+})
 
 // 进度条：该房间物品数（含下属层级）占整个住所物品总数的比例
 function progressWidth(loc: LocationTreeNode): string {
@@ -510,20 +603,26 @@ defineExpose({ refresh })
   gap: 12rpx;
   position: relative;
 }
-/* 拖拽中：卡片抬起 */
-.room-card-dragging {
-  transform: scale(1.03);
-  box-shadow: 0 8rpx 16rpx rgba(24, 39, 32, 0.12), 0 24rpx 64rpx rgba(24, 39, 32, 0.12);
-  opacity: 0.92;
+/* 拖拽占位：原格位半透明保留；悬浮卡投影 + 跟手（位移/缩放由内联 transform 控制） */
+.room-card-placeholder {
+  opacity: 0.35;
+}
+.room-card-ghost {
+  margin: 0;
+  box-shadow: 0 8rpx 16rpx rgba(24, 39, 32, 0.16), 0 24rpx 64rpx rgba(24, 39, 32, 0.2);
 }
 .room-top {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 16rpx;
+}
+.room-top .icon-tile {
+  flex-shrink: 0;
 }
 .room-count {
   font-size: 22rpx;
   color: #8a978f;
+  flex-shrink: 0;
 }
 .room-count.muted {
   color: #aebbb2;
@@ -533,7 +632,10 @@ defineExpose({ refresh })
   font-weight: 700;
   font-size: 28rpx;
 }
+/* 名称与图标同行：占据中间剩余空间，超长省略 */
 .room-name {
+  flex: 1;
+  min-width: 0;
   font-family: var(--font-display);
   font-size: 28rpx;
   font-weight: 600;
@@ -572,22 +674,7 @@ defineExpose({ refresh })
   position: relative;
   display: flex;
   align-items: center;
-  gap: 12rpx;
-}
-.room-colorful-icon {
-  width: 48rpx;
-  height: 48rpx;
-  border-radius: 12rpx;
-  background: rgba(255, 255, 255, 0.22);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-/* 空房间在彩色模式下的弱化：底色更淡 + 图标整体半透明 */
-.room-colorful-icon-empty {
-  background: rgba(255, 255, 255, 0.10);
-  opacity: 0.55;
+  gap: 16rpx;
 }
 .room-colorful-name {
   flex: 1;

@@ -3,19 +3,19 @@
   <NuxtLink v-if="variant === 'clean'"
             :to="`/locations/${room.id}`"
             class="block rounded-2xl border border-border bg-neutral-surface px-3 pb-2 pt-2 shadow-level-1 transition-transform hover:scale-[1.02]">
-    <div class="flex items-center justify-between">
-      <span class="flex h-[30px] w-[30px] items-center justify-center rounded-[10px]"
+    <div class="flex items-center gap-2">
+      <span class="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[10px]"
             :class="room.count > 0 ? 'bg-tint text-primary' : 'bg-neutral-sunken text-text-disabled'">
         <LocationIcon :slug="iconSlug" :size="16" />
       </span>
-      <span class="text-xs text-text-tertiary">
+      <p class="font-display min-w-0 flex-1 truncate text-sm font-semibold">{{ room.name }}</p>
+      <span class="shrink-0 text-xs text-text-tertiary">
         <template v-if="room.count > 0"><b class="text-sm font-bold text-primary">{{ room.count }}</b>件</template>
         <template v-else>还没有物品</template>
       </span>
     </div>
-    <p class="font-display mb-[5px] mt-1 truncate text-sm font-semibold">{{ room.name }}</p>
     <!-- 细进度条 + 末端圆点：空房间圆点停在起点（跟随原型） -->
-    <div class="relative h-1 rounded-full bg-track">
+    <div class="relative mt-2 h-1 rounded-full bg-track">
       <span class="absolute inset-y-0 left-0 rounded-full bg-signal" :style="{ width: progressWidth }" />
       <span class="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-signal ring-2 ring-neutral-surface"
             :style="{ left: progressWidth }" />
