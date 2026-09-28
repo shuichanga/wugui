@@ -81,7 +81,8 @@
           v-for="(room, index) in rooms"
           :key="room.id"
           class="room-card"
-          :class="{ 'room-card-colorful': isColorful, 'room-card-placeholder': dragActive && dragIndex === index }"
+          :class="{ 'room-card-colorful': isColorful }"
+          :style="getRoomCardStyle(room, index)"
           @longpress="onCardLongPress(index, $event)"
           @touchmove="onCardTouchMove"
           @touchend="onCardTouchEnd"
@@ -162,7 +163,7 @@
 
     <!-- 拖拽悬浮卡：复制被拖卡内容，fixed 跟手；原行位由半透明占位卡保留 -->
     <view
-      v-if="dragActive && dragRoom"
+      v-if="(dragActive || dragSnap) && dragRoom"
       class="room-card room-card-ghost"
       :class="{ 'room-card-colorful': isColorful }"
       :style="ghostStyle"
@@ -198,7 +199,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, getCurrentInstance, onMounted, reactive, ref } from 'vue'
+import { computed, getCurrentInstance, onMounted, onUnmounted, reactive, ref } from 'vue'
 import LocationIcon from '../LocationIcon.vue'
 import {
   buildLocationTree,
@@ -210,6 +211,7 @@ import {
 } from '../../composables/useLocalData'
 import { getCompartmentIcon, getFurnitureIcon, getRoomColors, getRoomIcon } from '../../utils/room-style'
 import { useTheme } from '../../composables/useTheme'
+import { useDragLock } from '../../composables/useDragLock'
 
 const { boardStyle } = useTheme()
 const isColorful = computed(() => boardStyle.value === 'colorful')
@@ -398,10 +400,14 @@ function onRename(room: LocationTreeNode) {
   })
 }
 
-// ---- 长按拖拽排序（顶层房间）：克隆卡 fixed 悬浮跟手，原卡半透明占位随列表换位让位，松手回落入行 ----
+// ---- 长按拖拽排序（顶层房间）：克隆卡 fixed 悬浮跟手；DOM 顺序不动，
+// 各卡用 transform 平移到显示行位（transition 平滑让位），松手后数组重排与清 transform 同帧无缝归位 ----
 // 关键：激活时收起展开区（等高卡片），行高 = 相邻卡片 top 差
+const { setDragLock } = useDragLock()
 const instance = getCurrentInstance()
-const dragIndex = ref(-1)        // 被拖卡当前所在行位
+const dragId = ref('')           // 被拖卡 id
+const dragIndex = ref(-1)        // 被拖卡当前显示行位（dragOrder 中的下标）
+const dragOrder = ref<string[] | null>(null)  // 拖拽中的显示顺序；null = 非拖拽（tree 保持原顺序）
 const dragActive = ref(false)    // 长按测量成功后进入拖拽态
 const dragSnap = ref(false)      // 松手后的回落动画阶段
 const dragDy = ref(0)
@@ -413,7 +419,7 @@ let dragRect = { left: 0, top: 0, width: 0, height: 0 }
 let dragPending = false        // 长按已触发、测量回调未返回
 
 function onCardLongPress(index: number, e: { changedTouches?: Array<{ clientY: number }> }) {
-  if (dragActive.value) return
+  if (dragActive.value || dragSnap.value) return // 回落动画期间不响应新的长按拖拽
   expandedId.value = '' // 收起展开区：拖拽期间卡片等高，换算才准
   dragPending = true
   dragStartIndex = index
@@ -429,8 +435,9 @@ function onCardLongPress(index: number, e: { changedTouches?: Array<{ clientY: n
       // 行高 = 相邻卡片 top 差（含间距）；只有一张卡时不启用拖拽
       dragRowH = list.length >= 2 ? Math.abs(list[1].top - list[0].top) : 0
       const rect = list[index]
+      const dragLoc = tree.value[index]
       // 测量失败或手指已松开则不激活
-      if (!dragPending || !dragRowH || !rect) {
+      if (!dragPending || !dragRowH || !rect || !dragLoc) {
         dragPending = false
         return
       }
@@ -438,8 +445,11 @@ function onCardLongPress(index: number, e: { changedTouches?: Array<{ clientY: n
       listTop = list[0].top
       dragRect = rect
       dragDy.value = 0
+      dragId.value = dragLoc.id
+      dragOrder.value = tree.value.map((n) => n.id)
       dragIndex.value = index
       dragActive.value = true
+      setDragLock(true) // 拖拽期间锁定 scroll-view 滚动，防止内容在悬浮卡下方移动抖动
     })
     .exec()
 }
@@ -456,9 +466,10 @@ function onCardTouchMove(e: { touches: Array<{ clientY: number }> }) {
   const from = dragIndex.value
   if (target === from) return
 
-  const list = tree.value
-  const [moved] = list.splice(from, 1)
-  list.splice(target, 0, moved)
+  const order = dragOrder.value
+  if (!order) return
+  const [movedId] = order.splice(from, 1)
+  order.splice(target, 0, movedId)
   dragIndex.value = target
   uni.vibrateShort({})
 }
@@ -466,23 +477,35 @@ function onCardTouchMove(e: { touches: Array<{ clientY: number }> }) {
 function onCardTouchEnd() {
   dragPending = false
   if (!dragActive.value) return
-  // 回落动画：悬浮卡平移到目标行，再回归文档流
+  const order = dragOrder.value
+  if (!order) return
+  // 悬浮卡进入回落动画（落点 = 目标行；占位卡已通过 transform 移到该行）
   dragDy.value = listTop + dragIndex.value * dragRowH - dragRect.top
   dragSnap.value = true
-  reorderLocations(tree.value.map((n) => n.id))
+  reorderLocations(order.slice())
+  // 立即同步退出拖拽态：同帧完成「清占位淡显/卡片 transform + tree 按最终顺序重排」，
+  // 卡片从 transform 位置无缝落回文档流；悬浮卡由 dragSnap 单独保活到回落动画结束。
+  // 状态复位不放进 setTimeout：延迟复位在模拟器里可能被合并渲染丢失，导致淡显不恢复
+  dragActive.value = false
+  dragOrder.value = null
+  dragIndex.value = -1
+  setDragLock(false)
+  refresh()
   setTimeout(() => {
-    dragActive.value = false
     dragSnap.value = false
-    dragIndex.value = -1
-    refresh()
+    dragId.value = ''
   }, 200)
 }
 
+// 组件卸载兜底：防止拖拽中离开页面导致滚动锁泄漏
+onUnmounted(() => setDragLock(false))
+
 // 被拖卡数据与悬浮样式：原卡留流内作半透明占位，克隆卡 fixed 跟手（回落阶段带过渡）
-const dragRoom = computed(() => (dragIndex.value >= 0 ? tree.value[dragIndex.value] : null))
+const dragRoom = computed(() => (dragId.value ? tree.value.find((n) => n.id === dragId.value) ?? null : null))
 
 const ghostStyle = computed((): Record<string, string> => {
-  if (!dragActive.value) return {}
+  // 拖拽态与回落动画态都要保活（回落时 dragActive 已复位，靠 dragSnap 维持样式）
+  if (!dragActive.value && !dragSnap.value) return {}
   return {
     position: 'fixed',
     left: `${dragRect.left}px`,
@@ -494,6 +517,23 @@ const ghostStyle = computed((): Record<string, string> => {
     transition: dragSnap.value ? 'transform 0.2s ease-out' : 'none',
   }
 })
+
+// 拖拽期间各卡位移样式：把卡从自己的文档流行位平移到在 dragOrder 中的显示行位，
+// transition 让"换序让位"变成滑动动画（0 偏移也输出，保证拖回原位时同样有过渡）；
+// 被拖卡在本体位加透明度占位（内联 style，与 transform 同通道，避免 class 更新丢失）；非拖拽态返回普通样式
+function getRoomCardStyle(room: LocationTreeNode, index: number): Record<string, string> {
+  const style: Record<string, string> = {}
+  if (dragActive.value && room.id === dragId.value) style.opacity = '0.35'
+  const order = dragOrder.value
+  if (dragActive.value && order) {
+    const displayIndex = order.indexOf(room.id)
+    if (displayIndex >= 0) {
+      style.transform = `translateY(${(displayIndex - index) * dragRowH}px)`
+      style.transition = 'transform 0.15s ease-out'
+    }
+  }
+  return style
+}
 
 onMounted(refresh)
 
@@ -727,10 +767,7 @@ defineExpose({ refresh })
   line-height: 1;
 }
 
-/* 拖拽占位：原行位半透明保留；悬浮卡投影 + 跟手（位移/缩放由内联 transform 控制） */
-.room-card-placeholder {
-  opacity: 0.35;
-}
+/* 拖拽悬浮卡投影 + 跟手（位移/缩放由内联 transform 控制） */
 .room-card-ghost {
   margin: 0;
   box-shadow: 0 8rpx 16rpx rgba(24, 39, 32, 0.16), 0 24rpx 64rpx rgba(24, 39, 32, 0.2);

@@ -10,25 +10,25 @@
     >
       <!-- 首页 -->
       <swiper-item>
-        <scroll-view scroll-y class="tab-scroll">
+        <scroll-view class="tab-scroll" :scroll-y="!dragLocked">
           <TabHome v-if="mounted[0]" ref="homeRef" />
         </scroll-view>
       </swiper-item>
       <!-- 物品 -->
       <swiper-item>
-        <scroll-view scroll-y class="tab-scroll">
+        <scroll-view class="tab-scroll" :scroll-y="!dragLocked">
           <TabItems v-if="mounted[1]" ref="itemsRef" />
         </scroll-view>
       </swiper-item>
       <!-- 空间 -->
       <swiper-item>
-        <scroll-view scroll-y class="tab-scroll">
+        <scroll-view class="tab-scroll" :scroll-y="!dragLocked">
           <TabLocations v-if="mounted[2]" ref="locationsRef" />
         </scroll-view>
       </swiper-item>
       <!-- 我的 -->
       <swiper-item>
-        <scroll-view scroll-y class="tab-scroll">
+        <scroll-view class="tab-scroll" :scroll-y="!dragLocked">
           <TabSettings v-if="mounted[3]" ref="settingsRef" />
         </scroll-view>
       </swiper-item>
@@ -56,10 +56,13 @@ import { useAuth } from '../../composables/useAuth'
 import { useTheme } from '../../composables/useTheme'
 import { useHomeTabs } from '../../composables/useHomeTabs'
 import { useSafeArea } from '../../composables/useSafeArea'
+import { useDragLock } from '../../composables/useDragLock'
 
 const { themeClass } = useTheme()
 const { activeTab } = useHomeTabs()
 const { topVars, pageStyle } = useSafeArea()
+// 拖拽排序期间锁定 tab 内滚动（消除内容在悬浮卡下方滚动造成的抖动）
+const { dragLocked } = useDragLock()
 const auth = useAuth()
 
 // 懒挂载：首次切到某 tab 才挂载组件，之后常驻（滑动瞬时、滚动位置保留）
