@@ -1,7 +1,7 @@
 <template>
   <!-- 照片：76px 方块 + 虚线添加钮（在 ItemForm 的扩展区 slot 中使用） -->
   <section class="rounded-2xl border border-border bg-neutral-surface px-3.5 py-3 shadow-level-1">
-    <span class="mb-2 block text-xs font-semibold text-text-tertiary">照片 <span class="font-normal">（最多 {{ max }} 张）</span></span>
+    <span class="mb-2 block text-xs font-semibold text-text-tertiary">照片<template v-if="max > 0"> <span class="font-normal">（最多 {{ max }} 张）</span></template><template v-else> <span class="font-normal">（已达上限）</span></template></span>
     <ul class="flex gap-2">
       <li v-for="(p, i) in modelValue" :key="i" class="relative">
         <img :src="p.previewUrl" alt="照片预览" class="h-[76px] w-[76px] rounded-lg object-cover" />
@@ -18,6 +18,8 @@
         </label>
       </li>
     </ul>
+    <!-- 编辑场景：已有照片占满上限时给出明确指引（先删再加） -->
+    <p v-if="max <= 0" class="mt-1 text-xs text-text-tertiary">照片已达上限，如需添加新照片请先删除已有照片</p>
   </section>
 </template>
 
@@ -42,7 +44,9 @@ function onPick(e: Event) {
   void (async () => {
     try {
       const compressed = await compressImage(file)
-      modelValue.value = [...modelValue.value, { file: compressed, previewUrl: URL.createObjectURL(compressed) }]
+      // 原地 push：与 removeAt 的 splice 同机制，直接修改父级持有的同一数组。
+      // 不用 [...展开替换]——那依赖 defineModel 的 emit→prop 回传，实测在编辑页不生效
+      modelValue.value.push({ file: compressed, previewUrl: URL.createObjectURL(compressed) })
     } catch {
       await useDialog().alertDialog('照片处理失败', '请换一张试试')
     }

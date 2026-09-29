@@ -52,6 +52,7 @@ const newPhotos = ref<PendingPhoto[]>([])
 const saving = ref(false)
 
 const activeExistingCount = computed(() => existingPhotos.value.length - removedIds.value.length)
+
 const initial = computed(() => item.value
   ? {
       name: item.value.name,

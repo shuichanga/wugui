@@ -63,10 +63,11 @@ export class ApiClient {
     opts: ApiClientOptions = {},
   ): Promise<T> {
     const { baseUrl, getToken } = this.config
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...(opts.headers ?? {}),
-    }
+
+    // Content-Type 仅在携带 body 时声明：Fastify 对"声明 JSON 却空 body"的请求直接回 400
+    // （FST_ERR_CTP_EMPTY_JSON_BODY），无 body 的 DELETE/GET 不能带这个头
+    const headers: Record<string, string> = { ...(opts.headers ?? {}) }
+    if (opts.body !== undefined) headers['Content-Type'] = 'application/json'
 
     const token = getToken?.()
     if (token) headers.Authorization = `Bearer ${token}`
