@@ -136,22 +136,33 @@
         </view>
       </view>
 
-      <!-- 照片 -->
+      <!-- 照片：云端已同步（标记删除，保存后生效）+ 本地暂存（移除即删） -->
       <view class="card field">
         <view class="label-row">
           <text class="label">照片</text>
-          <text class="muted-hint">（最多 {{ MAX_PHOTOS }} 张，仅保存本机）</text>
+          <text v-if="cloudMarkedCount" class="muted-hint">（已标记删除 {{ cloudMarkedCount }} 张，保存后生效）</text>
+          <text v-else class="muted-hint">（最多 {{ MAX_PHOTOS }} 张）</text>
         </view>
         <view class="photo-row">
-          <view v-for="(p, i) in photos" :key="i" class="photo-item">
-            <image :src="p" mode="aspectFill" class="photo-img" @tap="previewPhoto(i)" />
+          <view v-for="c in cloudPhotos" :key="c.photoId" class="photo-item" :class="{ marked: c.marked }">
+            <image v-if="c.url" :src="c.url" mode="aspectFill" class="photo-img" @tap="previewPhoto(c.url)" />
+            <view v-else class="photo-img photo-loading" />
+            <view class="photo-remove" :class="{ undo: c.marked }" @tap.stop="toggleCloudMark(c.photoId)">
+              <text>{{ c.marked ? '↺' : '×' }}</text>
+            </view>
+          </view>
+          <view v-for="(p, i) in photos" :key="`local-${i}`" class="photo-item">
+            <image :src="p" mode="aspectFill" class="photo-img" @tap="previewPhoto(p)" />
             <view class="photo-remove" @tap.stop="removePhoto(i)">
               <text>×</text>
             </view>
           </view>
-          <view v-if="photos.length < MAX_PHOTOS" class="photo-add" @tap="addPhoto">
+          <view v-if="totalPhotos < MAX_PHOTOS" class="photo-add" @tap="addPhoto">
             <text class="photo-plus">＋</text>
           </view>
+        </view>
+        <view v-if="totalPhotos >= MAX_PHOTOS && cloudMarkedCount" class="photo-full-hint">
+          <text>照片已达上限，保存后将释放已删除照片的名额</text>
         </view>
       </view>
 
@@ -199,11 +210,13 @@ import LocationIcon from '../../components/LocationIcon.vue'
 import PrivacyPopup from '../../components/PrivacyPopup.vue'
 import { useAuth } from '../../composables/useAuth'
 import {
-  buildLocationTree, createItem, createLocation, deleteItem, getItem, updateItem,
-  type LocationTreeNode,
+  buildLocationTree, createItem, createLocation, deleteItem, getItem, updateItem, useStore,
+  ITEM, type LocationTreeNode, type LocalItem,
 } from '../../composables/useLocalData'
-import { errMsg } from '../../utils/api'
+import { api, errMsg } from '../../utils/api'
 import { MAX_PHOTOS, pickLocalPhoto, removeLocalPhotos, tagStyle } from '../../utils/local-photo'
+import { resolvePhotoUrl } from '../../utils/photo-uploader'
+import { invalidateCover } from '../../composables/useItemCover'
 import { useTheme } from '../../composables/useTheme'
 import { useSafeArea } from '../../composables/useSafeArea'
 
@@ -420,7 +433,7 @@ function removeTag(t: string) {
 
 async function addPhoto() {
   try {
-    const p = await pickLocalPhoto(MAX_PHOTOS - photos.value.length)
+    const p = await pickLocalPhoto(MAX_PHOTOS - totalPhotos.value)
     photos.value.push(p)
   } catch (e) {
     const msg = e instanceof Error ? e.message : ''
@@ -433,8 +446,50 @@ function removePhoto(i: number) {
   const [removed] = photos.value.splice(i, 1)
   removeLocalPhotos([removed])
 }
-function previewPhoto(i: number) {
-  uni.previewImage({ current: photos.value[i], urls: photos.value })
+
+// ---- 云端已同步照片（photoRefs）：编辑页展示 + 标记删除（保存后生效，对齐 Web 端） ----
+const cloudPhotos = ref<Array<{ photoId: string; url: string | null; marked: boolean }>>([])
+const cloudMarkedCount = computed(() => cloudPhotos.value.filter(c => c.marked).length)
+const totalPhotos = computed(() => photos.value.length + cloudPhotos.value.length - cloudMarkedCount.value)
+
+/** 编辑模式进入时载入云端照片引用，并异步解析签名 URL 用于展示 */
+function loadCloudPhotos(item: LocalItem) {
+  cloudPhotos.value = (item.photoRefs ?? []).map(r => ({ photoId: r.photoId, url: null, marked: false }))
+  for (const c of cloudPhotos.value) {
+    void resolvePhotoUrl(c.photoId).then(url => { c.url = url })
+  }
+}
+
+function toggleCloudMark(photoId: string) {
+  const c = cloudPhotos.value.find(x => x.photoId === photoId)
+  if (c) c.marked = !c.marked
+}
+
+/** 保存时逐张调用删除接口；成功后同步移除本地 photoRefs 并失效封面缓存 */
+async function deleteMarkedCloudPhotos(): Promise<void> {
+  const marked = cloudPhotos.value.filter(c => c.marked).map(c => c.photoId)
+  if (!marked.length) return
+  const { store } = useStore()
+  let failed = 0
+  for (const photoId of marked) {
+    try {
+      await api.delete(`/items/${id.value}/photos/${photoId}`)
+      cloudPhotos.value = cloudPhotos.value.filter(c => c.photoId !== photoId)
+      const fresh = store.get<LocalItem>(ITEM, id.value)
+      if (fresh) {
+        store.put<LocalItem>(ITEM, { ...fresh, photoRefs: (fresh.photoRefs ?? []).filter(r => r.photoId !== photoId) })
+      }
+      invalidateCover(id.value)
+    } catch {
+      failed++
+    }
+  }
+  if (failed) uni.showToast({ title: `${failed} 张照片删除失败，请重试`, icon: 'none' })
+}
+
+function previewPhoto(current: string) {
+  const urls = [...cloudPhotos.value.filter(c => c.url).map(c => c.url as string), ...photos.value]
+  uni.previewImage({ current, urls })
 }
 
 function goBack() {
@@ -462,6 +517,7 @@ onLoad((query) => {
   notes.value = item.notes ?? ''
   tags.value = [...item.tags]
   photos.value = [...(item.photoPaths ?? [])]
+  if (item.photoRefs?.length) loadCloudPhotos(item)
   if (item.locationId) applyLocationId(item.locationId)
 })
 
@@ -499,7 +555,11 @@ async function onSubmit(keepGoing: boolean) {
       tags: tags.value.slice(0, 10),
       photoPaths: photos.value.slice(0, MAX_PHOTOS),
     }
-    if (isEdit.value) updateItem(id.value, payload)
+    if (isEdit.value) {
+      updateItem(id.value, payload)
+      // 已标记删除的云端照片：保存时逐张调用删除接口（失败不阻断其余保存）
+      await deleteMarkedCloudPhotos()
+    }
     else createItem(payload)
     if (!isEdit.value) rememberLocation()
     if (keepGoing && !isEdit.value) {
@@ -736,6 +796,20 @@ function onDelete() {
 .photo-plus {
   font-size: 48rpx;
   line-height: 1;
+}
+/* 云端照片标记删除态：淡显 + 按钮变灰显示撤销（对齐 Web 端编辑页） */
+.photo-item.marked .photo-img {
+  opacity: 0.4;
+}
+.photo-remove.undo {
+  background: #aebbb2;
+}
+.photo-loading {
+  background: #f0f2f0;
+}
+.photo-full-hint {
+  font-size: 22rpx;
+  color: #aebbb2;
 }
 
 /* 标签 */

@@ -1,6 +1,6 @@
 <template>
   <view class="tab-root">
-    <!-- 页头：大标题居左（与"物品/空间"页头一致），关于为标题旁小链接 -->
+    <!-- 页头：大标题居左、关于靠右（内容已下移让出胶囊带，页头占满导航带高度） -->
     <view class="head">
       <text class="head-title">我的</text>
       <text class="head-link" @tap="goAbout">关于</text>
@@ -856,11 +856,11 @@ defineExpose({ refresh: reload })
   padding-top: 0;
 }
 
-/* 页头：占满导航带高度，与右上角胶囊垂直居中（与"物品/空间"页头一致），关于为标题旁小链接 */
+/* 页头：占满导航带高度，与右上角胶囊垂直居中；标题居左、关于靠右 */
 .head {
   display: flex;
   align-items: center;
-  gap: 20rpx;
+  justify-content: space-between;
   min-height: var(--nav-bar-height, 88rpx);
   padding: 8rpx 4rpx;
 }

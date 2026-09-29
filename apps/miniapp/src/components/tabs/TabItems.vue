@@ -101,7 +101,7 @@
           @longpress="onCardLongPress(it.id)"
         >
           <view class="item-photo-wrap">
-            <image v-if="it.photoPaths[0]" :src="it.photoPaths[0]" mode="aspectFill" class="item-photo" />
+            <image v-if="coverSrc(it)" :src="coverSrc(it)" mode="aspectFill" :webp="true" class="item-photo" />
             <view v-else class="item-photo item-photo-empty">
               <LocationIcon slug="package" :size="52" class="item-ph-icon" />
             </view>
@@ -154,8 +154,10 @@ import {
 } from '../../composables/useLocalData'
 import { useHouseholds } from '../../composables/useHouseholds'
 import { useHomeTabs } from '../../composables/useHomeTabs'
+import { useItemCover } from '../../composables/useItemCover'
 
 const store = useStore()
+const { coverSrc, resolveCovers } = useItemCover()
 const items = ref<LocalItem[]>([])
 const tree = ref<LocationTreeNode[]>([])
 
@@ -187,6 +189,11 @@ function refresh() {
   } else if (selCompartmentId.value && !compartmentOptions.value.some(c => c.id === selCompartmentId.value)) {
     selCompartmentId.value = ''
   }
+  // 云端封面解析：本地路径为空的物品（上传成功后 photoPaths 被清空）回退 photoRefs 签名 URL
+  void resolveCovers(items.value)
+  // #region debug-point C:items-read (sync-pull-missing-items)
+  uni.request({ url: 'http://127.0.0.1:7777/event', method: 'POST', data: { sessionId: 'sync-pull-missing-items', runId: 'pre', hypothesisId: 'C', location: 'TabItems.vue:refresh', msg: '[DEBUG] UI items read', data: { count: items.value.length, sample: items.value.slice(0, 5).map(i => ({ id: i.id.slice(0, 8), name: i.name, local: i.photoPaths.length, cloud: i.photoRefs?.length ?? 0 })) }, ts: Date.now() } })
+  // #endregion
 }
 
 // ---- 空间级联筛选 ----

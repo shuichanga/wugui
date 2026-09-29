@@ -28,7 +28,7 @@
           indicator-color="rgba(255,255,255,0.4)"
         >
           <swiper-item v-for="(p, i) in photos" :key="p.key">
-            <image :src="p.src" mode="aspectFill" class="hero-img" @tap="previewPhoto(i)" />
+            <image :src="p.src" mode="aspectFill" :webp="true" class="hero-img" @tap="previewPhoto(i)" />
           </swiper-item>
         </swiper>
         <view v-else class="hero-empty">

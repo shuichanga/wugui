@@ -4,10 +4,15 @@ import { API_BASE } from '../config'
 
 const transport = (url: string, init: { method: string; headers: Record<string, string>; body?: string }) =>
   new Promise<{ status: number; json: () => Promise<unknown> }>((resolve, reject) => {
+    // wx.request 默认自动补 content-type: application/json——无 body 的 DELETE/GET
+    // 会被服务端 Fastify 判为 FST_ERR_CTP_EMPTY_JSON_BODY(400)，需显式覆盖为非 JSON 类型
+    const header = init.body === undefined
+      ? { 'content-type': 'text/plain', ...init.headers }
+      : init.headers
     uni.request({
       url,
       method: init.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
-      header: init.headers,
+      header,
       data: init.body ?? undefined,
       success: res => resolve({ status: res.statusCode as number, json: async () => res.data }),
       fail: err => reject(new Error(err.errMsg || '网络请求失败')),

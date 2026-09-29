@@ -140,7 +140,7 @@
           @tap="goItem(it.id)"
         >
           <view class="thumb">
-            <image v-if="it.photoPaths[0]" :src="it.photoPaths[0]" mode="aspectFill" class="thumb-img" />
+            <image v-if="coverSrc(it)" :src="coverSrc(it)" mode="aspectFill" :webp="true" class="thumb-img" />
             <view v-else class="thumb-placeholder">
               <LocationIcon slug="package" :size="52" class="thumb-ph-icon" />
             </view>
@@ -174,7 +174,7 @@
           @tap="goItem(it.id)"
         >
           <view class="thumb-sm">
-            <image v-if="it.photoPaths[0]" :src="it.photoPaths[0]" mode="aspectFill" class="thumb-img" />
+            <image v-if="coverSrc(it)" :src="coverSrc(it)" mode="aspectFill" :webp="true" class="thumb-img" />
             <view v-else class="thumb-placeholder">
               <LocationIcon slug="package" :size="38" class="thumb-ph-icon" />
             </view>
@@ -256,11 +256,13 @@ import { useTheme } from '../../composables/useTheme'
 import { useDragLock } from '../../composables/useDragLock'
 import { useHomeTabs } from '../../composables/useHomeTabs'
 import { useAvatar } from '../../composables/useAvatar'
+import { useItemCover } from '../../composables/useItemCover'
 import { getRoomColors, getRoomIcon } from '../../utils/room-style'
 
 const { boardStyle } = useTheme()
 const { pendingItemRoom, switchTab } = useHomeTabs()
 const { avatarPath } = useAvatar()
+const { coverSrc, resolveCovers } = useItemCover()
 const auth = useAuth()
 const store = useStore()
 const items = ref<LocalItem[]>([])
@@ -307,6 +309,8 @@ function refresh() {
   items.value = store.items()
   rooms.value = buildLocationTree()
   recentViewIds.value = store.recentViews().map(v => v.itemId)
+  // 云端封面解析：本地路径为空的物品（上传成功后 photoPaths 被清空）回退 photoRefs 签名 URL
+  void resolveCovers(items.value)
 }
 
 // ---- 看板卡长按拖拽排序（2 列 grid）：克隆卡 fixed 悬浮跟手；DOM 顺序不动，

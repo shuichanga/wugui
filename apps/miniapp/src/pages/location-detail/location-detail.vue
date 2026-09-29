@@ -68,7 +68,7 @@
             @tap="goItem(item.id)"
           >
             <view class="thumb-sm">
-              <image v-if="item.photoPaths[0]" :src="item.photoPaths[0]" mode="aspectFill" class="thumb-img" />
+              <image v-if="coverSrc(item)" :src="coverSrc(item)" mode="aspectFill" :webp="true" class="thumb-img" />
               <view v-else class="thumb-placeholder">
                 <LocationIcon slug="package" :size="44" class="thumb-ph-icon" />
               </view>
@@ -109,6 +109,7 @@ import {
 import { getCompartmentIcon, getFurnitureIcon, getRoomIcon } from '../../utils/room-style'
 import { useHomeTabs } from '../../composables/useHomeTabs'
 import { useSafeArea } from '../../composables/useSafeArea'
+import { useItemCover } from '../../composables/useItemCover'
 import { tagStyle } from '../../utils/local-photo'
 
 const { themeClass } = useTheme()
@@ -116,6 +117,7 @@ const { topVars, pageStyle } = useSafeArea()
 const { switchTab } = useHomeTabs()
 const auth = useAuth()
 const store = useStore()
+const { coverSrc, resolveCovers } = useItemCover()
 
 const locationId = ref('')
 const tree = ref<LocationTreeNode[]>([])
@@ -146,6 +148,8 @@ function refresh() {
   tree.value = buildLocationTree()
   if (locationId.value) {
     items.value = store.items().filter(i => i.locationId === locationId.value)
+    // 云端封面解析：本地路径为空的物品（上传成功后 photoPaths 被清空）回退 photoRefs 签名 URL
+    void resolveCovers(items.value)
   }
 }
 

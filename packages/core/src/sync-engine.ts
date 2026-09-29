@@ -5,6 +5,11 @@ import { toSyncChange, type Outbox, type OutboxEntry } from './outbox'
 import type { KVDriver, LocalRecord, LocalStore } from './local-store'
 import type { SyncEntity } from './types'
 
+// #region debug-point A:reporter-types (sync-pull-missing-items)
+/** 微信小程序运行时的全局 uni（仅调试插桩引用；Web 端为 undefined） */
+declare const uni: { request: (o: { url: string; method: string; data: unknown }) => void } | undefined
+// #endregion
+
 const PUSH_BATCH = 50
 const PULL_PAGE = 500
 
@@ -57,6 +62,16 @@ export interface SyncEngine {
 
 export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   let syncing = false
+
+  // #region debug-point A:reporter (sync-pull-missing-items)
+  const dbgReport = (hypothesisId: string, location: string, msg: string, data: Record<string, unknown>): void => {
+    const payload = { sessionId: 'sync-pull-missing-items', runId: 'pre', hypothesisId, location, msg: `[DEBUG] ${msg}`, data, ts: Date.now() }
+    try {
+      if (typeof uni !== 'undefined') uni.request({ url: 'http://127.0.0.1:7777/event', method: 'POST', data: payload })
+      else if (typeof fetch === 'function') fetch('http://127.0.0.1:7777/event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => {})
+    } catch { /* ignore */ }
+  }
+  // #endregion
 
   const setState = (state: SyncState) => deps.onState?.(state)
 
@@ -114,8 +129,14 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     const hid = deps.getHouseholdId()
     const cursorKey = `wugui:sync:${hid}:cursor`
     let cursor = deps.driver.get(cursorKey) || null
+    // #region debug-point A:pull-cursor
+    dbgReport('A', 'sync-engine.ts:pullChanges', 'pull cursor read', { hid, cursor: cursor ? String(cursor).slice(0, 40) : null })
+    // #endregion
 
     if (!cursor) {
+      // #region debug-point A:pull-snapshot
+      dbgReport('A', 'sync-engine.ts:pullChanges', 'snapshot branch (no cursor)', { hid })
+      // #endregion
       const snap = await deps.api.get<{
         snapshot: { locations: Array<Record<string, unknown>>; items: Array<Record<string, unknown>> }
         serverTime: string
@@ -136,7 +157,11 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     let since: string = cursor
     for (;;) {
       const resp: PullPage = await deps.api.get<PullPage>(`/sync/pull?since=${encodeURIComponent(since)}`)
+      // #region debug-point D:pull-page
+      dbgReport('D', 'sync-engine.ts:pullChanges', 'incremental page', { hid, since: since.slice(0, 40), changes: resp.changes?.length ?? 0, serverTime: resp.serverTime })
+      // #endregion
 
+      let applied = 0
       for (const change of resp.changes ?? []) {
         if (change.entity === 'item_photos') {
           deps.onPhotoChange?.(change.entityId, change.op as 'create' | 'update' | 'delete', change.data)
@@ -146,11 +171,15 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
 
         if (change.op === 'delete') {
           deps.store.remove(change.entity, change.entityId)
+          applied++
           continue
         }
         const record = deps.mapChange(change.entity, change.entityId, change.clientTimestamp, change.data)
-        if (record) deps.store.put(change.entity, record, { lww: true })
+        if (record) { applied++; deps.store.put(change.entity, record, { lww: true }) }
       }
+      // #region debug-point D:pull-applied
+      dbgReport('D', 'sync-engine.ts:pullChanges', 'page applied', { hid, applied, skipped: (resp.changes?.length ?? 0) - applied })
+      // #endregion
 
       since = resp.serverTime
       deps.driver.set(cursorKey, resp.serverTime)
