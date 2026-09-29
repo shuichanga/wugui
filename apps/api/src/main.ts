@@ -31,20 +31,6 @@ async function bootstrap() {
 
   // 请求日志
   const server = app.getHttpAdapter().getInstance()
-
-  // 容错 JSON 解析：声明 Content-Type: application/json 但 body 为空的请求
-  // （wx.request 等客户端默认携带该头，DELETE/GET 无 body）放行为空对象，
-  // 否则 Fastify 默认回 400 FST_ERR_CTP_EMPTY_JSON_BODY
-  server.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
-    if (body === '' || body == null) return done(null, {})
-    try {
-      done(null, JSON.parse(body as string))
-    } catch (err) {
-      ;(err as Error & { statusCode: number }).statusCode = 400
-      done(err as Error, undefined)
-    }
-  })
-
   server.addHook('onRequest', (req, _reply, done) => {
     ;(req as any).logStart = Date.now()
     done()
