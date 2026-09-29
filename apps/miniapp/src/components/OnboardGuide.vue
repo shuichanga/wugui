@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // 首次使用引导弹窗：仅首次弹出（storage 标志），介绍主要功能；提供"直接使用/登录账号"两个出口
 // 审核要求：先体验后登录——登录永远不是强制步骤
+import { ref } from 'vue'
 import { useAuth } from '../composables/useAuth'
 import { useHomeTabs } from '../composables/useHomeTabs'
 
