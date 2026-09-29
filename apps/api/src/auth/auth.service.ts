@@ -1,7 +1,7 @@
 // 认证业务：注册（开放注册即建家）/ 登录（username 或 email）/ 会话 / 切换住所
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { eq, or } from 'drizzle-orm'
+import { asc, eq, or } from 'drizzle-orm'
 import { users, households, householdMembers } from '../db/schema'
 import { DrizzleService } from '../db/database.service'
 import { SessionService } from './session.service'
@@ -159,6 +159,8 @@ export class AuthService {
       .from(householdMembers)
       .innerJoin(households, eq(households.id, householdMembers.householdId))
       .where(eq(householdMembers.userId, userId))
+      // 与 getMemberships 同源稳定排序：rows[0] 回落默认住所必须确定（多住所用户）
+      .orderBy(asc(householdMembers.joinedAt))
 
     // 前端契约：currentHouseholdId 优先取 JWT 里的 hid；若失效（切换过）则回落到第一个
     const current = rows.some(r => r.id === currentHouseholdId) ? currentHouseholdId : (rows[0]?.id ?? '')

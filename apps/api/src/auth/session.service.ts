@@ -2,7 +2,7 @@
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { SignJWT, jwtVerify } from 'jose'
-import { eq } from 'drizzle-orm'
+import { asc, eq } from 'drizzle-orm'
 // Node 原生 scrypt（C++ 实现）：@noble/hashes 是纯 JS 版（为 Workers 设计），
 // 在 2C2G 服务器上 N=16384 要 60 秒+，Node 环境必须用原生实现
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
@@ -81,7 +81,13 @@ export class SessionService {
   // ---- 住所成员 ----
 
   getMemberships(db: DB, userId: string) {
-    return db.select().from(householdMembers).where(eq(householdMembers.userId, userId))
+    // 稳定排序：登录/微信登录取 memberships[0] 作为默认住所，多住所用户（自建 + 邀请加入/后台创建）
+    // 必须每次都拿到同一个（最早加入 = 注册时创建、数据所在），否则随机换到空住所表现为"数据像新账号"
+    return db
+      .select()
+      .from(householdMembers)
+      .where(eq(householdMembers.userId, userId))
+      .orderBy(asc(householdMembers.joinedAt))
   }
 
   // ---- 邀请码（保留：邀请家人加入已有住所） ----
