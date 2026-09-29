@@ -61,9 +61,6 @@ function getEngine(): SyncEngine | null {
 export async function syncNow(): Promise<boolean> {
   const auth = useAuth()
   const membership = useMembership()
-  // #region debug-point C:sync-entry (sync-pull-missing-items)
-  uni.request({ url: 'http://127.0.0.1:7777/event', method: 'POST', data: { sessionId: 'sync-pull-missing-items', runId: 'pre', hypothesisId: 'C', location: 'useSync.ts:syncNow', msg: '[DEBUG] syncNow entry', data: { isLogged: auth.isLogged, hid: auth.state.householdId, canCloudSync: membership.canCloudSync }, ts: Date.now() } })
-  // #endregion
   if (!auth.isLogged || !auth.state.householdId) return false
   if (!membership.canCloudSync) {
     syncState.value = { status: 'blocked', lastSyncAt: syncState.value.lastSyncAt }
@@ -78,9 +75,6 @@ export async function syncNow(): Promise<boolean> {
       if (uploaded > 0) uni.showToast({ title: `已同步 ${uploaded} 张照片`, icon: 'none' })
     })
   } catch (e) {
-    // #region debug-point B:sync-error (sync-pull-missing-items)
-    uni.request({ url: 'http://127.0.0.1:7777/event', method: 'POST', data: { sessionId: 'sync-pull-missing-items', runId: 'pre', hypothesisId: 'B', location: 'useSync.ts:syncNow', msg: '[DEBUG] syncNow error', data: { message: e instanceof Error ? e.message : String(e), code: e instanceof ApiClientError ? e.code : null }, ts: Date.now() } })
-    // #endregion
     // 订阅被取消/过期：刷新会员态并提示（本地数据不丢，outbox 继续积累）
     if (e instanceof ApiClientError && e.code === 'SUBSCRIPTION_REQUIRED') {
       await membership.refresh()

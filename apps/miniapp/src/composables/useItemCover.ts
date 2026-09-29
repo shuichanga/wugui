@@ -19,9 +19,6 @@ export function useItemCover() {
     for (const it of list) {
       if (it.photoPaths[0] || covers.value[it.id] || !it.photoRefs?.length) continue
       const url = await resolvePhotoUrl(it.photoRefs[0].photoId)
-      // #region debug-point D:cover-resolve (sync-pull-missing-items)
-      uni.request({ url: 'http://127.0.0.1:7777/event', method: 'POST', data: { sessionId: 'sync-pull-missing-items', runId: 'pre', hypothesisId: 'D', location: 'useItemCover.ts:resolveCovers', msg: '[DEBUG] cover resolved', data: { itemId: it.id.slice(0, 8), hasLocal: !!it.photoPaths[0], refs: it.photoRefs.length, url: url ? url.slice(0, 60) : null }, ts: Date.now() } })
-      // #endregion
       if (url) covers.value = { ...covers.value, [it.id]: url }
     }
   }

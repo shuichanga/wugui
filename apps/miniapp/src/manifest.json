@@ -2,8 +2,8 @@
     "name" : "物归",
     "appid" : "",
     "description" : "家庭收纳管理：记录物品与收纳空间，全家人共享",
-    "versionName" : "1.0.0",
-    "versionCode" : "100",
+    "versionName" : "1.1.0",
+    "versionCode" : "110",
     /* 网络超时：默认 60000ms 太久，真机弱网下表现成"点了没反应"，压到 15s 让失败可感知 */
     "networkTimeout" : {
         "request" : 15000

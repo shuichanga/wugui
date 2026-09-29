@@ -191,9 +191,6 @@ function refresh() {
   }
   // 云端封面解析：本地路径为空的物品（上传成功后 photoPaths 被清空）回退 photoRefs 签名 URL
   void resolveCovers(items.value)
-  // #region debug-point C:items-read (sync-pull-missing-items)
-  uni.request({ url: 'http://127.0.0.1:7777/event', method: 'POST', data: { sessionId: 'sync-pull-missing-items', runId: 'pre', hypothesisId: 'C', location: 'TabItems.vue:refresh', msg: '[DEBUG] UI items read', data: { count: items.value.length, sample: items.value.slice(0, 5).map(i => ({ id: i.id.slice(0, 8), name: i.name, local: i.photoPaths.length, cloud: i.photoRefs?.length ?? 0 })) }, ts: Date.now() } })
-  // #endregion
 }
 
 // ---- 空间级联筛选 ----
