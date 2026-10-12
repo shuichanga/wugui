@@ -19,6 +19,8 @@ CREATE TABLE `wechat_pay_orders` (
 	CONSTRAINT `wechat_pay_orders_out_trade_no_unique` UNIQUE(`out_trade_no`)
 );
 --> statement-breakpoint
-CREATE INDEX `idx_wxpay_orders_user` ON `wechat_pay_orders` (`user_id`);--> statement-breakpoint
-CREATE INDEX `idx_wxpay_orders_wx_order` ON `wechat_pay_orders` (`wx_order_id`);--> statement-breakpoint
+CREATE INDEX `idx_wxpay_orders_user` ON `wechat_pay_orders` (`user_id`);
+--> statement-breakpoint
+CREATE INDEX `idx_wxpay_orders_wx_order` ON `wechat_pay_orders` (`wx_order_id`);
+--> statement-breakpoint
 CREATE INDEX `idx_wxpay_orders_status` ON `wechat_pay_orders` (`status`);
