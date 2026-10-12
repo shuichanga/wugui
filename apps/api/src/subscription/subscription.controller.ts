@@ -47,9 +47,10 @@ export class SubscriptionController {
 
   /**
    * POST /api/subscription/wechat/notify —— 虚拟支付事件推送（发货/退款等，明文模式 XML 或 JSON）。
-   * 受理成功回 `success`；处理失败回 ErrCode 非 0（微信最多重试 15 次），发货逻辑幂等可安全重试
+   * 受理成功回 `success`（显式 200，NestJS POST 默认 201）；处理失败回 ErrCode 非 0（微信最多重试 15 次），发货逻辑幂等可安全重试
    */
   @Public()
+  @HttpCode(200)
   @Post('wechat/notify')
   async notify(
     @Req() req: FastifyRequest,

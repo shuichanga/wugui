@@ -306,6 +306,13 @@ export class SubscriptionService implements OnModuleInit, OnModuleDestroy {
 
   private async syncPendingOrders() {
     try {
+      // 超过 24h 未支付的挂单直接关单（用户放弃/平台已关），避免兜底轮询永久空扫
+      const expireAt = new Date(Date.now() - 24 * 60 * 60 * 1000)
+      await this.drizzle.db
+        .update(wechatPayOrders)
+        .set({ status: 'closed', updatedAt: new Date() })
+        .where(and(eq(wechatPayOrders.status, 'pending'), lt(wechatPayOrders.createdAt, expireAt)))
+
       const cutoff = new Date(Date.now() - 2 * 60 * 1000)
       const rows = await this.drizzle.db
         .select()
@@ -383,6 +390,7 @@ export class SubscriptionService implements OnModuleInit, OnModuleDestroy {
           updatedAt: now,
         })
         .where(eq(wechatPayOrders.id, order.id))
+      this.logger.log(`发货成功: ${outTradeNo} wx_order_id=${wxOrderId ?? order.wxOrderId ?? 'null'}`)
 
       // 订阅 upsert（与 manualActivate 同构）：expiresAt=null 永久有效
       const current = await tx
