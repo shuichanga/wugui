@@ -36,7 +36,8 @@ function setEngineState(next: SyncState) {
 function getEngine(): SyncEngine | null {
   const auth = useAuth()
   const hid = auth.state.householdId
-  if (!auth.isLogged || !hid) return null
+  // anon（游客暂存）永不同步：不建 engine
+  if (!auth.isLogged || !hid || hid === 'anon') return null
   if (bundle && bundle.hid === hid) return bundle.engine
 
   const store = createKVLocalStore(kvDriver, hid)
@@ -62,6 +63,14 @@ export async function syncNow(): Promise<boolean> {
   const auth = useAuth()
   const membership = useMembership()
   if (!auth.isLogged || !auth.state.householdId) return false
+  // token 住所与本地 current 不一致（切住所后离线未重签等）：先补签，失败则本轮不同步（防推错家）
+  if (auth.state.tokenHid !== auth.state.householdId) {
+    const ok = await auth.ensureHouseholdToken()
+    if (!ok) {
+      syncState.value = { status: 'blocked', lastSyncAt: syncState.value.lastSyncAt }
+      return false
+    }
+  }
   if (!membership.canCloudSync) {
     syncState.value = { status: 'blocked', lastSyncAt: syncState.value.lastSyncAt }
     return false
@@ -94,10 +103,11 @@ export function scheduleSync(): void {
   }, 3000)
 }
 
-/** App onShow / 网络恢复时调用：刷新会员态后尝试同步 */
+/** App onShow / 网络恢复时调用：补签住所 token（如离线切过住所）→ 刷新会员态 → 尝试同步 */
 export async function syncOnForeground(): Promise<void> {
   const auth = useAuth()
   if (!auth.isLogged) return
+  await auth.ensureHouseholdToken()
   await useMembership().refresh()
   await syncNow()
 }
@@ -118,9 +128,12 @@ export async function syncAfterHouseholdChange(): Promise<void> {
   await syncNow()
 }
 
-/** 切换住所后调用：重建 engine（新 hid 的 store/outbox/游标），立即同步 */
+/** 切换住所后调用：重建 engine（新 hid 的 store/outbox/游标），补签 token 后立即同步 */
 export async function syncOnHouseholdSwitch(): Promise<void> {
+  const auth = useAuth()
   bundle = null
+  // 先补签（subscription/status 按 JWT hid 判定，重签后再刷会员态才是新住所的结果）
+  if (auth.isLogged) await auth.ensureHouseholdToken()
   await useMembership().refresh()
   await syncNow()
 }
@@ -184,6 +197,8 @@ function mapSnapshotRecord(
       notes: raw.notes == null ? null : String(raw.notes),
       locationId: String(raw.locationId ?? ''),
       tags: Array.isArray(raw.tags) ? raw.tags.map(t => String(t)) : [],
+      // 拥有者昵称（云端回流，多成员住所详情页展示；本地旧数据无此字段则保留）
+      ownerName: raw.ownerName == null ? existing?.ownerName ?? '' : String(raw.ownerName),
       // 保留本地未上传的照片路径；photoRefs 以云端为准（本地上传 confirm 后也会回填）
       photoPaths: existing?.photoPaths ?? [],
       photoRefs: photos.map(p => ({

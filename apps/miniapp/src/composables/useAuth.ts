@@ -27,10 +27,12 @@ interface AuthState {
   token: string
   user: AuthUser | null
   householdId: string
+  /** token（JWT）里的住所 id：与 householdId 不一致说明切住所后未重签，同步必须先补签（防推错家） */
+  tokenHid: string
   households: Household[]
 }
 
-const EMPTY: AuthState = { token: '', user: null, householdId: '', households: [] }
+const EMPTY: AuthState = { token: '', user: null, householdId: '', tokenHid: '', households: [] }
 
 function load(): AuthState {
   const raw = uni.getStorageSync(KEY)
@@ -41,6 +43,8 @@ function load(): AuthState {
       token: p.token ?? '',
       user: p.user ?? null,
       householdId: p.householdId ?? '',
+      // 旧缓存无 tokenHid：按"token 与当时 hid 配套发放"兜底，避免升级用户被无谓补签一次
+      tokenHid: p.tokenHid ?? p.householdId ?? '',
       households: Array.isArray(p.households) ? p.households : [],
     }
   } catch {
@@ -84,8 +88,20 @@ export function useAuth() {
       state.token = raw.token
       state.user = raw.user
       state.householdId = raw.householdId || ''
+      state.tokenHid = raw.householdId || ''
       // 合并本地缓存的 displayName：若用户曾改过名且服务端还是旧值，这里把本地值同步到服务端
       await applyStoredDisplayName(state.user)
+      persist()
+    },
+    /** 外部拿到重签 token 后统一回写（创建/加入/退出住所等服务端响应） */
+    applyToken(token: string, hid: string) {
+      state.token = token
+      if (hid) {
+        state.householdId = hid
+        state.tokenHid = hid
+      } else {
+        state.tokenHid = state.householdId
+      }
       persist()
     },
     /** 切换当前住所：服务端重签 token（householdId 在 JWT 里，多端统一） */
@@ -93,7 +109,26 @@ export function useAuth() {
       const res = await api.post<{ householdId: string; token: string }>(`/auth/switch/${id}`)
       state.householdId = id
       state.token = res.token
+      state.tokenHid = id
       persist()
+    },
+    /**
+     * 确保 token 住所与本地 current 一致：不一致（切住所后离线/旧缓存）则重签。
+     * 一致时立即返回 true（无网络请求）。失败静默 false，调用方据此暂停同步（防推错家），下次前台重试。
+     */
+    async ensureHouseholdToken(): Promise<boolean> {
+      if (!state.token) return false
+      if (state.tokenHid === state.householdId) return true
+      if (!state.householdId) return false
+      try {
+        const res = await api.post<{ householdId: string; token: string }>(`/auth/switch/${state.householdId}`)
+        state.token = res.token
+        state.tokenHid = res.householdId || state.householdId
+        persist()
+        return true
+      } catch {
+        return false
+      }
     },
     /** 本地切换住所（M1 离线模式）：只改 householdId（数据命名空间跟随），不动 token */
     setHouseholdId(id: string) {
@@ -127,11 +162,12 @@ export function useAuth() {
     logout() {
       state.token = ''
       state.user = null
-      state.householdId = ''
+      state.tokenHid = ''
       state.households = []
-      uni.removeStorageSync(KEY)
+      // householdId 保留：登出 = 回到本地模式，数据命名空间不切换（本机数据原样可见，
+      // 再登录同账号时 outbox 自动补同步）。persist 而非 removeStorage，重启后仍落在原住所分片。
+      persist()
       // 注意：不清 DISPLAY_NAME_KEY，用户重新登录时能保留上次修改的昵称
-      // 退出后回首页（未登录 = 本地模式仍可使用）
       uni.reLaunch({ url: '/pages/home/home' })
     },
   }
@@ -159,7 +195,7 @@ async function applyStoredDisplayName(user: AuthUser | null): Promise<void> {
   }
 }
 
-/** 微信一键登录：uni.login 拿 code → /api/auth/wechat 换会话 */
+/** 微信一键登录：uni.login 拿 code → /api/auth/wechat 换会话。住所列表对齐由 settleAfterLogin 统一收口 */
 export async function wechatLogin() {
   const { code } = await uni.login({ provider: 'weixin' })
   const res = await api.post<{ token: string; user: AuthUser; householdId: string; isNew: boolean }>(
@@ -167,7 +203,6 @@ export async function wechatLogin() {
     { code },
   )
   await useAuth().save(res)
-  void fetchHouseholds()
   return res
 }
 
@@ -179,7 +214,6 @@ export async function bindExistingAccount(account: string, password: string) {
     { account, password },
   )
   await useAuth().save(login)
-  void fetchHouseholds()
   const bind = await api.post<{ ok: boolean }>('/auth/wechat/bind', { code })
   return { ...login, bind }
 }

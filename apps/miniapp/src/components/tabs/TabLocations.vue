@@ -71,7 +71,7 @@
       <view v-if="!rooms.length" class="card empty">
         <text class="empty-title">还没有空间</text>
         <text class="empty-sub">先创建一个房间，如客厅、主卧</text>
-        <view class="btn-primary empty-add" @tap="formOpen = true">
+        <view class="btn-primary empty-add" @tap="openForm">
           <text>＋ 添加房间</text>
         </view>
       </view>
@@ -155,7 +155,7 @@
       </view>
 
       <!-- 添加房间：虚线按钮 -->
-      <view v-if="rooms.length" class="dash-add" @tap="formOpen = !formOpen">
+      <view v-if="rooms.length" class="dash-add" @tap="toggleForm">
         <text class="dash-add-icon">{{ formOpen ? '−' : '＋' }}</text>
         <text>{{ formOpen ? '收起表单' : '添加房间' }}</text>
       </view>
@@ -212,6 +212,7 @@ import {
 import { getCompartmentIcon, getFurnitureIcon, getRoomColors, getRoomIcon } from '../../utils/room-style'
 import { useTheme } from '../../composables/useTheme'
 import { useDragLock } from '../../composables/useDragLock'
+import { ensureHousehold } from '../../composables/useHouseholds'
 
 const { boardStyle } = useTheme()
 const isColorful = computed(() => boardStyle.value === 'colorful')
@@ -329,7 +330,24 @@ function onNameBlur() {
   setTimeout(() => { nameFocused.value = false }, 120)
 }
 
-function onAdd() {
+/** 打开新增空间表单：建所门禁在此触发（点"添加房间"即刻引导，而非填完名称提交时） */
+async function openForm() {
+  if (!(await ensureHousehold())) return
+  formOpen.value = true
+}
+
+/** 虚线按钮：表单展开时收起；收起时展开（展开前过建所门禁） */
+async function toggleForm() {
+  if (formOpen.value) {
+    formOpen.value = false
+    return
+  }
+  if (await ensureHousehold()) formOpen.value = true
+}
+
+async function onAdd() {
+  // 建所门禁兜底（正常流程已在打开表单时拦截）
+  if (!(await ensureHousehold())) return
   const n = (form.name || '').trim()
   if (!n) {
     uni.showToast({ title: '请输入空间名称', icon: 'none' })

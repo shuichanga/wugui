@@ -4,6 +4,7 @@ import { onLaunch, onShow, onHide } from '@dcloudio/uni-app'
 import { registerPrivacyListener } from './composables/usePrivacy'
 import { initSync, syncOnForeground, startForegroundPolling, stopForegroundPolling } from './composables/useSync'
 import { syncAvatarFromServer } from './composables/useAvatar'
+import { refreshHouseholds } from './composables/useHouseholds'
 
 onLaunch(() => {
   // 微信隐私授权监听是全局单例，必须在这里注册一次，各页 PrivacyPopup 才会被唤起
@@ -13,7 +14,9 @@ onLaunch(() => {
 })
 
 // 每次回前台：刷新会员态并尝试同步（push Outbox / pull 增量）+ 头像版本化缓存同步
+// + 静默对齐住所列表（多端新建/被邀请可见；失败保留本地缓存）
 onShow(() => {
+  void refreshHouseholds()
   void syncOnForeground()
   void syncAvatarFromServer()
   // 实时同步阶段一：前台期间每 30s 自动 pull，他端变更无需手动刷新

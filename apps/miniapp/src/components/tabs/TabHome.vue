@@ -12,8 +12,8 @@
       </view>
     </view>
 
-    <!-- 未登录提示：本地模式可用，登录后多端同步（非阻断，tap 去我的页） -->
-    <view v-if="!auth.isLogged" class="card local-hint" @tap="switchTab('settings')">
+    <!-- 未登录提示：本地模式可用，登录后多端同步（非阻断，tap 直达登录页） -->
+    <view v-if="!auth.isLogged" class="card local-hint" @tap="goLogin">
       <text class="local-hint-text">数据保存在本机 · 登录账号可多端同步</text>
       <text class="local-hint-link">去登录 ›</text>
     </view>
@@ -29,14 +29,24 @@
       <view class="onboard-hint">三步上手，物品再也不怕找不到</view>
       <view class="onboard-steps">
         <view class="step">
-          <view class="step-num" :class="{ done: hasRooms }">
+          <view class="step-num" :class="{ done: hasHousehold }">
+            <text>{{ hasHousehold ? '✓' : '0' }}</text>
+          </view>
+          <view class="step-body">
+            <view class="step-title">创建住所</view>
+            <view class="step-hint">住所是整理的起点，可邀请家人共享</view>
+          </view>
+          <text v-if="!hasHousehold" class="step-link" @tap="onCreateHousehold">去创建</text>
+        </view>
+        <view class="step">
+          <view class="step-num" :class="{ done: hasRooms, muted: !hasHousehold }">
             <text>{{ hasRooms ? '✓' : '1' }}</text>
           </view>
           <view class="step-body">
             <view class="step-title">添加空间</view>
             <view class="step-hint">先建房间，如客厅、卧室</view>
           </view>
-          <text v-if="!hasRooms" class="step-link" @tap="switchTab('locations')">去添加</text>
+          <text v-if="hasHousehold && !hasRooms" class="step-link" @tap="switchTab('locations')">去添加</text>
         </view>
         <view class="step">
           <view class="step-num" :class="{ done: hasSubRooms, muted: !hasRooms }">
@@ -255,6 +265,7 @@ import { timeLabel } from '../../utils/local-photo'
 import { useTheme } from '../../composables/useTheme'
 import { useDragLock } from '../../composables/useDragLock'
 import { useHomeTabs } from '../../composables/useHomeTabs'
+import { useHouseholds, openOnboard, ensureHousehold } from '../../composables/useHouseholds'
 import { useAvatar } from '../../composables/useAvatar'
 import { useItemCover } from '../../composables/useItemCover'
 import { getRoomColors, getRoomIcon } from '../../utils/room-style'
@@ -265,6 +276,7 @@ const { avatarPath } = useAvatar()
 const { coverSrc, resolveCovers } = useItemCover()
 const auth = useAuth()
 const store = useStore()
+const { households } = useHouseholds()
 const items = ref<LocalItem[]>([])
 // 看板仅显示一级空间（房间），数量为房间及全部下属层级的物品数
 const rooms = ref<LocationTreeNode[]>([])
@@ -274,6 +286,18 @@ const recentViewIds = ref<string[]>([])
 const hasRooms = computed(() => rooms.value.length > 0)
 const hasSubRooms = computed(() => rooms.value.some(r => r.children.length > 0))
 const hasItems = computed(() => items.value.length > 0)
+const hasHousehold = computed(() => households.value.length > 0)
+const showOnboard = computed(() => !hasItems.value || !hasHousehold.value)
+
+/** 引导卡"去创建"：唤起建所弹窗（美观自定义弹窗） */
+function onCreateHousehold() {
+  void openOnboard()
+}
+
+/** 未登录提示"去登录"：直达登录页（不再绕道"我的"） */
+function goLogin() {
+  uni.navigateTo({ url: '/pages/login/login' })
+}
 
 // 问候语
 const greeting = computed(() => {
@@ -290,7 +314,6 @@ const today = computed(() => {
 const displayNameInitial = computed(() => (auth.state.user?.displayName ?? '物').slice(0, 1))
 
 const totalItems = computed(() => rooms.value.reduce((sum, r) => sum + r.itemCount, 0))
-const showOnboard = computed(() => !hasItems.value)
 
 // 最近查看对应的 item（按 recentView 顺序）
 const recentItems = computed<LocalItem[]>(() => {
@@ -475,7 +498,9 @@ function locationPath(id: string): string {
   return id ? getLocationPath(id) : ''
 }
 
-function go(url: string) {
+async function go(url: string) {
+  // 建所门禁：录入物品前必须先有住所（游客住所登录后自动并入账号）
+  if (url.includes('item-edit') && !(await ensureHousehold())) return
   uni.navigateTo({ url })
 }
 function goItem(id: string) {

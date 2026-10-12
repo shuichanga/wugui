@@ -152,7 +152,7 @@ import {
   buildLocationTree, deleteItem, getLocationPath, useStore,
   type LocalItem, type LocationTreeNode,
 } from '../../composables/useLocalData'
-import { useHouseholds } from '../../composables/useHouseholds'
+import { useHouseholds, ensureHousehold } from '../../composables/useHouseholds'
 import { useHomeTabs } from '../../composables/useHomeTabs'
 import { useItemCover } from '../../composables/useItemCover'
 
@@ -354,7 +354,8 @@ function shortPath(it: LocalItem): string {
 function goDetail(id: string) {
   uni.navigateTo({ url: `/pages/item-detail/item-detail?id=${id}` })
 }
-function goAdd() {
+async function goAdd() {
+  if (!(await ensureHousehold())) return
   uni.navigateTo({ url: '/pages/item-edit/item-edit' })
 }
 

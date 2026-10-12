@@ -33,6 +33,7 @@
     <!-- 开通卡：仅虚拟支付已开通（服务端 offerId 已配置）时显示，避免无支付能力的版本被判定为虚拟商品售卖 -->
     <view v-if="membership.state.value.payEnabled" class="card buy-card">
       <text class="buy-title">开通云同步会员</text>
+      <text class="buy-sub">永久会员 · 一次买断 · 无订阅无续费</text>
       <view class="feat-list">
         <view class="feat-row"><view class="feat-dot"></view><text class="feat-text">物品 / 空间多设备实时同步</text></view>
         <view class="feat-row"><view class="feat-dot"></view><text class="feat-text">与 Web 端数据互通</text></view>
@@ -42,7 +43,8 @@
       <button class="btn-primary buy-btn" :disabled="paying" @tap="onBuy">
         <text>{{ paying ? '处理中…' : '立即开通' }}</text>
       </button>
-      <text class="buy-note">开通后当前账号的全部住所均可用云同步</text>
+      <text class="buy-note">会员费用用于支付服务器、云存储与多端同步的运行成本，让物归能长期稳定地陪着你</text>
+      <text class="buy-note">开通后当前账号的全部住所均可永久使用云同步</text>
     </view>
     <view v-else class="card pay-off-card">
       <text class="pay-off-text">云同步会员购买通道即将开放，开通后可多端同步</text>
@@ -299,6 +301,10 @@ function checkIosVersion(): boolean {
   font-family: var(--font-display);
   font-size: 30rpx;
   font-weight: 700;
+}
+.buy-sub {
+  font-size: 24rpx;
+  color: var(--color-text-secondary);
 }
 .feat-list {
   display: flex;

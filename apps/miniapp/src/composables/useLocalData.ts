@@ -19,6 +19,8 @@ export interface LocalItem extends LocalRecord {
   photoPaths: string[]
   /** 云端照片引用（pull 回流 + 上传 confirm 后回填），展示优先级：photoPaths > photoRefs */
   photoRefs?: Array<{ photoId: string; ossKey: string; sortOrder?: number }>
+  /** 拥有者昵称（本地创建时取当前用户昵称，云端 pull 回流覆盖；详情页"XX 添加于"展示用） */
+  ownerName?: string
   /** 首次录入时间（区别于 updatedAt，用于详情页显示"添加于"） */
   createdAt: string
 }
@@ -68,7 +70,7 @@ function currentStore(): LocalStore {
 export function currentOutbox(): Outbox | null {
   const auth = useAuth()
   const hid = auth.state.householdId
-  if (!hid) return null
+  if (!hid || hid === ANON_NAMESPACE) return null
   return createOutbox(kvDriver, hid)
 }
 
@@ -100,17 +102,18 @@ export function useStore(): {
 }
 
 /**
- * 把 "anon" 暂存命名空间下的房间 / 物品 / 最近查看，迁移到目标住所命名空间。
+ * 把 fromNamespace 命名空间下的房间 / 物品 / 最近查看，迁移到目标住所命名空间。
  * 记录 id 保持不变，物品.locationId / 空间.parentId 内部引用天然生效。
  *
- * 用于：新建住所 / 加入住所 之后立即调用一次，避免"用户在无住所状态下
- * 提前录入的临时数据变成孤立数据"。目标住所已存在同类 id 时按 id 覆盖（幂等）。
+ * 用于：登录收口（游客住所并入账号）、新建住所 / 加入住所 之后立即调用一次，
+ * 避免"用户在无住所状态下提前录入的临时数据变成孤立数据"。
+ * 目标住所已存在同类 id 时按 id 覆盖（幂等）。
  *
  * @returns 迁移的记录条数（rooms + items）
  */
-export function migrateAnonToHousehold(targetHouseholdId: string): number {
-  if (!targetHouseholdId) return 0
-  const anonStore = createKVLocalStore(kvDriver, ANON_NAMESPACE)
+export function migrateNamespaceToHousehold(fromNamespace: string, targetHouseholdId: string): number {
+  if (!fromNamespace || !targetHouseholdId || fromNamespace === targetHouseholdId) return 0
+  const anonStore = createKVLocalStore(kvDriver, fromNamespace)
   const targetStore = createKVLocalStore(kvDriver, targetHouseholdId)
 
   // 目标 store 已有同 id 时按 id 覆盖（迁移幂等，不会重复）
@@ -122,7 +125,7 @@ export function migrateAnonToHousehold(targetHouseholdId: string): number {
     const existingMap = new Map(existing.map(r => [r.id, r]))
     for (const row of anonRows) existingMap.set(row.id, row)
     targetStore.replaceAll(collection, [...existingMap.values()])
-    // 迁移完清理 anon 副本，避免下次新建住所又被合并一次
+    // 迁移完清理源副本，避免下次又被合并一次
     anonStore.replaceAll(collection, [])
     migrated += anonRows.length
   }
@@ -131,6 +134,11 @@ export function migrateAnonToHousehold(targetHouseholdId: string): number {
   mergeAnon<LocalItem>(ITEM)
   mergeAnon<LocalRecentView>(RECENT)
   return migrated
+}
+
+/** 兼容旧调用名：anon 暂存命名空间并入目标住所 */
+export function migrateAnonToHousehold(targetHouseholdId: string): number {
+  return migrateNamespaceToHousehold(ANON_NAMESPACE, targetHouseholdId)
 }
 
 export function createItem(input: {
@@ -149,6 +157,8 @@ export function createItem(input: {
     createdAt: now,
     updatedAt: now,
     deletedAt: null,
+    // 录入者昵称：详情页"XX 添加于"展示（未登录 anon 数据无昵称，云端 pull 后回填）
+    ownerName: useAuth().state.value.user?.displayName ?? '',
     ...input,
   }
   store.put<LocalItem>(ITEM, record)

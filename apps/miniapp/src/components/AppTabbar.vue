@@ -40,6 +40,7 @@
 import { computed } from 'vue'
 import LocationIcon from './LocationIcon.vue'
 import { useHomeTabs, TAB_ORDER, type TabKey } from '../composables/useHomeTabs'
+import { ensureHousehold } from '../composables/useHouseholds'
 
 const tabsBefore = [
   { key: 'home' as TabKey, label: '首页', slug: 'tab-home' },
@@ -58,7 +59,9 @@ function go(key: TabKey) {
 }
 
 function onFab() {
-  uni.navigateTo({ url: '/pages/item-edit/item-edit' })
+  void ensureHousehold().then(ok => {
+    if (ok) uni.navigateTo({ url: '/pages/item-edit/item-edit' })
+  })
 }
 </script>
 

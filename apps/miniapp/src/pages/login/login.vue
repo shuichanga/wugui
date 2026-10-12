@@ -84,6 +84,7 @@ import { wechatLogin, bindExistingAccount } from '../../composables/useAuth'
 import { usePrivacy } from '../../composables/usePrivacy'
 import { errMsg } from '../../utils/api'
 import { syncAfterHouseholdChange } from '../../composables/useSync'
+import { settleAfterLogin } from '../../composables/useHouseholds'
 
 // 底部指引链接：与 PrivacyPopup 共用同一份状态（名称取自微信后台配置）
 const { contractName, openContract } = usePrivacy()
@@ -121,7 +122,9 @@ async function onWechatLogin() {
   loading.value = true
   try {
     await wechatLogin()
-    // M2：登录即有住所（服务端自动建家）→ anon 暂存数据入队 + 首次同步
+    // 登录收口：等服务端住所列表 → 游客住所（名与数据）并入账号 → 列表整体替换，
+    // 完成后再进首页（消除"列表未就绪"竞速）；同步引擎随后台继续
+    await settleAfterLogin()
     void syncAfterHouseholdChange()
     done()
   } catch (e) {
@@ -142,6 +145,7 @@ async function onBind() {
   binding.value = true
   try {
     await bindExistingAccount(account.value.trim(), password.value)
+    await settleAfterLogin()
     void syncAfterHouseholdChange()
     done()
   } catch (e) {

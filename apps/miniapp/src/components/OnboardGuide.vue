@@ -4,6 +4,7 @@
 import { ref } from 'vue'
 import { useAuth } from '../composables/useAuth'
 import { useHomeTabs } from '../composables/useHomeTabs'
+import { maybeAutoOnboard } from '../composables/useHouseholds'
 
 const KEY = 'wugui:guide-v1'
 
@@ -18,6 +19,8 @@ function close() {
 
 function startLocal() {
   close()
+  // 功能引导关闭后顺势进入建所引导（无住所时弹创建弹窗，有住所则静默跳过）
+  maybeAutoOnboard()
 }
 
 function goLogin() {

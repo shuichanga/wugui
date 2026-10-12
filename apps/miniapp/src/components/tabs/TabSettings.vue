@@ -292,9 +292,9 @@ import {
 import { useTheme, THEMES } from '../../composables/useTheme'
 import { useHomeTabs } from '../../composables/useHomeTabs'
 import { useAvatar } from '../../composables/useAvatar'
-import { useHouseholds, genInviteCode, type Household } from '../../composables/useHouseholds'
+import { useHouseholds, genInviteCode, isPseudoId, ensureHousehold, type Household } from '../../composables/useHouseholds'
 import { api, errMsg } from '../../utils/api'
-import { syncAfterHouseholdChange, syncNow, syncState } from '../../composables/useSync'
+import { resetSync, syncAfterHouseholdChange, syncNow, syncState } from '../../composables/useSync'
 import { useMembership } from '../../composables/useMembership'
 import { pickLocalPhoto } from '../../utils/local-photo'
 
@@ -417,12 +417,24 @@ function kickMember(h: Household, m: { userId: string; displayName?: string | nu
 function leaveHousehold(h: Household) {
   uni.showModal({
     title: '退出住所',
-    content: `确定退出「${h.name}」？`,
+    content: `确定退出「${h.name}」？退出后不再同步该住所的数据。`,
     confirmColor: '#dc2626',
     success: (res) => {
       if (!res.confirm) return
-      remove(h.id)
-      uni.showToast({ title: '已退出', icon: 'success' })
+      void (async () => {
+        // 服务端住所：先调退出接口（服务端移除成员关系并返回重签 token），失败不本地移除
+        if (auth.isLogged && !isPseudoId(h.id)) {
+          try {
+            const r = await api.delete<{ token: string; householdId?: string }>(`/households/${h.id}/members/me`)
+            auth.applyToken(r.token, r.householdId ?? '')
+          } catch (e) {
+            uni.showToast({ title: errMsg(e) || '退出失败，请重试', icon: 'none' })
+            return
+          }
+        }
+        remove(h.id)
+        uni.showToast({ title: '已退出', icon: 'success' })
+      })()
     },
   })
 }
@@ -477,7 +489,7 @@ function createHousehold() {
     creating.value = true
     api.post<{ id: string; name: string; role: string; token: string }>('/households', { name })
       .then(async res => {
-        auth.state.token = res.token
+        auth.applyToken(res.token, res.id)
         upsert({ id: res.id, name: res.name, role: 'owner', inviteCode: genInviteCode() })
         const migrated = migrateAnonToHousehold(res.id)
         showCreate.value = false
@@ -520,7 +532,7 @@ function joinHousehold() {
     creating.value = true
     api.post<{ ok: boolean; householdId: string; name: string; token: string }>('/households/join', { inviteCode: code })
       .then(async res => {
-        auth.state.token = res.token
+        auth.applyToken(res.token, res.householdId)
         upsert({ id: res.householdId, name: res.name, role: 'member', inviteCode: code })
         const migrated = migrateAnonToHousehold(res.householdId)
         showJoin.value = false
@@ -665,7 +677,9 @@ function exportCsv() {
 }
 
 // ---- 合并导入（对齐 Web 端 /api/import：空间按完整路径逐级 find-or-create，物品按空间+名称去重） ----
-function importJson() {
+async function importJson() {
+  // 建所门禁：导入的目标是当前住所，无住所先弹建所引导
+  if (!(await ensureHousehold())) return
   // #ifdef MP-WEIXIN
   wx.chooseMessageFile({
     count: 1,
@@ -843,7 +857,11 @@ function onLogout() {
     confirmText: '退出',
     confirmColor: '#dc2626',
     success: (res) => {
-      if (res.confirm) auth.logout()
+      if (res.confirm) {
+        // 引擎复位（本地数据与 outbox 保留）；登出后 householdId 不清空 = 本地模式数据原地可见
+        resetSync()
+        auth.logout()
+      }
     },
   })
 }

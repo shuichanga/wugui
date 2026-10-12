@@ -39,6 +39,8 @@
     <PrivacyPopup />
     <!-- 首次使用引导：介绍主要功能，登录不强制 -->
     <OnboardGuide />
+    <!-- 建所引导弹窗：无住所时由开屏/门禁唤起（美观自定义弹窗） -->
+    <HouseholdOnboard />
   </view>
 </template>
 
@@ -48,6 +50,7 @@ import { onShow } from '@dcloudio/uni-app'
 import AppTabbar from '../../components/AppTabbar.vue'
 import PrivacyPopup from '../../components/PrivacyPopup.vue'
 import OnboardGuide from '../../components/OnboardGuide.vue'
+import HouseholdOnboard from '../../components/HouseholdOnboard.vue'
 import TabHome from '../../components/tabs/TabHome.vue'
 import TabItems from '../../components/tabs/TabItems.vue'
 import TabLocations from '../../components/tabs/TabLocations.vue'
@@ -57,6 +60,7 @@ import { useTheme } from '../../composables/useTheme'
 import { useHomeTabs } from '../../composables/useHomeTabs'
 import { useSafeArea } from '../../composables/useSafeArea'
 import { useDragLock } from '../../composables/useDragLock'
+import { maybeAutoOnboard } from '../../composables/useHouseholds'
 
 const { themeClass } = useTheme()
 const { activeTab } = useHomeTabs()
@@ -87,6 +91,8 @@ onShow(() => {
   const i = activeTab.value
   mounted[i] = true
   nextTick(() => tabRefs[i]?.value?.refresh())
+  // 开屏建所引导：仅当功能引导已展示过时（首启由 OnboardGuide 关闭时触发，避免双弹窗叠加）
+  if (uni.getStorageSync('wugui:guide-v1')) maybeAutoOnboard()
 })
 </script>
 

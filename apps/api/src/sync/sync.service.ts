@@ -6,7 +6,7 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common'
 import { and, asc, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
 import type { SyncChange, SyncEntity, SyncPullResponse, SyncPushResponse } from './sync.types'
-import { itemPhotos, itemTags, items, locations, syncChanges } from '../db/schema'
+import { itemPhotos, itemTags, items, locations, syncChanges, users } from '../db/schema'
 import { DrizzleService } from '../db/database.service'
 import { OssService } from '../oss/oss.service'
 import { SubscriptionService } from '../subscription/subscription.service'
@@ -105,7 +105,7 @@ export class SyncService {
     }
 
     const itemIds = itemRows.map(i => i.id)
-    const [tagRows, photoRows] = await Promise.all([
+    const [tagRows, photoRows, ownerRows] = await Promise.all([
       this.drizzle.db
         .select({ itemId: itemTags.itemId, tag: itemTags.tag })
         .from(itemTags)
@@ -114,7 +114,16 @@ export class SyncService {
         .select({ id: itemPhotos.id, itemId: itemPhotos.itemId, ossKey: itemPhotos.ossKey, sortOrder: itemPhotos.sortOrder })
         .from(itemPhotos)
         .where(inArray(itemPhotos.itemId, itemIds)),
+      // 拥有者昵称（多成员住所详情页"XX 添加于"展示用）
+      this.drizzle.db
+        .select({ id: users.id, displayName: users.displayName, username: users.username, email: users.email })
+        .from(users)
+        .where(inArray(users.id, [...new Set(itemRows.map(i => i.ownerId))])),
     ])
+    const ownerBy = new Map(ownerRows.map(o => [
+      o.id,
+      o.displayName ?? o.username ?? (o.email ? o.email.split('@')[0] : '未知成员'),
+    ]))
     const tagsByItem = new Map<string, string[]>()
     for (const t of tagRows) {
       if (!itemIds.includes(t.itemId)) continue
@@ -141,6 +150,7 @@ export class SyncService {
           quantity: i.quantity,
           notes: i.notes,
           ownerId: i.ownerId,
+          ownerName: ownerBy.get(i.ownerId) ?? '未知成员',
           tags: tagsByItem.get(i.id) ?? [],
           photos: photosByItem.get(i.id) ?? [],
           createdAt: i.createdAt.toISOString(),

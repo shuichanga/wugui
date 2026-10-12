@@ -57,9 +57,9 @@
         <text class="loc-arrow">›</text>
       </view>
 
-      <!-- 录入信息 -->
+      <!-- 录入信息（多成员住所标注录入人，与 Web 端一致） -->
       <view class="meta-row">
-        <text>添加于 {{ formatDateTime(item.createdAt) }}</text>
+        <text>{{ item.ownerName ? `${item.ownerName} 添加于 ${formatDateTime(item.createdAt)}` : `添加于 ${formatDateTime(item.createdAt)}` }}</text>
       </view>
 
       <!-- 标签 / 数量双卡 -->
