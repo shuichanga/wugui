@@ -98,33 +98,66 @@ function goBack() {
   else uni.reLaunch({ url: '/pages/home/home' })
 }
 
-/** 购买：服务端签发虚拟支付参数（M2 骨架 501 → 提示暂未开放；备案认证后填 offerId 即通） */
+/** 购买：wx.login 取 code → 服务端签发虚拟支付参数（paySig/用户态 signature）→ wx.requestVirtualPayment 拉起 → 轮询订单状态确认开通 */
 async function onBuy() {
   if (paying.value) return
+  // iOS 需微信 ≥ 8.0.68（Apple IAP），低版本引导更新
+  if (!checkIosVersion()) return
   paying.value = true
   try {
+    const code = await new Promise<string>((resolve, reject) => {
+      uni.login({
+        provider: 'weixin',
+        success: res => resolve(res.code ?? ''),
+        fail: err => reject(new Error(err.errMsg || '微信登录失败')),
+      })
+    })
     const res = await api.post<{
-      signData: Record<string, unknown>
-      sign: string
-      pkg: string
-    }>('/subscription/wechat/pay', { planType: 'cloud_sync_permanent' })
+      mode: string
+      signData: string
+      paySig: string
+      signature: string
+      outTradeNo: string
+    }>('/subscription/wechat/pay', { code })
 
-    // 微信虚拟支付（需小程序备案+认证、后台开通虚拟支付后可用）
+    // success 回调可能丢失（微信异常退出），仅作为轮询起点；发货一律以服务端为准
     await new Promise<void>((resolve, reject) => {
       wx.requestVirtualPayment({
         signData: res.signData,
-        sign: res.sign,
-        package: res.pkg,
+        paySig: res.paySig,
+        signature: res.signature,
+        mode: res.mode,
         success: () => resolve(),
-        fail: (err: { errMsg?: string }) => reject(new Error(err.errMsg || '支付未完成')),
+        fail: (err: { errMsg?: string; errCode?: number }) => {
+          // -2 用户主动取消：静默返回
+          if (err.errCode === -2) reject(new Error('PAY_CANCEL'))
+          else reject(new Error(err.errMsg || '支付未完成'))
+        },
       })
     })
+
+    // 轮询订单状态：服务端已发货（推送已处理或 query_order 兜底命中）才算开通成功
+    let delivered = false
+    for (let i = 0; i < 5; i++) {
+      await sleep(1500)
+      const order = await api.get<{ status: string }>(`/subscription/wechat/order/${res.outTradeNo}`)
+      if (order.status === 'delivered') {
+        delivered = true
+        break
+      }
+      if (order.status === 'refunded' || order.status === 'closed') break
+    }
     await membership.refresh()
-    await syncNow()
-    uni.showToast({ title: '开通成功', icon: 'success' })
+    if (delivered) {
+      await syncNow()
+      uni.showToast({ title: '开通成功', icon: 'success' })
+    } else {
+      uni.showToast({ title: '支付成功，开通确认中，稍后回来查看', icon: 'none' })
+    }
   } catch (e) {
+    if (errMsg(e) === 'PAY_CANCEL') return
     const msg = errMsg(e)
-    if (msg.includes('暂未开放') || msg.includes('NOT_AVAILABLE')) {
+    if (msg.includes('暂未开放')) {
       uni.showToast({ title: '微信支付通道配置中，敬请期待', icon: 'none' })
     } else {
       uni.showToast({ title: msg || '支付未完成', icon: 'none' })
@@ -132,6 +165,24 @@ async function onBuy() {
   } finally {
     paying.value = false
   }
+}
+
+function sleep(ms: number) {
+  return new Promise<void>(resolve => setTimeout(resolve, ms))
+}
+
+/** iOS 端虚拟支付要求微信 ≥ 8.0.68；不满足时引导更新 */
+function checkIosVersion(): boolean {
+  const sys = wx.getSystemInfoSync()
+  if (sys.platform !== 'ios') return true
+  const cur = (sys.version || '').split('.').map(Number)
+  const base = [8, 0, 68]
+  for (let i = 0; i < 3; i++) {
+    if ((cur[i] || 0) > base[i]) return true
+    if ((cur[i] || 0) < base[i]) break
+  }
+  uni.showModal({ title: '提示', content: '请将微信更新至最新版后再进行支付', showCancel: false })
+  return false
 }
 </script>
 

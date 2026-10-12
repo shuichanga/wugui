@@ -160,6 +160,39 @@ export const subscriptions = mysqlTable(
   (t) => [index('idx_subscriptions_user').on(t.userId)],
 )
 
+// ---- 微信虚拟支付订单（道具直购；发货以回调推送为准，query_order 查单兜底） ----
+export const wechatPayOrders = mysqlTable(
+  'wechat_pay_orders',
+  {
+    id: varchar('id', { length: 36 }).primaryKey(),
+    userId: varchar('user_id', { length: 36 }).notNull(),
+    // 业务单号（下单时生成，8-32 位，须唯一且不可复用）
+    outTradeNo: varchar('out_trade_no', { length: 32 }).notNull().unique(),
+    openid: varchar('openid', { length: 64 }).notNull(),
+    productId: varchar('product_id', { length: 64 }).notNull(),
+    planType: varchar('plan_type', { length: 32 }).notNull(),
+    // 道具单价（分），须与 MP 后台道具价格一致
+    goodsPrice: int('goods_price').notNull(),
+    quantity: int('quantity').notNull().default(1),
+    attach: varchar('attach', { length: 255 }),
+    // 0=现网（正式环境固定 0）
+    env: int('env').notNull().default(0),
+    // pending → paid → delivered；closed=关单；refunded=已退款
+    status: varchar('status', { length: 16 }).notNull().default('pending'),
+    // 平台单号 wx_order_id（幂等去重以此为准）
+    wxOrderId: varchar('wx_order_id', { length: 128 }),
+    paidAt: datetime('paid_at'),
+    deliveredAt: datetime('delivered_at'),
+    createdAt: datetime('created_at').notNull(),
+    updatedAt: datetime('updated_at').notNull(),
+  },
+  (t) => [
+    index('idx_wxpay_orders_user').on(t.userId),
+    index('idx_wxpay_orders_wx_order').on(t.wxOrderId),
+    index('idx_wxpay_orders_status').on(t.status),
+  ],
+)
+
 // ---- Phase 2 离线同步队列（LWW：客户端时间戳为准，服务端顺序落库） ----
 export const syncChanges = mysqlTable(
   'sync_changes',

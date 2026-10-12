@@ -31,6 +31,14 @@ async function bootstrap() {
 
   // 请求日志
   const server = app.getHttpAdapter().getInstance()
+
+  // 微信虚拟支付消息推送（明文 XML）：XML 请求体保留原始字符串，验签与解析在路由内完成
+  server.addContentTypeParser(
+    ['text/xml', 'application/xml'],
+    { parseAs: 'string' },
+    (_req, body, done) => done(null, body),
+  )
+
   server.addHook('onRequest', (req, _reply, done) => {
     ;(req as any).logStart = Date.now()
     done()

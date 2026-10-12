@@ -15,6 +15,8 @@ export const appConfig = registerAs('app', () => ({
     appSecret: process.env.WECHAT_APP_SECRET ?? '',
     offerId: process.env.WECHAT_OFFER_ID ?? '',
     payAppKey: process.env.WECHAT_PAY_APP_KEY ?? '',
+    // MP 后台「消息推送」配置的 Token（明文模式验签：sha1(sort(token,timestamp,nonce))）
+    notifyToken: process.env.WECHAT_NOTIFY_TOKEN ?? '',
   },
   oss: {
     region: process.env.OSS_REGION ?? 'oss-cn-hangzhou',
