@@ -44,6 +44,15 @@
         </div>
         <div class="flex items-center gap-3 border-t border-border px-3.5 py-3">
           <span class="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[11px] bg-tint text-primary">
+            <CloudUpload :size="16" aria-hidden="true" />
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="block text-sm font-semibold">云同步数据</span>
+            <small class="mt-0.5 block text-2xs text-text-tertiary">开通云同步后，物品信息与照片同步至云端服务器，用于多设备互通与家人共享</small>
+          </span>
+        </div>
+        <div class="flex items-center gap-3 border-t border-border px-3.5 py-3">
+          <span class="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[11px] bg-tint text-primary">
             <ShieldCheck :size="16" aria-hidden="true" />
           </span>
           <span class="min-w-0 flex-1">
@@ -52,7 +61,7 @@
           </span>
         </div>
       </div>
-      <p class="mt-2 px-1 text-2xs text-text-tertiary">可在"我的"页导出 JSON 或 CSV 作为本地备份。</p>
+      <p class="mt-2 px-1 text-2xs text-text-tertiary">未开通同步时数据不离开本机；可在"我的"页导出 JSON 或 CSV 作为本地备份。</p>
     </section>
 
     <!-- 项目 -->
@@ -77,7 +86,7 @@
 </template>
 
 <script setup lang="ts">
-import { Database, Github, ShieldCheck } from 'lucide-vue-next'
+import { CloudUpload, Database, Github, ShieldCheck } from 'lucide-vue-next'
 
 const config = useRuntimeConfig()
 const appVersion = config.public.appVersion

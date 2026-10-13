@@ -1,10 +1,12 @@
 <template>
-  <!-- 微信小程序 <image> 支持 SVG 文件（不支持 data URI），所有图标已预生成为静态 SVG 文件 -->
+  <!-- 图标由 scripts/gen-icons.mjs 从下方 ICON_PATHS 表预生成为 PNG（无需手动维护图片）。
+       不用 SVG 的原因：微信 <image> 对 SVG 的位图映射不保证 viewBox 居中（实测内容整体偏移），
+       PNG 位图 + aspectFit 是微信确定性居中的渲染路径。 -->
   <image
     class="loc-icon-img"
     :src="src"
     :mode="mode"
-    :style="{ width: sizePx, height: sizePx }"
+    :style="{ width: `${size}rpx`, height: `${size}rpx` }"
   />
 </template>
 
@@ -13,12 +15,12 @@ import { computed } from 'vue'
 import { useTheme } from '../composables/useTheme'
 
 /**
- * 本地 SVG 图标集（与 Web 端 components/LocationIcon.vue 对齐）。
- * 所有图标由 apps/miniapp/scripts/gen-icons.mjs 从下方 ICON_PATHS 表批量生成，
+ * 本地图标集（与 Web 端 components/LocationIcon.vue 对齐）。
+ * 所有图标由 apps/miniapp/scripts/gen-icons.mjs 从下方 ICON_PATHS 表批量光栅化为 PNG，
  * 输出到 src/static/icons/：
- *   <slug>.svg / <slug>--timber.svg / <slug>--inkstone.svg —— 各主题主色
- *   <slug>-muted.svg —— 灰版（三主题共用）
- *   tab-<slug>-active[--theme].svg / tab-<slug>-inactive.svg
+ *   <slug>.png / <slug>--timber.png / <slug>--inkstone.png —— 各主题主色
+ *   <slug>-muted.png —— 灰版（三主题共用）
+ *   tab-<slug>-active[--theme].png / tab-<slug>-inactive.png
  *
  * 修改图标请同步 Web 端 ICON_PATHS 并重跑 gen-icons.mjs。
  */
@@ -80,8 +82,8 @@ const ICON_PATHS: Record<string, string> = {
   search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
   camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
   upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/>',
-  star: '<path d="m12 3 2.7 5.6 6.3.8-4.6 4.3 1.2 6.1L12 16.9 6.4 19.8l1.2-6.1L3 9.4l6.3-.8z"/>',
-  refresh: '<path d="M21 12a9 9 0 1 1-2.6-6.3"/><path d="M21 3v6h-6"/>',
+  crown: '<path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.735H5.81a1 1 0 0 1-.957-.735L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/>',
+  refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
 }
 
 const props = withDefaults(
@@ -100,32 +102,33 @@ const props = withDefaults(
 
 const { theme } = useTheme()
 
-const sizePx = computed(() => `${props.size}rpx`)
-
 // 主题色后缀：默认主题无后缀，其余主题取预生成的 --<theme> 变体
 const themeSuffix = computed(() => (theme.value === 'oasis' ? '' : `--${theme.value}`))
 
 const src = computed(() => {
   if (props.slug.startsWith('tab-')) {
     // tab 图标预生成了 active/inactive 双色版本，active 再分主题
-    if (props.state === 'inactive') return `/static/icons/${props.slug}-inactive.svg`
-    return `/static/icons/${props.slug}-active${themeSuffix.value}.svg`
+    if (props.state === 'inactive') return `/static/icons/${props.slug}-inactive.png`
+    return `/static/icons/${props.slug}-active${themeSuffix.value}.png`
   }
   if (props.state === 'muted') {
-    return `/static/icons/${props.slug}-muted.svg`
+    return `/static/icons/${props.slug}-muted.png`
   }
   if (props.state === 'white') {
-    return `/static/icons/${props.slug}-white.svg`
+    return `/static/icons/${props.slug}-white.png`
   }
   if (props.state === 'blue') {
-    return `/static/icons/${props.slug}-blue.svg`
+    return `/static/icons/${props.slug}-blue.png`
   }
-  return `/static/icons/${props.slug}${themeSuffix.value}.svg`
+  return `/static/icons/${props.slug}${themeSuffix.value}.png`
 })
 </script>
 
 <style scoped>
 .loc-icon-img {
-  display: inline-block;
+  /* block 消除 inline-block 基线下降区：组件外层有 <location-icon> 包裹节点，
+       image 以 inline-block 参与行内布局时底部会带 descender 空隙，
+       导致图标在 flex 居中容器里整体偏高约 7rpx（实测截图像素级验证） */
+  display: block;
 }
 </style>

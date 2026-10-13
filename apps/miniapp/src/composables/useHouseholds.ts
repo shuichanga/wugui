@@ -7,7 +7,7 @@
 // = 回到本地模式，数据原地可见；登录时服务端列表整体替换（防跨账号串显），
 // 游客住所（伪 id）的名字与数据并入账号住所。
 import { computed, ref } from 'vue'
-import { api } from '../utils/api'
+import { api, errMsg } from '../utils/api'
 import { useAuth, type Household as AuthHousehold } from './useAuth'
 import { ANON_NAMESPACE, migrateNamespaceToHousehold } from './useLocalData'
 import { syncOnHouseholdSwitch } from './useSync'
@@ -174,11 +174,29 @@ export function useHouseholds() {
     }
   }
 
-  function resetInvite(id: string) {
+  /**
+   * 重置邀请码：服务端生成并落库（仅 owner），以服务端返回为准。
+   * 修复：此前是纯本地生成——服务端仍持旧码，下次列表对齐时旧码"复活"。
+   * 游客/本地伪住所仅本地生成（永不同步）。
+   */
+  async function resetInvite(id: string): Promise<boolean> {
     const h = households.value.find(x => x.id === id)
-    if (!h) return
+    if (!h) return false
+    const auth = useAuth()
+    if (auth.isLogged && !isPseudoId(id)) {
+      try {
+        const res = await api.post<{ ok: boolean; inviteCode: string }>(`/households/${id}/invite/reset`)
+        h.inviteCode = res.inviteCode
+        persist()
+        return true
+      } catch (e) {
+        uni.showToast({ title: errMsg(e) || '重置失败，请重试', icon: 'none' })
+        return false
+      }
+    }
     h.inviteCode = genInviteCode()
     persist()
+    return true
   }
 
   /** 退出 / 删除；若删的是当前住所则回退到第一个（删后同样重建同步引擎） */

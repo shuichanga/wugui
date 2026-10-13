@@ -214,7 +214,7 @@
       <view class="card list-card">
         <view class="list-row" @tap="goMembership">
           <view class="row-icon-tile row-icon-green">
-            <LocationIcon slug="star" :size="36" />
+            <LocationIcon slug="crown" :size="36" :state="membership.canCloudSync ? 'default' : 'muted'" />
           </view>
           <view class="row-body">
             <text class="row-title">{{ membership.canCloudSync ? '云同步已开启' : '云同步未开启' }}</text>
@@ -465,8 +465,10 @@ function onResetInvite(h: Household) {
     content: '重置后旧邀请码将失效',
     success: (res) => {
       if (!res.confirm) return
-      resetInvite(h.id)
-      uni.showToast({ title: '邀请码已重置', icon: 'success' })
+      void (async () => {
+        const ok = await resetInvite(h.id)
+        if (ok) uni.showToast({ title: '邀请码已重置', icon: 'success' })
+      })()
     },
   })
 }

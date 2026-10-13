@@ -121,7 +121,7 @@
         </view>
         <view class="tag-input-row">
           <input v-model="tagDraft" class="input-base" placeholder="输入标签，逗号分隔批量添加" maxlength="20" @confirm="addTag" confirm-type="done" />
-          <button class="btn-secondary add-btn" :disabled="!tagDraft.trim()" @tap="addTag">添加</button>
+          <button class="add-btn" :class="tagDraft.trim() ? 'btn-primary' : 'btn-secondary'" :disabled="!tagDraft.trim()" @tap="addTag">添加</button>
         </view>
         <view class="suggestions">
           <view
@@ -842,7 +842,7 @@ function onDelete() {
   min-width: 0;
 }
 /* 标签"添加"按钮：与内联添加空间的按钮同尺寸（小号胶囊），
-   复用 .btn-secondary 的主题视觉（背景/描边/圆角/字重），
+   空白时用 .btn-secondary（白底描边置灰观感），有内容时切 .btn-primary（主题色，引导点击），
    只覆盖紧凑 padding 与字号以对齐旁边的输入框 */
 .add-btn {
   margin: 0;

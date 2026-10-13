@@ -48,7 +48,16 @@
           </view>
           <view class="row-body">
             <text class="row-title">数据存储</text>
-            <text class="row-sub">本地模式：数据保存在本机</text>
+            <text class="row-sub">本地模式：数据保存在本机，卸载应用前请先导出备份</text>
+          </view>
+        </view>
+        <view class="list-row list-row-border">
+          <view class="row-icon-tile">
+            <LocationIcon slug="upload" :size="36" />
+          </view>
+          <view class="row-body">
+            <text class="row-title">云同步数据</text>
+            <text class="row-sub">开通云同步后，物品信息与照片将同步至云端服务器，用于多设备互通与家人共享</text>
           </view>
         </view>
         <view class="list-row list-row-border">
@@ -57,7 +66,7 @@
           </view>
           <view class="row-body">
             <text class="row-title">隐私保护</text>
-            <text class="row-sub">小程序版数据不离开本机</text>
+            <text class="row-sub">未开通同步时数据不离开本机；同步数据仅用于多端同步功能，可随时导出备份</text>
           </view>
         </view>
       </view>

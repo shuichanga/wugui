@@ -10,8 +10,8 @@
     <!-- 会员状态卡 -->
     <view class="card status-card">
       <view class="status-head">
-        <view class="icon-tile">
-          <LocationIcon slug="star" :size="36" />
+        <view class="icon-tile icon-plain">
+          <LocationIcon slug="crown" :size="44" :state="membership.isPro ? 'default' : 'muted'" />
         </view>
         <view class="status-body">
           <text class="status-name">{{ membership.isPro ? '会员已开通' : '尚未开通会员' }}</text>
@@ -255,6 +255,10 @@ function checkIosVersion(): boolean {
   border-radius: 999rpx;
   padding: 6rpx 20rpx;
   letter-spacing: 2rpx;
+}
+/* 会员星标：去浅绿底，图标即状态——已开通主题色，未开通灰度 */
+.icon-plain {
+  background: transparent;
 }
 
 /* 云同步状态行 */
