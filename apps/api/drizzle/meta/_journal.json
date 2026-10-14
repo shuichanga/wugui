@@ -29,6 +29,13 @@
       "when": 1791780503735,
       "tag": "0003_old_daredevil",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1792022400000,
+      "tag": "0004_wise_config",
+      "breakpoints": true
     }
   ]
 }

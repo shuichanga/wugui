@@ -1,14 +1,32 @@
 // 管理后台路由：/api/admin（全部需 AdminGuard；AdminGuard 在全局 AuthGuard 之后执行）
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query, UseGuards } from '@nestjs/common'
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common'
 import { AdminGuard } from '../common/admin.guard'
 import { CurrentUser } from '../auth/current-user.decorator'
 import type { SessionUser } from '../auth/session.types'
+import { AppConfigService } from '../app-config/app-config.service'
 import { AdminService } from './admin.service'
 
 @UseGuards(AdminGuard)
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly service: AdminService) {}
+  constructor(
+    private readonly service: AdminService,
+    private readonly appConfig: AppConfigService,
+  ) {}
+
+  /** GET /api/admin/config —— 读取运营配置（广告位 ID 等） */
+  @Get('config')
+  async getConfig() {
+    return { adUnitId: await this.appConfig.getAdUnitId() }
+  }
+
+  /** PUT /api/admin/config —— 更新运营配置（body: { adUnitId }，空串 = 关闭广告） */
+  @HttpCode(200)
+  @Put('config')
+  async updateConfig(@Body() body: Record<string, unknown>) {
+    const adUnitId = await this.appConfig.setAdUnitId(String(body?.adUnitId ?? ''))
+    return { ok: true, adUnitId }
+  }
 
   /** GET /api/admin/stats —— 总览看板 */
   @Get('stats')

@@ -152,6 +152,9 @@
             </view>
           </view>
         </view>
+
+        <!-- 广告位（v-else 分支内：仅已有空间时出现），会员不渲染 -->
+        <AdBanner />
       </view>
 
       <!-- 添加房间：虚线按钮 -->
@@ -201,6 +204,7 @@
 <script setup lang="ts">
 import { computed, getCurrentInstance, onMounted, onUnmounted, reactive, ref } from 'vue'
 import LocationIcon from '../LocationIcon.vue'
+import AdBanner from '../AdBanner.vue'
 import {
   buildLocationTree,
   createLocation,

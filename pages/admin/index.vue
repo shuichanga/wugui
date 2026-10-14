@@ -90,6 +90,25 @@
           </div>
         </div>
       </section>
+
+      <!-- 运营配置：管理后台可改项（广告位 ID 等） -->
+      <section class="mt-5 rounded-2xl border border-border bg-neutral-surface p-4 shadow-level-1 md:rounded-lg" aria-label="运营配置">
+        <h2 class="text-sm font-bold">运营配置</h2>
+        <div class="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <label for="ad-unit-id" class="shrink-0 text-xs text-text-secondary sm:w-24">广告位 ID</label>
+          <input id="ad-unit-id" v-model="adUnitId" type="text"
+                 placeholder="微信流量主广告位 id，留空 = 不展示广告"
+                 class="min-w-0 flex-1 rounded-md border border-border bg-white px-2.5 py-1.5 text-sm text-text-primary outline-none focus:border-primary" />
+          <button :disabled="savingConfig"
+                  class="shrink-0 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:brightness-95 disabled:opacity-50"
+                  @click="saveConfig">
+            {{ savingConfig ? '保存中…' : '保存' }}
+          </button>
+        </div>
+        <p class="mt-2 text-2xs text-text-tertiary">
+          小程序首页 Banner 广告，仅非会员展示；保存后小程序下次启动生效{{ configMsg ? ' · ' + configMsg : '' }}
+        </p>
+      </section>
     </template>
   </main>
 </template>
@@ -140,6 +159,28 @@ function barHeight(n: number): string {
   return `${Math.max(2, Math.round((n / maxBar.value) * 100))}%`
 }
 
+// ---- 运营配置（广告位 ID） ----
+const adUnitId = ref('')
+const savingConfig = ref(false)
+const configMsg = ref('')
+
+async function saveConfig() {
+  savingConfig.value = true
+  configMsg.value = ''
+  try {
+    const res = await apiFetch<{ adUnitId: string }>('/api/admin/config', {
+      method: 'PUT',
+      body: { adUnitId: adUnitId.value.trim() },
+    })
+    adUnitId.value = res.adUnitId ?? ''
+    configMsg.value = '已保存'
+  } catch (e) {
+    configMsg.value = errMsg(e) || '保存失败'
+  } finally {
+    savingConfig.value = false
+  }
+}
+
 onMounted(async () => {
   // 服务端兜底：非管理员直接回首页
   if (!auth.loaded) await auth.fetchMe()
@@ -159,5 +200,10 @@ onMounted(async () => {
   } finally {
     pending.value = false
   }
+  // 运营配置独立加载（失败不影响看板）
+  try {
+    const cfg = await apiFetch<{ adUnitId: string }>('/api/admin/config')
+    adUnitId.value = cfg.adUnitId ?? ''
+  } catch { /* 静默 */ }
 })
 </script>

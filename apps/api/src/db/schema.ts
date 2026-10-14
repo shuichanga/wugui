@@ -216,3 +216,10 @@ export const syncChanges = mysqlTable(
     index('idx_sync_household_time').on(t.householdId, t.syncedAt),
   ],
 )
+
+// ---- 运营配置（key-value，管理后台可改、/api/config 公开下发） ----
+export const appConfigTable = mysqlTable('app_config', {
+  configKey: varchar('config_key', { length: 64 }).primaryKey(),
+  configValue: text('config_value').notNull(),
+  updatedAt: datetime('updated_at').notNull(),
+})

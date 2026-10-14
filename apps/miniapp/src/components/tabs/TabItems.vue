@@ -120,6 +120,9 @@
         </view>
       </view>
 
+      <!-- 广告位：仅列表有内容时出现（全宽，跨两列），会员不渲染 -->
+      <AdBanner v-if="filtered.length" />
+
       <text v-if="filtered.length" class="list-end">· 到底了 ·</text>
     </view>
 
@@ -148,6 +151,7 @@
 import { computed, onMounted, ref } from 'vue'
 import LocationIcon from '../LocationIcon.vue'
 import TagRow from '../TagRow.vue'
+import AdBanner from '../AdBanner.vue'
 import {
   buildLocationTree, deleteItem, getLocationPath, useStore,
   type LocalItem, type LocationTreeNode,

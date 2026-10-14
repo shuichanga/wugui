@@ -15,6 +15,7 @@ import { AvatarsModule } from './avatars/avatars.module'
 import { TransferModule } from './transfer/transfer.module'
 import { SubscriptionModule } from './subscription/subscription.module'
 import { SyncModule } from './sync/sync.module'
+import { AppConfigModule } from './app-config/app-config.module'
 import { AdminModule } from './admin/admin.module'
 
 @Module({
@@ -35,6 +36,7 @@ import { AdminModule } from './admin/admin.module'
     TransferModule,
     SubscriptionModule,
     SyncModule,
+    AppConfigModule,
     AdminModule,
   ],
   providers: [
