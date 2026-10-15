@@ -3,7 +3,7 @@ import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query
 import { AdminGuard } from '../common/admin.guard'
 import { CurrentUser } from '../auth/current-user.decorator'
 import type { SessionUser } from '../auth/session.types'
-import { AppConfigService } from '../app-config/app-config.service'
+import { AppConfigService, parseFen } from '../app-config/app-config.service'
 import { AdminService } from './admin.service'
 
 @UseGuards(AdminGuard)
@@ -14,18 +14,27 @@ export class AdminController {
     private readonly appConfig: AppConfigService,
   ) {}
 
-  /** GET /api/admin/config —— 读取运营配置（广告位 ID 等） */
+  /** GET /api/admin/config —— 读取运营配置（广告位 ID/广告开关/会员价格等） */
   @Get('config')
   async getConfig() {
-    return { adUnitId: await this.appConfig.getAdUnitId() }
+    return this.appConfig.getOpsConfig()
   }
 
-  /** PUT /api/admin/config —— 更新运营配置（body: { adUnitId }，空串 = 关闭广告） */
+  /**
+   * PUT /api/admin/config —— 更新运营配置。
+   * body: { adUnitId?, adEnabled?, priceCurrent?, priceOriginal? }；
+   * priceCurrent/priceOriginal 单位分，null/空 = 清除（现价清除后回退内置默认价）。
+   * 现价须与 MP 后台「道具管理」道具价格一致，否则下单会被微信拒绝
+   */
   @HttpCode(200)
   @Put('config')
   async updateConfig(@Body() body: Record<string, unknown>) {
-    const adUnitId = await this.appConfig.setAdUnitId(String(body?.adUnitId ?? ''))
-    return { ok: true, adUnitId }
+    const patch: Parameters<AppConfigService['setOpsConfig']>[0] = {}
+    if (body?.adUnitId !== undefined) patch.adUnitId = String(body.adUnitId ?? '')
+    if (body?.adEnabled !== undefined) patch.adEnabled = !!body.adEnabled
+    if (body?.priceCurrent !== undefined) patch.priceCurrent = parseFen(body.priceCurrent)
+    if (body?.priceOriginal !== undefined) patch.priceOriginal = parseFen(body.priceOriginal)
+    return { ok: true, ...(await this.appConfig.setOpsConfig(patch)) }
   }
 
   /** GET /api/admin/stats —— 总览看板 */

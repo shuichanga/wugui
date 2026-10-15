@@ -32,8 +32,19 @@
 
     <!-- 开通卡：仅虚拟支付已开通（服务端 offerId 已配置）时显示，避免无支付能力的版本被判定为虚拟商品售卖 -->
     <view v-if="membership.state.value.payEnabled" class="card buy-card">
-      <text class="buy-title">开通云同步会员</text>
-      <text class="buy-sub">永久会员 · 一次买断 · 无订阅无续费</text>
+      <view class="buy-head">
+        <view class="buy-head-text">
+          <text class="buy-title">开通云同步会员</text>
+          <text class="buy-sub">永久会员 · 一次买断 · 无订阅无续费</text>
+        </view>
+        <view class="price-box">
+          <view class="price-now-row">
+            <text class="price-symbol">¥</text>
+            <text class="price-now">{{ currentPriceYuan ?? '--' }}</text>
+          </view>
+          <text v-if="hasDiscount" class="price-original">原价 ¥{{ originalPriceYuan }}</text>
+        </view>
+      </view>
       <view class="feat-list">
         <view class="feat-row"><view class="feat-dot"></view><text class="feat-text">物品 / 空间多设备实时同步</text></view>
         <view class="feat-row"><view class="feat-dot"></view><text class="feat-text">与 Web 端数据互通</text></view>
@@ -41,7 +52,7 @@
         <view class="feat-row"><view class="feat-dot"></view><text class="feat-text">会员免广告</text></view>
       </view>
       <button class="btn-primary buy-btn" :disabled="paying" @tap="onBuy">
-        <text>{{ paying ? '处理中…' : '立即开通' }}</text>
+        <text>{{ paying ? '处理中…' : (currentPriceYuan ? `立即开通 ¥${currentPriceYuan}` : '立即开通') }}</text>
       </button>
       <text class="buy-note">会员费用用于支付服务器、云存储与多端同步的运行成本，让物归能长期稳定地陪着你</text>
       <text class="buy-note">开通后当前账号的全部住所均可永久使用云同步</text>
@@ -91,6 +102,23 @@ const syncSub = computed(() => {
     : '来源：家庭成员的会员（家庭共享）'
 })
 
+/** 现价（元字符串）：服务端下发，未下发时为 null（按钮与价格行降级为无价文案） */
+const currentPriceYuan = computed(() => {
+  const p = membership.state.value.product?.goodsPrice
+  return typeof p === 'number' && p > 0 ? (p / 100).toFixed(2) : null
+})
+/** 划线原价（元字符串）：仅在原价高于现价时展示（活动价对比） */
+const originalPriceYuan = computed(() => {
+  const p = membership.state.value.product?.originalPrice
+  return typeof p === 'number' && p > 0 ? (p / 100).toFixed(2) : null
+})
+const hasDiscount = computed(() => {
+  const goods = membership.state.value.product
+  return typeof goods?.originalPrice === 'number'
+    && typeof goods.goodsPrice === 'number'
+    && goods.originalPrice > goods.goodsPrice
+})
+
 onShow(() => {
   void membership.refresh()
 })
@@ -107,6 +135,8 @@ async function onBuy() {
   if (!checkIosVersion()) return
   paying.value = true
   try {
+    // 支付前确认弹窗：明示价格与买断规则，确认后才进入微信支付（价格来自服务端下发）
+    if (!(await confirmPurchase())) return
     const code = await new Promise<string>((resolve, reject) => {
       uni.login({
         provider: 'weixin',
@@ -171,6 +201,25 @@ async function onBuy() {
 
 function sleep(ms: number) {
   return new Promise<void>(resolve => setTimeout(resolve, ms))
+}
+
+/** 支付前确认弹窗：展示服务端下发的价格（含划线原价）与商品说明，返回用户是否确认（价格未下发时省略金额，仍保留确认环节） */
+function confirmPurchase(): Promise<boolean> {
+  const goods = membership.state.value.product
+  const price = typeof goods?.goodsPrice === 'number' ? `¥${(goods.goodsPrice / 100).toFixed(2)}` : ''
+  const discount = hasDiscount.value ? `（原价 ¥${originalPriceYuan.value}）` : ''
+  const content = price
+    ? `云同步会员 ${price}${discount} · 一次买断永久有效，开通后当前账号的全部住所均可使用云同步。`
+    : '云同步会员一次买断永久有效，开通后当前账号的全部住所均可使用云同步。'
+  return new Promise(resolve => {
+    uni.showModal({
+      title: '确认开通',
+      content,
+      confirmText: '确认支付',
+      success: res => resolve(!!res.confirm),
+      fail: () => resolve(false),
+    })
+  })
 }
 
 /** iOS 端虚拟支付要求微信 ≥ 8.0.68；不满足时引导更新 */
@@ -301,6 +350,17 @@ function checkIosVersion(): boolean {
   flex-direction: column;
   gap: 20rpx;
 }
+.buy-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24rpx;
+}
+.buy-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
 .buy-title {
   font-family: var(--font-display);
   font-size: 30rpx;
@@ -309,6 +369,34 @@ function checkIosVersion(): boolean {
 .buy-sub {
   font-size: 24rpx;
   color: var(--color-text-secondary);
+}
+/* 价格区：现价突出，原价划线 */
+.price-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4rpx;
+}
+.price-now-row {
+  display: flex;
+  align-items: baseline;
+  gap: 2rpx;
+  color: var(--color-primary);
+}
+.price-symbol {
+  font-size: 24rpx;
+  font-weight: 700;
+}
+.price-now {
+  font-family: var(--font-display);
+  font-size: 44rpx;
+  font-weight: 700;
+  line-height: 1;
+}
+.price-original {
+  font-size: 22rpx;
+  color: var(--color-text-tertiary);
+  text-decoration: line-through;
 }
 .feat-list {
   display: flex;

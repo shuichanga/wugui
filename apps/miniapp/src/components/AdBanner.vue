@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // 广告位（微信流量主）：仅未订阅用户展示（isPro=自己有有效订阅 → 关闭广告）
-// 广告位 id 由服务端 /api/config 下发（管理后台「运营配置」可改），空串 = 未配置不渲染
+// 广告位 id 与开关由服务端 /api/config 下发（管理后台「运营配置」可改），ID 空串或开关关闭 = 不渲染
 // 会员态首次服务端校验完成前不渲染（loaded）：防会员冷启动闪广告
 import { ref } from 'vue'
 import { useMembership } from '../composables/useMembership'
@@ -20,7 +20,7 @@ void appConfig.refresh()
 </script>
 
 <template>
-  <view v-if="appConfig.adUnitId && !membership.isPro && membership.loaded && !adFailed" class="ad-wrap">
+  <view v-if="appConfig.adEnabled && appConfig.adUnitId && !membership.isPro && membership.loaded && !adFailed" class="ad-wrap">
     <ad :unit-id="appConfig.adUnitId" ad-intervals="60" @error="onAdError" />
   </view>
 </template>

@@ -15,6 +15,8 @@ export interface MembershipState {
   cloudSyncSource: 'self' | 'member'
   /** 虚拟支付已开通（offerId 已配置）：未开通时隐藏购买入口（审核要求） */
   payEnabled?: boolean
+  /** 在售商品（服务端下发，供支付前确认弹窗展示价格）；goodsPrice 单位分；originalPrice 划线原价，无活动时为 null */
+  product?: { planType: string; goodsPrice: number; originalPrice?: number | null } | null
 }
 
 function load(): { state: MembershipState; loaded: boolean } {

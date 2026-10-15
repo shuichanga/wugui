@@ -6,6 +6,7 @@ import { and, desc, eq, lt, ne } from 'drizzle-orm'
 import { subscriptions, users, householdMembers, wechatPayOrders } from '../db/schema'
 import { DrizzleService } from '../db/database.service'
 import type { AppConfig } from '../config'
+import { AppConfigService } from '../app-config/app-config.service'
 import {
   buildSignData,
   calcPaySig,
@@ -19,9 +20,10 @@ import {
 export const PAID_PLANS = ['cloud_sync_permanent'] as const
 export type PaidPlan = (typeof PAID_PLANS)[number]
 
-/** 虚拟支付商品（道具直购）：productId/goodsPrice 须与 MP 后台「道具管理」配置一致，金额单位分 */
+/** 虚拟支付商品（道具直购）：productId 须与 MP 后台「道具管理」配置一致；goodsPrice 为内置默认价（分），
+ *  运营现价可在管理后台「运营配置」下发（读 app_config，未配置时回退此默认，两处须与 MP 后台道具价一致） */
 export const VPAY_PRODUCTS: Record<PaidPlan, { productId: string; goodsPrice: number }> = {
-  cloud_sync_permanent: { productId: 'cloud_sync_permanent', goodsPrice: 1880 },
+  cloud_sync_permanent: { productId: 'cloud_sync_permanent', goodsPrice: 990 },
 }
 
 /** GET /api/subscription/status 响应 */
@@ -36,6 +38,8 @@ export interface SubscriptionStatus {
   cloudSyncSource: 'self' | 'member'
   /** 虚拟支付是否已开通（WECHAT_OFFER_ID 已配置）：未开通时客户端隐藏购买入口（审核要求） */
   payEnabled: boolean
+  /** 在售商品（payEnabled 时下发，供支付前确认弹窗与按钮展示价格）；金额单位分，originalPrice 为划线原价 */
+  product: { planType: PaidPlan; goodsPrice: number; originalPrice: number | null } | null
 }
 
 type WxPayOrder = typeof wechatPayOrders.$inferSelect
@@ -51,6 +55,7 @@ export class SubscriptionService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly drizzle: DrizzleService,
     private readonly config: ConfigService,
+    private readonly appConfig: AppConfigService,
   ) {}
 
   /** 用户是否有有效订阅（isPro 唯一判定源） */
@@ -110,13 +115,23 @@ export class SubscriptionService implements OnModuleInit, OnModuleDestroy {
       canCloudSync = unlocked
     }
 
+    const payEnabled = !!this.config.get<AppConfig>('app')?.wechat?.offerId
+    // 现价/原价来自管理后台运营配置；现价未配置回退内置默认价（须与 MP 后台道具价一致）
+    const [cfgPrice, cfgOriginal] = await Promise.all([this.appConfig.getPriceCurrent(), this.appConfig.getPriceOriginal()])
     return {
       isPro,
       planType: current?.planType ?? 'free',
       expiresAt: current?.expiresAt ?? null,
       canCloudSync,
       cloudSyncSource,
-      payEnabled: !!this.config.get<AppConfig>('app')?.wechat?.offerId,
+      payEnabled,
+      product: payEnabled
+        ? {
+            planType: 'cloud_sync_permanent',
+            goodsPrice: cfgPrice ?? VPAY_PRODUCTS.cloud_sync_permanent.goodsPrice,
+            originalPrice: cfgOriginal,
+          }
+        : null,
     }
   }
 
@@ -185,12 +200,14 @@ export class SubscriptionService implements OnModuleInit, OnModuleDestroy {
     if (user.openid !== session.openid) throw new BadRequestException('微信账号与登录账号不一致，请重新登录')
 
     const product = VPAY_PRODUCTS.cloud_sync_permanent
+    // 下单金额以管理后台运营现价为准（未配置回退内置默认）；须与 MP 后台道具价一致，否则微信拒付
+    const goodsPrice = (await this.appConfig.getPriceCurrent()) ?? product.goodsPrice
     const outTradeNo = genOutTradeNo()
     const attach = JSON.stringify({ userId, planType: product.productId })
     const signData = buildSignData({
       offerId: wechat.offerId,
       productId: product.productId,
-      goodsPrice: product.goodsPrice,
+      goodsPrice,
       outTradeNo,
       attach,
     })
@@ -203,7 +220,7 @@ export class SubscriptionService implements OnModuleInit, OnModuleDestroy {
       openid: session.openid,
       productId: product.productId,
       planType: product.productId,
-      goodsPrice: product.goodsPrice,
+      goodsPrice,
       quantity: 1,
       attach,
       env: 0,

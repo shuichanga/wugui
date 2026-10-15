@@ -91,22 +91,44 @@
         </div>
       </section>
 
-      <!-- 运营配置：管理后台可改项（广告位 ID 等） -->
+      <!-- 运营配置：管理后台可改项（广告开关 / 广告位 ID / 会员价格），改价与做活动无需发版 -->
       <section class="mt-5 rounded-2xl border border-border bg-neutral-surface p-4 shadow-level-1 md:rounded-lg" aria-label="运营配置">
-        <h2 class="text-sm font-bold">运营配置</h2>
-        <div class="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-          <label for="ad-unit-id" class="shrink-0 text-xs text-text-secondary sm:w-24">广告位 ID</label>
-          <input id="ad-unit-id" v-model="adUnitId" type="text"
-                 placeholder="微信流量主广告位 id，留空 = 不展示广告"
-                 class="min-w-0 flex-1 rounded-md border border-border bg-white px-2.5 py-1.5 text-sm text-text-primary outline-none focus:border-primary" />
+        <div class="flex items-center justify-between gap-3">
+          <h2 class="text-sm font-bold">运营配置</h2>
           <button :disabled="savingConfig"
-                  class="shrink-0 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:brightness-95 disabled:opacity-50"
+                  class="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:brightness-95 disabled:opacity-50"
                   @click="saveConfig">
             {{ savingConfig ? '保存中…' : '保存' }}
           </button>
         </div>
+        <div class="mt-3 flex flex-col gap-2.5">
+          <!-- 广告：开关控制整体展示，ID 保留以便随时重新开启 -->
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <label for="ad-enabled" class="flex w-32 shrink-0 items-center gap-2 text-xs text-text-secondary sm:w-24">
+              <input id="ad-enabled" v-model="adEnabled" type="checkbox" class="h-4 w-4 accent-primary" />
+              首页广告
+            </label>
+            <input id="ad-unit-id" v-model="adUnitId" type="text" :disabled="!adEnabled"
+                   placeholder="微信流量主广告位 id"
+                   class="min-w-0 flex-1 rounded-md border border-border bg-white px-2.5 py-1.5 text-sm text-text-primary outline-none focus:border-primary disabled:opacity-50" />
+          </div>
+          <!-- 会员现价：须与微信 MP 后台道具价一致，否则下单会被拒 -->
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <label for="price-current" class="shrink-0 text-xs text-text-secondary sm:w-24">会员现价（元）</label>
+            <input id="price-current" v-model="priceCurrentYuan" type="text" inputmode="decimal"
+                   placeholder="如 9.90，须与微信后台道具价一致"
+                   class="min-w-0 flex-1 rounded-md border border-border bg-white px-2.5 py-1.5 text-sm text-text-primary outline-none focus:border-primary" />
+          </div>
+          <!-- 划线原价：高于现价时小程序展示「原价 xx」活动对比 -->
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <label for="price-original" class="shrink-0 text-xs text-text-secondary sm:w-24">划线原价（元）</label>
+            <input id="price-original" v-model="priceOriginalYuan" type="text" inputmode="decimal"
+                   placeholder="活动用，高于现价时展示划线原价；留空不展示"
+                   class="min-w-0 flex-1 rounded-md border border-border bg-white px-2.5 py-1.5 text-sm text-text-primary outline-none focus:border-primary" />
+          </div>
+        </div>
         <p class="mt-2 text-2xs text-text-tertiary">
-          小程序首页 Banner 广告，仅非会员展示；保存后小程序下次启动生效{{ configMsg ? ' · ' + configMsg : '' }}
+          广告开关可临时关停（保留 ID 配置）；现价修改须同步在微信 MP 后台改道具价格，两边一致支付才有效；均保存后小程序下次启动生效{{ configMsg ? ' · ' + configMsg : '' }}
         </p>
       </section>
     </template>
@@ -159,20 +181,62 @@ function barHeight(n: number): string {
   return `${Math.max(2, Math.round((n / maxBar.value) * 100))}%`
 }
 
-// ---- 运营配置（广告位 ID） ----
+// ---- 运营配置（广告开关 / 广告位 ID / 会员价格） ----
 const adUnitId = ref('')
+const adEnabled = ref(true)
+const priceCurrentYuan = ref('') // 元字符串，如 9.90；空串 = 未设置（走内置默认价）
+const priceOriginalYuan = ref('') // 空串 = 不展示划线原价
 const savingConfig = ref(false)
 const configMsg = ref('')
 
+interface OpsConfigResponse {
+  adUnitId: string
+  adEnabled: boolean
+  priceCurrent: number | null
+  priceOriginal: number | null
+}
+
+function applyConfig(cfg: OpsConfigResponse) {
+  adUnitId.value = cfg.adUnitId ?? ''
+  adEnabled.value = cfg.adEnabled !== false
+  priceCurrentYuan.value = fenToYuan(cfg.priceCurrent)
+  priceOriginalYuan.value = fenToYuan(cfg.priceOriginal)
+}
+
+/** 元字符串 → 分；空串 = 清除（null）；非法输入返回 'invalid' 交由调用方提示 */
+function parseYuanInput(v: string): number | null | 'invalid' {
+  const s = v.trim()
+  if (!s) return null
+  const n = Number.parseFloat(s)
+  if (!Number.isFinite(n) || n <= 0) return 'invalid'
+  return Math.round(n * 100)
+}
+
+/** 分 → 元字符串（两位小数）；null → '' */
+function fenToYuan(fen: number | null): string {
+  return typeof fen === 'number' && fen > 0 ? (fen / 100).toFixed(2) : ''
+}
+
 async function saveConfig() {
+  const cur = parseYuanInput(priceCurrentYuan.value)
+  const orig = parseYuanInput(priceOriginalYuan.value)
+  if (cur === 'invalid' || orig === 'invalid') {
+    configMsg.value = '价格格式不正确，请输入数字（单位元）'
+    return
+  }
   savingConfig.value = true
   configMsg.value = ''
   try {
-    const res = await apiFetch<{ adUnitId: string }>('/api/admin/config', {
+    const res = await apiFetch<OpsConfigResponse>('/api/admin/config', {
       method: 'PUT',
-      body: { adUnitId: adUnitId.value.trim() },
+      body: {
+        adUnitId: adUnitId.value.trim(),
+        adEnabled: adEnabled.value,
+        priceCurrent: cur,
+        priceOriginal: orig,
+      },
     })
-    adUnitId.value = res.adUnitId ?? ''
+    applyConfig(res)
     configMsg.value = '已保存'
   } catch (e) {
     configMsg.value = errMsg(e) || '保存失败'
@@ -202,8 +266,8 @@ onMounted(async () => {
   }
   // 运营配置独立加载（失败不影响看板）
   try {
-    const cfg = await apiFetch<{ adUnitId: string }>('/api/admin/config')
-    adUnitId.value = cfg.adUnitId ?? ''
+    const cfg = await apiFetch<OpsConfigResponse>('/api/admin/config')
+    applyConfig(cfg)
   } catch { /* 静默 */ }
 })
 </script>
