@@ -56,6 +56,7 @@
       </button>
       <text class="buy-note">会员费用用于支付服务器、云存储与多端同步的运行成本，让物归能长期稳定地陪着你</text>
       <text class="buy-note">开通后当前账号的全部住所均可永久使用云同步</text>
+      <text class="buy-note">付款后 7 天内可无条件退款；退款后云同步停止，云端数据保留 30 天后清除，本机数据不受影响，重新开通可恢复同步</text>
     </view>
     <view v-else class="card pay-off-card">
       <text class="pay-off-text">云同步会员购买通道即将开放，开通后可多端同步</text>
@@ -208,9 +209,10 @@ function confirmPurchase(): Promise<boolean> {
   const goods = membership.state.value.product
   const price = typeof goods?.goodsPrice === 'number' ? `¥${(goods.goodsPrice / 100).toFixed(2)}` : ''
   const discount = hasDiscount.value ? `（原价 ¥${originalPriceYuan.value}）` : ''
+  const policy = '付款后 7 天内可无条件退款，超过 7 天不支持退款；退款后云同步停止，云端数据保留 30 天后清除，本机数据不受影响。'
   const content = price
-    ? `云同步会员 ${price}${discount} · 一次买断永久有效，开通后当前账号的全部住所均可使用云同步。`
-    : '云同步会员一次买断永久有效，开通后当前账号的全部住所均可使用云同步。'
+    ? `云同步会员 ${price}${discount} · 一次买断永久有效。${policy}`
+    : `云同步会员一次买断永久有效。${policy}`
   return new Promise(resolve => {
     uni.showModal({
       title: '确认开通',

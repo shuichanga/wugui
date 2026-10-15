@@ -126,9 +126,16 @@
                    placeholder="活动用，高于现价时展示划线原价；留空不展示"
                    class="min-w-0 flex-1 rounded-md border border-border bg-white px-2.5 py-1.5 text-sm text-text-primary outline-none focus:border-primary" />
           </div>
+          <!-- 数据保留宽限：住所全体成员失去订阅（退款/取消/到期）后云端数据保留天数 -->
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <label for="purge-grace-days" class="shrink-0 text-xs text-text-secondary sm:w-24">数据保留（天）</label>
+            <input id="purge-grace-days" v-model="purgeGraceDays" type="text" inputmode="numeric"
+                   placeholder="住所失去云同步后云端数据保留天数，到期自动清除；默认 30"
+                   class="min-w-0 flex-1 rounded-md border border-border bg-white px-2.5 py-1.5 text-sm text-text-primary outline-none focus:border-primary" />
+          </div>
         </div>
         <p class="mt-2 text-2xs text-text-tertiary">
-          广告开关可临时关停（保留 ID 配置）；现价修改须同步在微信 MP 后台改道具价格，两边一致支付才有效；均保存后小程序下次启动生效{{ configMsg ? ' · ' + configMsg : '' }}
+          广告开关可临时关停（保留 ID 配置）；现价修改须同步在微信 MP 后台改道具价格，两边一致支付才有效；数据保留天数改动须同步小程序退款文案（当前写明 30 天）；均保存后小程序下次启动生效{{ configMsg ? ' · ' + configMsg : '' }}
         </p>
       </section>
     </template>
@@ -186,6 +193,7 @@ const adUnitId = ref('')
 const adEnabled = ref(true)
 const priceCurrentYuan = ref('') // 元字符串，如 9.90；空串 = 未设置（走内置默认价）
 const priceOriginalYuan = ref('') // 空串 = 不展示划线原价
+const purgeGraceDays = ref('30') // 住所失去云同步后云端数据保留天数
 const savingConfig = ref(false)
 const configMsg = ref('')
 
@@ -194,6 +202,7 @@ interface OpsConfigResponse {
   adEnabled: boolean
   priceCurrent: number | null
   priceOriginal: number | null
+  purgeGraceDays: number
 }
 
 function applyConfig(cfg: OpsConfigResponse) {
@@ -201,6 +210,7 @@ function applyConfig(cfg: OpsConfigResponse) {
   adEnabled.value = cfg.adEnabled !== false
   priceCurrentYuan.value = fenToYuan(cfg.priceCurrent)
   priceOriginalYuan.value = fenToYuan(cfg.priceOriginal)
+  purgeGraceDays.value = String(cfg.purgeGraceDays ?? 30)
 }
 
 /** 元字符串 → 分；空串 = 清除（null）；非法输入返回 'invalid' 交由调用方提示 */
@@ -224,6 +234,11 @@ async function saveConfig() {
     configMsg.value = '价格格式不正确，请输入数字（单位元）'
     return
   }
+  const graceDays = Math.floor(Number(purgeGraceDays.value.trim()))
+  if (!Number.isFinite(graceDays) || graceDays < 1) {
+    configMsg.value = '数据保留天数需为不小于 1 的整数'
+    return
+  }
   savingConfig.value = true
   configMsg.value = ''
   try {
@@ -234,6 +249,7 @@ async function saveConfig() {
         adEnabled: adEnabled.value,
         priceCurrent: cur,
         priceOriginal: orig,
+        purgeGraceDays: graceDays,
       },
     })
     applyConfig(res)

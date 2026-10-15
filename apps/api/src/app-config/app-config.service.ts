@@ -10,6 +10,10 @@ const KEY_AD_UNIT = 'wechat_ad_unit_id'
 const KEY_AD_ENABLED = 'wechat_ad_enabled'
 const KEY_PRICE_CURRENT = 'membership_price_current'
 const KEY_PRICE_ORIGINAL = 'membership_price_original'
+const KEY_PURGE_GRACE_DAYS = 'sync_purge_grace_days'
+
+/** 退款/取消订阅后云端数据保留宽限期默认天数（与小程序支付确认弹窗文案对应，改动须同步发版改文案） */
+export const DEFAULT_PURGE_GRACE_DAYS = 30
 
 /** 运营配置（管理后台可改项） */
 export interface OpsConfig {
@@ -20,6 +24,8 @@ export interface OpsConfig {
   priceCurrent: number | null
   /** 会员原价（分，划线价，可空）：现价低于原价时客户端展示优惠文案 */
   priceOriginal: number | null
+  /** 住所全体成员失去订阅后云端数据保留天数（到期清空云端数据） */
+  purgeGraceDays: number
 }
 
 /** 金额转分：非正数/非法输入返回 null（用于清除配置） */
@@ -76,13 +82,21 @@ export class AppConfigService {
     return parseFen((await this.getValues([KEY_PRICE_ORIGINAL])).get(KEY_PRICE_ORIGINAL))
   }
 
+  /** 云端数据清理宽限天数：未配置/非法回退默认 30 天，最小 1 天 */
+  async getPurgeGraceDays(): Promise<number> {
+    const n = Math.floor(Number((await this.getValues([KEY_PURGE_GRACE_DAYS])).get(KEY_PURGE_GRACE_DAYS)))
+    return Number.isFinite(n) && n >= 1 ? n : DEFAULT_PURGE_GRACE_DAYS
+  }
+
   async getOpsConfig(): Promise<OpsConfig> {
-    const kv = await this.getValues([KEY_AD_UNIT, KEY_AD_ENABLED, KEY_PRICE_CURRENT, KEY_PRICE_ORIGINAL])
+    const kv = await this.getValues([KEY_AD_UNIT, KEY_AD_ENABLED, KEY_PRICE_CURRENT, KEY_PRICE_ORIGINAL, KEY_PURGE_GRACE_DAYS])
+    const grace = Math.floor(Number(kv.get(KEY_PURGE_GRACE_DAYS)))
     return {
       adUnitId: kv.get(KEY_AD_UNIT) ?? '',
       adEnabled: kv.get(KEY_AD_ENABLED) !== '0',
       priceCurrent: parseFen(kv.get(KEY_PRICE_CURRENT)),
       priceOriginal: parseFen(kv.get(KEY_PRICE_ORIGINAL)),
+      purgeGraceDays: Number.isFinite(grace) && grace >= 1 ? grace : DEFAULT_PURGE_GRACE_DAYS,
     }
   }
 
@@ -92,11 +106,13 @@ export class AppConfigService {
     adEnabled?: boolean
     priceCurrent?: number | null
     priceOriginal?: number | null
+    purgeGraceDays?: number
   }): Promise<OpsConfig> {
     if (patch.adUnitId !== undefined) await this.setValue(KEY_AD_UNIT, patch.adUnitId.trim().slice(0, 128))
     if (patch.adEnabled !== undefined) await this.setValue(KEY_AD_ENABLED, patch.adEnabled ? '1' : '0')
     if (patch.priceCurrent !== undefined) await this.setValue(KEY_PRICE_CURRENT, patch.priceCurrent == null ? null : String(Math.round(patch.priceCurrent)))
     if (patch.priceOriginal !== undefined) await this.setValue(KEY_PRICE_ORIGINAL, patch.priceOriginal == null ? null : String(Math.round(patch.priceOriginal)))
+    if (patch.purgeGraceDays !== undefined) await this.setValue(KEY_PURGE_GRACE_DAYS, String(Math.max(1, Math.round(patch.purgeGraceDays))))
     return this.getOpsConfig()
   }
 }

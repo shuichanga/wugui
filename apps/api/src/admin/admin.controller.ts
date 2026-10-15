@@ -22,9 +22,10 @@ export class AdminController {
 
   /**
    * PUT /api/admin/config —— 更新运营配置。
-   * body: { adUnitId?, adEnabled?, priceCurrent?, priceOriginal? }；
+   * body: { adUnitId?, adEnabled?, priceCurrent?, priceOriginal?, purgeGraceDays? }；
    * priceCurrent/priceOriginal 单位分，null/空 = 清除（现价清除后回退内置默认价）。
-   * 现价须与 MP 后台「道具管理」道具价格一致，否则下单会被微信拒绝
+   * 现价须与 MP 后台「道具管理」道具价格一致，否则下单会被微信拒绝；
+   * purgeGraceDays 为住所全体成员失去订阅后云端数据保留天数（改动须同步小程序弹窗文案）
    */
   @HttpCode(200)
   @Put('config')
@@ -34,6 +35,10 @@ export class AdminController {
     if (body?.adEnabled !== undefined) patch.adEnabled = !!body.adEnabled
     if (body?.priceCurrent !== undefined) patch.priceCurrent = parseFen(body.priceCurrent)
     if (body?.priceOriginal !== undefined) patch.priceOriginal = parseFen(body.priceOriginal)
+    if (body?.purgeGraceDays !== undefined) {
+      const days = Math.floor(Number(body.purgeGraceDays))
+      if (Number.isFinite(days) && days >= 1) patch.purgeGraceDays = days
+    }
     return { ok: true, ...(await this.appConfig.setOpsConfig(patch)) }
   }
 

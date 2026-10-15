@@ -40,6 +40,9 @@ export const households = mysqlTable('households', {
   name: varchar('name', { length: 64 }).notNull(),
   inviteCode: varchar('invite_code', { length: 8 }).notNull().unique(),
   createdBy: varchar('created_by', { length: 36 }).notNull(),
+  // 云端数据限期清理：住所内全部成员失去订阅的时间（null=有资格/已恢复）；到期清空云端数据后记 syncPurgedAt
+  syncLostAt: datetime('sync_lost_at'),
+  syncPurgedAt: datetime('sync_purged_at'),
   createdAt: datetime('created_at').notNull(),
   updatedAt: datetime('updated_at').notNull(),
 })
