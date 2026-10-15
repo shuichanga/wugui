@@ -2,7 +2,7 @@
 // 发货以「发货推送」为主，query_order 查单兜底（官方文档 5.4 节），前端 success 回调不作发货依据
 import { BadRequestException, Injectable, Logger, NotFoundException, NotImplementedException, UnauthorizedException, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { and, desc, eq, lt, ne } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, lt, ne } from 'drizzle-orm'
 import { subscriptions, users, householdMembers, wechatPayOrders } from '../db/schema'
 import { DrizzleService } from '../db/database.service'
 import type { AppConfig } from '../config'
@@ -310,10 +310,11 @@ export class SubscriptionService implements OnModuleInit, OnModuleDestroy {
     return { status, wxOrderId: current[0]?.wxOrderId ?? null }
   }
 
-  /** 兜底轮询：发货推送丢失时每 5 分钟扫描 2 分钟前的 pending 单（官方建议 5 分钟一次） */
+  /** 兜底轮询：发货推送丢失时每 5 分钟扫描 2 分钟前的 pending 单（官方建议 5 分钟一次）+ 已发货单退款自愈 */
   onModuleInit() {
     this.fallbackTimer = setInterval(() => {
       void this.syncPendingOrders()
+      void this.syncRecentDeliveredForRefund()
     }, 5 * 60 * 1000)
   }
 
@@ -343,6 +344,37 @@ export class SubscriptionService implements OnModuleInit, OnModuleDestroy {
       }
     } catch (e) {
       this.logger.warn(`兜底查单扫描失败: ${String(e)}`)
+    }
+  }
+
+  /**
+   * 退款自愈：退款推送（xpay_refund_notify）丢失或处理失败时无重试入口，已发货订单会永久停留在
+   * delivered 且订阅不降级。此扫描定期复查 30 天内已发货订单的微信侧状态，发现退款（5/7/8）即补
+   * 降级；滚动限量 + updatedAt 升序轮转，避免重复查同一批。
+   */
+  private async syncRecentDeliveredForRefund() {
+    try {
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      const rows = await this.drizzle.db
+        .select()
+        .from(wechatPayOrders)
+        .where(and(eq(wechatPayOrders.status, 'delivered'), gte(wechatPayOrders.createdAt, since)))
+        .orderBy(asc(wechatPayOrders.updatedAt))
+        .limit(10)
+      for (const order of rows) {
+        const remote = await this.queryWxOrder(order.openid, order.outTradeNo).catch((e: unknown) => {
+          this.logger.warn(`退款自愈查单失败 ${order.outTradeNo}: ${String(e)}`)
+          return null
+        })
+        if (!remote) continue
+        if (remote.status === 5 || remote.status === 7 || remote.status === 8) {
+          await this.markRefunded(order.outTradeNo, remote.wxOrderId ?? null).catch((e: unknown) => {
+            this.logger.error(`退款自愈降级失败 ${order.outTradeNo}: ${String(e)}`)
+          })
+        }
+      }
+    } catch (e) {
+      this.logger.warn(`退款自愈扫描失败: ${String(e)}`)
     }
   }
 
