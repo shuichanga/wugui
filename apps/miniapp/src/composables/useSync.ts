@@ -58,6 +58,10 @@ function getEngine(): SyncEngine | null {
   return engine
 }
 
+/** 会员态节流复核：同步被 canCloudSync 拦下时联网刷新一次（住所内他人刚开通会员无需重启小程序即可解锁） */
+let lastGateCheck = 0
+const GATE_CHECK_INTERVAL = 30_000
+
 /** 立即同步（互斥由 engine 保证）；返回是否真正执行了同步 */
 export async function syncNow(): Promise<boolean> {
   const auth = useAuth()
@@ -72,8 +76,17 @@ export async function syncNow(): Promise<boolean> {
     }
   }
   if (!membership.canCloudSync) {
-    syncState.value = { status: 'blocked', lastSyncAt: syncState.value.lastSyncAt }
-    return false
+    // 缓存的会员态可能过期（如住所内其他成员刚开通会员 / 自己刚购买）：
+    // 节流刷新一次后复核，仍不可用才判 blocked（outbox 保留，下次重试）
+    const now = Date.now()
+    if (now - lastGateCheck > GATE_CHECK_INTERVAL) {
+      lastGateCheck = now
+      await membership.refresh()
+    }
+    if (!membership.canCloudSync) {
+      syncState.value = { status: 'blocked', lastSyncAt: syncState.value.lastSyncAt }
+      return false
+    }
   }
   const engine = getEngine()
   if (!engine || engine.isSyncing()) return false

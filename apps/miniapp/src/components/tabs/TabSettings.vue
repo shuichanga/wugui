@@ -377,18 +377,41 @@ function onSwitch(id: string) {
   if (switchTo(id)) switchTab('home')
 }
 
-// ---- 成员管理（本地模拟） ----
+// ---- 成员管理（服务端住所拉取真实成员；本地模式模拟 owner） ----
 const expandedId = ref('')
 const members = ref<{ userId: string; role: string; username: string | null; displayName: string | null }[]>([])
 const membersPending = ref(false)
 
-function toggleMembers(id: string) {
+async function toggleMembers(id: string) {
   if (expandedId.value === id) {
     expandedId.value = ''
     return
   }
   expandedId.value = id
   membersPending.value = true
+
+  // 服务端住所：拉取真实成员列表（此前是本地模拟假数据，导致成员管理完全失效）
+  if (auth.isLogged && !isPseudoId(id)) {
+    try {
+      const rows = await api.get<{ userId: string; role: string; username: string | null; displayName: string | null }[]>(
+        `/households/${id}/members`,
+      )
+      members.value = rows.map(r => ({
+        userId: r.userId,
+        role: r.role,
+        username: r.username,
+        displayName: r.displayName,
+      }))
+    } catch (e) {
+      members.value = []
+      membersPending.value = false
+      uni.showToast({ title: errMsg(e) || '成员列表获取失败', icon: 'none' })
+      return
+    }
+    membersPending.value = false
+    return
+  }
+
   // 本地模式：模拟一个 owner 成员
   setTimeout(() => {
     members.value = [{
@@ -404,12 +427,23 @@ function toggleMembers(id: string) {
 function kickMember(h: Household, m: { userId: string; displayName?: string | null }) {
   uni.showModal({
     title: '移除成员',
-    content: `确定移除 ${m.displayName ?? '该成员'}？`,
+    content: `确定移除 ${m.displayName ?? '该成员'}？移除后其将不再同步本住所数据。`,
     confirmColor: '#dc2626',
     success: (res) => {
       if (!res.confirm) return
-      members.value = members.value.filter(x => x.userId !== m.userId)
-      uni.showToast({ title: '已移除', icon: 'success' })
+      void (async () => {
+        // 服务端住所：先调移除接口（服务端删除成员关系），失败不本地移除
+        if (auth.isLogged && !isPseudoId(h.id)) {
+          try {
+            await api.delete(`/households/${h.id}/members/${m.userId}`)
+          } catch (e) {
+            uni.showToast({ title: errMsg(e) || '移除失败，请重试', icon: 'none' })
+            return
+          }
+        }
+        members.value = members.value.filter(x => x.userId !== m.userId)
+        uni.showToast({ title: '已移除', icon: 'success' })
+      })()
     },
   })
 }
