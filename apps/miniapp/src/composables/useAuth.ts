@@ -206,6 +206,33 @@ export async function wechatLogin() {
   return res
 }
 
+/**
+ * JWT 过期后的静默重登（api.ts 401 自动触发，用户无感）：
+ * wx.login 换 code → /auth/wechat 换新 token 并回写登录态。
+ * 多住所用户重登前若在其他住所，服务端默认会落回最早加入的住所——
+ * 这里把数据命名空间钉回原住所并补签对应 token，避免"重登一次住所被静默切换"。
+ */
+export async function silentWechatRelogin(): Promise<boolean> {
+  try {
+    const prevHid = state.householdId
+    const { code } = await uni.login({ provider: 'weixin' })
+    const res = await api.post<{ token: string; user: AuthUser; householdId: string; isNew: boolean }>(
+      '/auth/wechat',
+      { code },
+    )
+    const auth = useAuth()
+    await auth.save(res)
+    if (prevHid && res.householdId && prevHid !== res.householdId) {
+      // 先把本地命名空间钉回原住所；token 住所不一致交给 syncNow 里的 ensureHouseholdToken 补签
+      auth.setHouseholdId(prevHid)
+      try { await auth.switchHousehold(prevHid) } catch { /* 补签兜底 */ }
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** 绑定已有 Web 账号：账号密码登录拿到会话后，把当前微信 openid 绑上去 */
 export async function bindExistingAccount(account: string, password: string) {
   const { code } = await uni.login({ provider: 'weixin' })

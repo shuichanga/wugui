@@ -102,7 +102,8 @@ export async function syncNow(): Promise<boolean> {
       await membership.refresh()
       uni.showToast({ title: '开通订阅后即可云同步', icon: 'none' })
     }
-    // 其他错误已在 onState 记录，静默重试交给下次触发
+    // 其他错误已在 onState 记录；如实返回失败，让设置页提示"同步失败"而不是假报"同步完成"
+    return false
   }
   return true
 }

@@ -16,7 +16,8 @@ const COOKIE_OPTS = {
   httpOnly: true,
   sameSite: 'lax' as const,
   path: '/',
-  maxAge: 60 * 60 * 24 * 7,
+  // 与 JWT 有效期（默认 30d，见 config.ts jwtExpires）对齐
+  maxAge: 60 * 60 * 24 * 30,
 }
 
 @Injectable()

@@ -158,7 +158,7 @@ export function createItem(input: {
     updatedAt: now,
     deletedAt: null,
     // 录入者昵称：详情页"XX 添加于"展示（未登录 anon 数据无昵称，云端 pull 后回填）
-    ownerName: useAuth().state.value.user?.displayName ?? '',
+    ownerName: useAuth().state.user?.displayName ?? '',
     ...input,
   }
   store.put<LocalItem>(ITEM, record)

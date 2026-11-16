@@ -5,10 +5,15 @@ import { registerPrivacyListener } from './composables/usePrivacy'
 import { initSync, syncOnForeground, startForegroundPolling, stopForegroundPolling } from './composables/useSync'
 import { syncAvatarFromServer } from './composables/useAvatar'
 import { refreshHouseholds } from './composables/useHouseholds'
+import { silentWechatRelogin } from './composables/useAuth'
+import { setReloginHook } from './utils/api'
 
 onLaunch(() => {
   // 微信隐私授权监听是全局单例，必须在这里注册一次，各页 PrivacyPopup 才会被唤起
   registerPrivacyListener()
+  // JWT 过期（默认 7 天）后请求 401 自动静默重登换新 token，
+  // 修复"几天没打开小程序后同步卡在旧时间、删掉小程序才能恢复"
+  setReloginHook(silentWechatRelogin)
   // M2 云同步：注册"写后防抖同步"钩子 + 网络恢复监听（幂等，仅执行一次）
   initSync()
 })
