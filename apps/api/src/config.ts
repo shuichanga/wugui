@@ -5,8 +5,9 @@ export const appConfig = registerAs('app', () => ({
   nodeEnv: process.env.NODE_ENV ?? 'development',
   databaseUrl: process.env.DATABASE_URL ?? 'mysql://wugui:wugui@localhost:3306/wugui',
   jwtSecret: process.env.JWT_SECRET ?? 'dev-insecure-secret-change-me',
-  // JWT 有效期：家庭工具类应用低频使用，7 天过期表现为"隔周打开就掉线"；30 天 + 客户端 401 静默重登兜底
-  jwtExpires: process.env.JWT_EXPIRES ?? '30d',
+  // JWT 有效期：家庭工具类应用低频使用，7 天过期表现为"隔周打开就掉线"；30 天 + 客户端 401 静默重登兜底。
+  // 兼容旧部署的 JWT_EXPIRES_IN 命名（现行架构无 refresh token，旧 JWT_REFRESH_EXPIRES_IN 为死配置）
+  jwtExpires: process.env.JWT_EXPIRES ?? process.env.JWT_EXPIRES_IN ?? '30d',
   // 管理员用户 id 列表（逗号分隔）：manual 订阅开通 + Web 管理后台
   adminUserIds: (process.env.ADMIN_USER_IDS ?? '').split(',').map(s => s.trim()).filter(Boolean),
   // 头像落盘目录（相对 cwd；容器内由 volume 挂到 /app/data/avatars 持久化）
