@@ -6,8 +6,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
-import { and, asc, eq } from 'drizzle-orm'
-import { households, householdMembers, users } from '../db/schema'
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
+import { households, householdMembers, users, locations, items, itemTags, itemPhotos, recentViews, syncChanges } from '../db/schema'
 import { DrizzleService } from '../db/database.service'
 import { SessionService } from '../auth/session.service'
 import type { SessionPayload, SessionUser } from '../auth/session.types'
@@ -245,6 +245,59 @@ export class HouseholdsService {
   }
 
   // ---- helpers ----
+
+  /** GET /api/households/:id/stats —— 住所统计（成员可看）：存活空间数 / 物品数（卡片展开展示，无需切换住所） */
+  async stats(user: SessionUser, householdId: string) {
+    await this.requireMembership(user.id, householdId)
+    const db = this.drizzle.db
+    const locRows = await db
+      .select({ id: locations.id })
+      .from(locations)
+      .where(and(eq(locations.householdId, householdId), isNull(locations.deletedAt)))
+    const itemRows = await db
+      .select({ id: items.id })
+      .from(items)
+      .where(and(eq(items.householdId, householdId), isNull(items.deletedAt)))
+    return { locations: locRows.length, items: itemRows.length }
+  }
+
+  /**
+   * DELETE /api/households/:id —— 解散住所（仅 owner）。
+   * 级联清理：成员 / 空间 / 物品（含标签、照片、最近查看）/ 同步队列 / 住所本体。
+   * OSS 照片对象不阻塞删除，留待延迟清理；返回重签 token（删除当前住所时切回剩余第一个）。
+   */
+  async remove(user: SessionUser, householdId: string) {
+    const membership = await this.requireMembership(user.id, householdId)
+    if (membership.role !== 'owner') throw new ForbiddenException('仅住所创建者可删除住所')
+
+    const db = this.drizzle.db
+    const itemRows = await db.select({ id: items.id }).from(items).where(eq(items.householdId, householdId))
+    const itemIds = itemRows.map(r => r.id)
+
+    // 先删挂在物品上的子表，再删主数据（inArray 空数组会生成非法 SQL，需判空）
+    if (itemIds.length) {
+      await db.delete(itemPhotos).where(inArray(itemPhotos.itemId, itemIds))
+      await db.delete(itemTags).where(inArray(itemTags.itemId, itemIds))
+      await db.delete(recentViews).where(inArray(recentViews.itemId, itemIds))
+    }
+    await db.delete(items).where(eq(items.householdId, householdId))
+    await db.delete(locations).where(eq(locations.householdId, householdId))
+    await db.delete(syncChanges).where(eq(syncChanges.householdId, householdId))
+    await db.delete(householdMembers).where(eq(householdMembers.householdId, householdId))
+    await db.delete(households).where(eq(households.id, householdId))
+
+    const payload = await this.loadUserPayload(user.id)
+    const rest = await this.session.getMemberships(this.drizzle.db, user.id)
+    const nextHid = rest[0]?.householdId ?? ''
+    const token = await this.session.signSession({
+      sub: user.id,
+      username: payload.username ?? undefined,
+      email: payload.email ?? undefined,
+      hid: nextHid || undefined,
+    })
+
+    return { ok: true, householdId: nextHid, token }
+  }
 
   private async requireMembership(userId: string, householdId: string) {
     const rows = await this.drizzle.db

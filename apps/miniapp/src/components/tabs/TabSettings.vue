@@ -62,43 +62,44 @@
       </view>
 
       <view v-else class="household-list">
-        <view v-for="h in households" :key="h.id" class="card household-card">
+        <view v-for="h in households" :key="h.id" class="card household-card" @tap="toggleStats(h)">
           <view class="household-row">
             <view class="household-name-wrap">
               <text class="household-name">{{ h.name }}</text>
               <text v-if="h.id === currentHouseholdId" class="badge badge-current">当前</text>
-              <text v-else-if="h.role === 'owner'" class="badge badge-owner">我创建的</text>
             </view>
             <view
               v-if="h.id !== currentHouseholdId"
               class="switch-btn"
-              @tap="onSwitch(h.id)"
+              @tap.stop="onSwitch(h.id)"
             >
               <text>切换</text>
             </view>
           </view>
 
-          <!-- 邀请码行 -->
-          <view v-if="h.role === 'owner' && h.inviteCode" class="invite-row" @tap="copyCode(h.inviteCode)">
-            <text class="invite-label">邀请码</text>
-            <text class="invite-code">{{ h.inviteCode }}</text>
-            <text class="invite-copy">复制</text>
+          <!-- 统计行（点卡片展开）：不切住所也能看各住所的空间/物品数 -->
+          <view v-if="expandedStatsId === h.id" class="stats-row">
+            <text class="stats-item">空间 {{ statsMap[h.id]?.locations ?? '…' }}</text>
+            <text class="stats-sep">·</text>
+            <text class="stats-item">物品 {{ statsMap[h.id]?.items ?? '…' }}</text>
+            <view class="stats-manage" @tap.stop="openManage(h)">
+              <text>管理</text>
+              <text class="stats-manage-arrow">›</text>
+            </view>
           </view>
 
-          <!-- 住所管理链接行 -->
-          <view class="manage-row">
+          <!-- 改名 / 删除（成员住所为退出） -->
+          <view class="manage-row" @tap.stop>
             <template v-if="h.role === 'owner'">
-              <text class="manage-link" @tap="toggleMembers(h.id)">{{ expandedId === h.id ? '收起成员' : '管理成员' }}</text>
-              <text class="manage-sep">·</text>
               <text class="manage-link" @tap="startRename(h)">改名</text>
               <text class="manage-sep">·</text>
-              <text class="manage-link" @tap="onResetInvite(h)">重置邀请码</text>
+              <text class="manage-link manage-link-danger" @tap="deleteHousehold(h)">删除</text>
             </template>
             <text v-else class="manage-link manage-link-danger" @tap="leaveHousehold(h)">退出该住所</text>
           </view>
 
           <!-- 改名表单 -->
-          <view v-if="renamingId === h.id" class="rename-row">
+          <view v-if="renamingId === h.id" class="rename-row" @tap.stop>
             <input
               v-model="renameDraft"
               class="input-base rename-input"
@@ -107,22 +108,6 @@
             />
             <view class="btn-primary rename-save" @tap="submitRename(h)"><text>保存</text></view>
             <view class="btn-secondary rename-cancel" @tap="renamingId = ''"><text>取消</text></view>
-          </view>
-
-          <!-- 成员列表 -->
-          <view v-if="expandedId === h.id" class="member-list">
-            <view v-if="membersPending" class="member-loading">加载中…</view>
-            <view v-for="m in members" :key="m.userId" class="member-row">
-              <text class="member-name">
-                {{ m.displayName ?? m.username ?? '成员' }}
-                <text class="member-role">（{{ m.role === 'owner' ? '创建者' : '成员' }}）</text>
-              </text>
-              <text
-                v-if="m.role === 'member'"
-                class="member-kick"
-                @tap="kickMember(h, m)"
-              >移除</text>
-            </view>
           </view>
         </view>
       </view>
@@ -275,6 +260,44 @@
     <!-- 退出登录（仅登录态） -->
     <button v-if="auth.isLogged" class="btn-danger logout-btn" @tap="onLogout">退出登录</button>
 
+    <!-- 住所管理对话框：邀请码（复制/重置）+ 成员管理，从卡片「管理」进入 -->
+    <view v-if="manageHousehold" class="dlg-mask" @tap="closeManage">
+      <view class="dlg" @tap.stop>
+        <view class="dlg-head">
+          <text class="dlg-title">{{ manageHousehold.name }}</text>
+          <text class="dlg-close" @tap="closeManage">✕</text>
+        </view>
+
+        <!-- 邀请码（仅创建者可见） -->
+        <view v-if="manageHousehold.role === 'owner'" class="dlg-invite">
+          <text class="invite-label">邀请码</text>
+          <text class="invite-code">{{ manageHousehold.inviteCode || '未生成' }}</text>
+          <text class="invite-copy" @tap="copyCode(manageHousehold.inviteCode || '')">复制</text>
+          <text class="invite-reset" @tap="onResetInvite(manageHousehold)">重置</text>
+        </view>
+        <view v-else class="dlg-invite-hint">
+          <text>你是该住所成员，邀请码由创建者管理</text>
+        </view>
+
+        <!-- 成员列表 -->
+        <view class="dlg-sec">
+          <text class="dlg-sec-title">成员（{{ members.length }}）</text>
+          <view v-if="membersPending" class="member-loading">加载中…</view>
+          <view v-for="m in members" :key="m.userId" class="member-row">
+            <text class="member-name">
+              {{ m.displayName ?? m.username ?? '成员' }}
+              <text class="member-role">（{{ m.role === 'owner' ? '创建者' : '成员' }}）</text>
+            </text>
+            <text
+              v-if="manageHousehold.role === 'owner' && m.role === 'member'"
+              class="member-kick"
+              @tap="kickMember(manageHousehold, m)"
+            >移除</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
     <!-- 底部版本号 -->
     <text class="version-text">物归 v{{ version }} · 开源项目</text>
   </view>
@@ -287,8 +310,12 @@ import { useAuth } from '../../composables/useAuth'
 import {
   buildLocationTree, createItem, createLocation, getLocationPath, useStore,
   migrateAnonToHousehold,
+  ITEM, LOCATION,
+  type LocalRecord,
   type LocationTreeNode,
 } from '../../composables/useLocalData'
+import { createKVLocalStore } from '@wugui/core'
+import { kvDriver } from '../../utils/kv'
 import { useTheme, THEMES } from '../../composables/useTheme'
 import { useHomeTabs } from '../../composables/useHomeTabs'
 import { useAvatar } from '../../composables/useAvatar'
@@ -377,51 +404,86 @@ function onSwitch(id: string) {
   if (switchTo(id)) switchTab('home')
 }
 
-// ---- 成员管理（服务端住所拉取真实成员；本地模式模拟 owner） ----
-const expandedId = ref('')
+// ---- 卡片展开统计（当前住所读本地；其他住所走服务端 /stats；本地伪住所读对应命名空间） ----
+const expandedStatsId = ref('')
+const statsMap = ref<Record<string, { locations: number; items: number }>>({})
+
+function toggleStats(h: Household) {
+  if (expandedStatsId.value === h.id) {
+    expandedStatsId.value = ''
+    return
+  }
+  expandedStatsId.value = h.id
+  if (!statsMap.value[h.id]) void fillStats(h)
+}
+
+async function fillStats(h: Household) {
+  try {
+    if (h.id === currentHouseholdId.value) {
+      statsMap.value[h.id] = { locations: store.locations().length, items: store.items().length }
+      return
+    }
+    if (auth.isLogged && !isPseudoId(h.id)) {
+      statsMap.value[h.id] = await api.get<{ locations: number; items: number }>(`/households/${h.id}/stats`)
+      return
+    }
+    // 本地伪住所（游客/历史本地模式）：直接读对应命名空间的本地存储
+    const s = createKVLocalStore(kvDriver, h.id)
+    statsMap.value[h.id] = {
+      locations: s.list<LocalRecord>(LOCATION).filter(r => !r.deletedAt).length,
+      items: s.list<LocalRecord>(ITEM).filter(r => !r.deletedAt).length,
+    }
+  } catch {
+    expandedStatsId.value = ''
+    uni.showToast({ title: '统计获取失败，请重试', icon: 'none' })
+  }
+}
+
+// ---- 住所管理对话框：邀请码（复制/重置）+ 成员列表（owner 可移除） ----
+const manageHousehold = ref<Household | null>(null)
 const members = ref<{ userId: string; role: string; username: string | null; displayName: string | null }[]>([])
 const membersPending = ref(false)
 
-async function toggleMembers(id: string) {
-  if (expandedId.value === id) {
-    expandedId.value = ''
-    return
-  }
-  expandedId.value = id
+function openManage(h: Household) {
+  manageHousehold.value = h
+  members.value = []
   membersPending.value = true
 
-  // 服务端住所：拉取真实成员列表（此前是本地模拟假数据，导致成员管理完全失效）
-  if (auth.isLogged && !isPseudoId(id)) {
-    try {
-      const rows = await api.get<{ userId: string; role: string; username: string | null; displayName: string | null }[]>(
-        `/households/${id}/members`,
+  // 服务端住所：拉取真实成员列表
+  if (auth.isLogged && !isPseudoId(h.id)) {
+    api
+      .get<{ userId: string; role: string; username: string | null; displayName: string | null }[]>(
+        `/households/${h.id}/members`,
       )
-      members.value = rows.map(r => ({
-        userId: r.userId,
-        role: r.role,
-        username: r.username,
-        displayName: r.displayName,
-      }))
-    } catch (e) {
-      members.value = []
-      membersPending.value = false
-      uni.showToast({ title: errMsg(e) || '成员列表获取失败', icon: 'none' })
-      return
-    }
-    membersPending.value = false
+      .then(rows => {
+        members.value = rows.map(r => ({
+          userId: r.userId,
+          role: r.role,
+          username: r.username,
+          displayName: r.displayName,
+        }))
+      })
+      .catch(e => {
+        uni.showToast({ title: errMsg(e) || '成员列表获取失败', icon: 'none' })
+      })
+      .finally(() => {
+        membersPending.value = false
+      })
     return
   }
 
-  // 本地模式：模拟一个 owner 成员
-  setTimeout(() => {
-    members.value = [{
-      userId: auth.state.user?.id ?? 'me',
-      role: 'owner',
-      username: auth.state.user?.username ?? null,
-      displayName: auth.state.user?.displayName ?? null,
-    }]
-    membersPending.value = false
-  }, 200)
+  // 本地模式：仅自己（owner）
+  members.value = [{
+    userId: auth.state.user?.id ?? 'me',
+    role: 'owner',
+    username: auth.state.user?.username ?? null,
+    displayName: auth.state.user?.displayName ?? null,
+  }]
+  membersPending.value = false
+}
+
+function closeManage() {
+  manageHousehold.value = null
 }
 
 function kickMember(h: Household, m: { userId: string; displayName?: string | null }) {
@@ -443,6 +505,31 @@ function kickMember(h: Household, m: { userId: string; displayName?: string | nu
         }
         members.value = members.value.filter(x => x.userId !== m.userId)
         uni.showToast({ title: '已移除', icon: 'success' })
+      })()
+    },
+  })
+}
+
+/** 删除住所（owner）：服务端住所调解散接口（云端数据级联清空 + 重签 token），本地住所直接删 */
+function deleteHousehold(h: Household) {
+  uni.showModal({
+    title: '删除住所',
+    content: `确定删除「${h.name}」？云端数据将被清空，所有成员将失去访问。`,
+    confirmColor: '#dc2626',
+    success: (res) => {
+      if (!res.confirm) return
+      void (async () => {
+        if (auth.isLogged && !isPseudoId(h.id)) {
+          try {
+            const r = await api.delete<{ ok: boolean; token: string; householdId?: string }>(`/households/${h.id}`)
+            auth.applyToken(r.token, r.householdId ?? '')
+          } catch (e) {
+            uni.showToast({ title: errMsg(e) || '删除失败，请重试', icon: 'none' })
+            return
+          }
+        }
+        remove(h.id)
+        uni.showToast({ title: '已删除', icon: 'success' })
       })()
     },
   })
@@ -600,6 +687,10 @@ function joinHousehold() {
 }
 
 function copyCode(code: string) {
+  if (!code) {
+    uni.showToast({ title: '邀请码未生成，请先重置', icon: 'none' })
+    return
+  }
   uni.setClipboardData({
     data: code,
     success: () => uni.showToast({ title: '邀请码已复制', icon: 'success' }),
@@ -1149,10 +1240,6 @@ defineExpose({ refresh: reload })
   background: #e3f3ea;
   color: #16a34a;
 }
-.badge-owner {
-  border: 1rpx solid #e4eae5;
-  color: #8a978f;
-}
 .switch-btn {
   padding: 8rpx 20rpx;
   background: #e3f3ea;
@@ -1165,16 +1252,63 @@ defineExpose({ refresh: reload })
   color: #16a34a;
 }
 
-/* 邀请码 */
-.invite-row {
+/* 卡片展开统计行 */
+.stats-row {
   display: flex;
   align-items: center;
   gap: 12rpx;
   margin-top: 20rpx;
   padding: 16rpx 20rpx;
+  background: #f3f6f2;
+  border-radius: 12rpx;
+}
+.stats-item {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #182720;
+}
+.stats-sep {
+  font-size: 24rpx;
+  color: #cdd6cf;
+}
+.stats-manage {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  flex-shrink: 0;
+}
+.stats-manage > text:first-child {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #16a34a;
+}
+.stats-manage-arrow {
+  font-size: 26rpx;
+  line-height: 1;
+  color: #16a34a;
+}
+
+/* 邀请码（住所管理对话框内） */
+.dlg-invite {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 8rpx;
+  padding: 16rpx 20rpx;
   border: 1rpx solid #e3f3ea;
   background: #f3faf5;
   border-radius: 12rpx;
+}
+.dlg-invite-hint {
+  margin-top: 8rpx;
+  padding: 16rpx 20rpx;
+  background: #f3f6f2;
+  border-radius: 12rpx;
+}
+.dlg-invite-hint > text {
+  font-size: 24rpx;
+  color: #8a978f;
 }
 .invite-label {
   font-size: 22rpx;
@@ -1197,6 +1331,13 @@ defineExpose({ refresh: reload })
   color: #16a34a;
   font-weight: 600;
   flex-shrink: 0;
+  padding: 4rpx 8rpx;
+}
+.invite-reset {
+  font-size: 22rpx;
+  color: #8a978f;
+  flex-shrink: 0;
+  padding: 4rpx 8rpx;
 }
 
 /* 管理链接行 */
@@ -1475,5 +1616,63 @@ defineExpose({ refresh: reload })
   font-size: 22rpx;
   color: #aebbb2;
   letter-spacing: 2rpx;
+}
+
+/* 住所管理对话框 */
+.dlg-mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 300;
+  background: rgba(24, 39, 32, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx;
+}
+.dlg {
+  width: 100%;
+  max-width: 600rpx;
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 32rpx 28rpx;
+  box-shadow: 0 16rpx 48rpx rgba(24, 39, 32, 0.2);
+}
+.dlg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+.dlg-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #182720;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+.dlg-close {
+  font-size: 30rpx;
+  line-height: 1;
+  color: #8a978f;
+  padding: 8rpx;
+  flex-shrink: 0;
+}
+.dlg-sec {
+  margin-top: 24rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+.dlg-sec-title {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #51605a;
+  padding-bottom: 4rpx;
 }
 </style>

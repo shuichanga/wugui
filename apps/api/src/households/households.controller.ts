@@ -62,10 +62,28 @@ export class HouseholdsController {
     return this.service.resetInvite(user, id)
   }
 
+  /** GET /api/households/:id/stats —— 住所统计（空间数/物品数，成员可看） */
+  @Get(':id/stats')
+  stats(@Param('id') id: string, @CurrentUser() user: SessionUser) {
+    return this.service.stats(user, id)
+  }
+
   /** GET /api/households/:id/members —— 列出成员 */
   @Get(':id/members')
   members(@Param('id') id: string, @CurrentUser() user: SessionUser) {
     return this.service.members(user, id)
+  }
+
+  /** DELETE /api/households/:id —— 解散住所（仅 owner），返回重签 token（删的是当前住所则切回剩余第一个） */
+  @Delete(':id')
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser() user: SessionUser,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    const result = await this.service.remove(user, id)
+    this.session.setAuthCookie(reply, result.token)
+    return result
   }
 
   /** DELETE /api/households/:id/members/me —— 退出住所（必须放在 :userId 之前，否则 me 会被当作 userId 匹配） */
