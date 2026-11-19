@@ -611,14 +611,16 @@ function createHousehold() {
   if (auth.isLogged) {
     creating.value = true
     api.post<{ id: string; name: string; role: string; token: string }>('/households', { name })
-      .then(async res => {
+      .then(res => {
         auth.applyToken(res.token, res.id)
         upsert({ id: res.id, name: res.name, role: 'owner', inviteCode: genInviteCode() })
         const migrated = migrateAnonToHousehold(res.id)
         showCreate.value = false
         createName.value = ''
         uni.showToast({ title: migrated ? `已创建，归入 ${migrated} 条暂存数据` : '已创建', icon: 'none' })
-        await syncAfterHouseholdChange()
+        // 同步失败不影响创建结果：此前 await 在 then 内，弱网/真机调试下全量同步失败
+        // 被 catch 误报成"创建失败"（住所实际已建好）
+        void syncAfterHouseholdChange()
       })
       .catch(e => {
         uni.showToast({ title: errMsg(e) || '创建失败，请重试', icon: 'none' })
@@ -654,14 +656,15 @@ function joinHousehold() {
   if (auth.isLogged) {
     creating.value = true
     api.post<{ ok: boolean; householdId: string; name: string; token: string }>('/households/join', { inviteCode: code })
-      .then(async res => {
+      .then(res => {
         auth.applyToken(res.token, res.householdId)
         upsert({ id: res.householdId, name: res.name, role: 'member', inviteCode: code })
         const migrated = migrateAnonToHousehold(res.householdId)
         showJoin.value = false
         joinCode.value = ''
         uni.showToast({ title: migrated ? `已加入，归入 ${migrated} 条暂存数据` : '已加入', icon: 'none' })
-        await syncAfterHouseholdChange()
+        // 同失败不影响加入结果（同创建住所：弱网下同步失败不应误报）
+        void syncAfterHouseholdChange()
       })
       .catch(e => {
         uni.showToast({ title: errMsg(e) || '加入失败，请检查邀请码', icon: 'none' })
@@ -694,8 +697,14 @@ function copyCode(code: string) {
   uni.setClipboardData({
     data: code,
     success: () => uni.showToast({ title: '邀请码已复制', icon: 'success' }),
-    // 写剪贴板是隐私接口：被隐私授权拦截或系统拒绝时走 fail，必须给提示
-    fail: () => uni.showToast({ title: '复制失败，请重试', icon: 'none' }),
+    fail: (e) => {
+      // 写剪贴板在真机受隐私管控（后台指引未声明/未同意时静默 fail），
+      // 把 errMsg 透出到提示里，便于定位授权问题
+      const raw = (e as { errMsg?: string })?.errMsg ?? ''
+      const detail = raw.replace('setClipboardData:fail ', '').slice(0, 40)
+      console.error('setClipboardData fail:', raw)
+      uni.showToast({ title: `复制失败 ${detail || '请重试'}`, icon: 'none' })
+    },
   })
 }
 
