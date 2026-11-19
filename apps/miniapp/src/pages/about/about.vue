@@ -33,7 +33,7 @@
       <view class="card desc-card">
         <text class="desc-text">
           物归是一个开源的家庭物品管理应用，帮你把家里的东西「放得明确、找得回来」。
-          多住所、房间—家具—格子三级定位，全家人一起维护。
+          多住所、房间—家具—格子三级定位，数据多端同步。
         </text>
       </view>
     </view>
@@ -57,7 +57,7 @@
           </view>
           <view class="row-body">
             <text class="row-title">云同步数据</text>
-            <text class="row-sub">开通云同步后，物品信息与照片将同步至云端服务器，用于多设备互通与家人共享</text>
+            <text class="row-sub">开通云同步后，物品信息与照片将同步至云端服务器，用于多设备互通</text>
           </view>
         </view>
         <view class="list-row list-row-border">

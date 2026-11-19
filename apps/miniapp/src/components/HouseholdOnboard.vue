@@ -6,7 +6,7 @@
         <LocationIcon slug="tab-home" :size="44" />
       </view>
       <text class="ho-title">创建你的住所</text>
-      <text class="ho-sub">住所是整理空间与物品的起点，创建后可邀请家人加入共享</text>
+      <text class="ho-sub">住所是整理空间与物品的起点，按房间、家具、格位逐级收纳</text>
 
       <view class="ho-field">
         <text class="ho-label">住所名称</text>

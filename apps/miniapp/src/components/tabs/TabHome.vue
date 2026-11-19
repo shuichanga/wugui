@@ -34,7 +34,7 @@
           </view>
           <view class="step-body">
             <view class="step-title">创建住所</view>
-            <view class="step-hint">住所是整理的起点，可邀请家人共享</view>
+            <view class="step-hint">住所是整理的起点，按空间逐级收纳</view>
           </view>
           <text v-if="!hasHousehold" class="step-link" @tap="onCreateHousehold">去创建</text>
         </view>

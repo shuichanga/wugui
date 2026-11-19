@@ -48,7 +48,7 @@
       <view class="feat-list">
         <view class="feat-row"><view class="feat-dot"></view><text class="feat-text">物品 / 空间多设备实时同步</text></view>
         <view class="feat-row"><view class="feat-dot"></view><text class="feat-text">与 Web 端数据互通</text></view>
-        <view class="feat-row"><view class="feat-dot"></view><text class="feat-text">家庭共享：家人加入住所即享同步</text></view>
+        <view class="feat-row"><view class="feat-dot"></view><text class="feat-text">同一账号下多个住所均可同步</text></view>
         <view class="feat-row"><view class="feat-dot"></view><text class="feat-text">会员免广告</text></view>
       </view>
       <button class="btn-primary buy-btn" :disabled="paying" @tap="onBuy">

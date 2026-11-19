@@ -58,7 +58,7 @@
       </view>
 
       <view v-if="!households.length" class="card empty-household">
-        <text>你还没有加入任何住所：创建一个自己的住所，或输入家人分享给你的邀请码加入。</text>
+        <text>你还没有加入任何住所：先创建一个自己的住所。</text>
       </view>
 
       <view v-else class="household-list">
